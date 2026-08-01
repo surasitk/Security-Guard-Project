@@ -153,11 +153,11 @@ async function tenantFolder() {
 export function getPosition() {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) { reject(new Error('no_geolocation')); return }
+    // enableHighAccuracy:false → ใช้ wifi/เสาสัญญาณ เร็วและได้ในอาคาร (ไม่รอ GPS ดาวเทียม)
     navigator.geolocation.getCurrentPosition(
       (pos) => resolve(pos.coords),
       (err) => reject(err),
-      // maximumAge 30 วิ: ใช้พิกัดล่าสุดที่เพิ่งได้ ทำให้เร็วขึ้นมากใน LINE in-app browser
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 },
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 },
     )
   })
 }

@@ -1,4 +1,4 @@
-// F3 — เข้างาน / ออกงาน: เลือกกะ → GPS + selfie → RPC check_in/check_out
+// F3 — เข้างาน / ออกงาน: ถ่ายรูป → อัปโหลด → ขอ GPS (ถ้าไม่ได้ ให้เข้างานแบบไม่มีพิกัด+ติดธง) → RPC
 import { useEffect, useRef, useState } from 'react'
 import {
   getUser, rpc, list, getPosition, compressImage, uploadSelfie, deviceFingerprint, withTimeout,
@@ -11,13 +11,8 @@ const ERROR_TH = {
   not_checked_in: 'ยังไม่ได้ลงเวลาเข้างานของกะนี้',
   device_blocked: 'เครื่องนี้ถูกระงับการใช้งาน — ติดต่อหัวหน้ากะ',
 }
-
-function fmtTime(ts) {
-  return new Date(ts).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
-}
-function fmtDay(ts) {
-  return new Date(ts).toLocaleDateString('th-TH', { weekday: 'short', day: 'numeric', month: 'short' })
-}
+const fmtTime = (ts) => new Date(ts).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
+const fmtDay = (ts) => new Date(ts).toLocaleDateString('th-TH', { weekday: 'short', day: 'numeric', month: 'short' })
 
 export default function Home() {
   const user = getUser()
@@ -26,15 +21,15 @@ export default function Home() {
   const [selected, setSelected] = useState(null)
   const [busy, setBusy] = useState(false)
   const [step, setStep] = useState('')
-  const [msg, setMsg] = useState(null) // {type:'ok'|'err', text}
+  const [msg, setMsg] = useState(null)          // {type:'ok'|'err', text}
+  const [gpsFallback, setGpsFallback] = useState(null) // { action, selfiePath, fp } เมื่อ GPS ล้มเหลว
   const fileRef = useRef(null)
-  const pendingAction = useRef(null) // 'in' | 'out'
+  const pendingAction = useRef(null)
 
   async function loadShifts() {
     const rows = await rpc('my_current_assignments')
     setShifts(rows)
     setSelected(rows.length === 1 ? rows[0] : null)
-    // กะล่วงหน้า 7 วัน (ไม่รวมกะที่อยู่ในช่วง check-in แล้ว)
     const now = new Date().toISOString()
     const week = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString()
     const up = await list(`shift_assignments?select=id,starts_at,ends_at,is_holiday_work,status,properties(name)&starts_at=gt.${now}&starts_at=lt.${week}&status=eq.scheduled&order=starts_at&limit=15`)
@@ -43,62 +38,73 @@ export default function Home() {
   useEffect(() => { loadShifts().catch(() => setShifts([])) }, [])
 
   function startAction(action) {
-    setMsg(null)
+    setMsg(null); setGpsFallback(null)
     pendingAction.current = action
-    fileRef.current.click() // เปิดกล้องหน้า (capture=user)
+    fileRef.current.click()
+  }
+
+  // ยิง RPC จริง — coords อาจเป็น null (เข้างานแบบไม่มีพิกัด)
+  async function doSubmit(action, selfiePath, fp, coords) {
+    setStep('กำลังบันทึกเวลา…'); setBusy(true)
+    try {
+      const out = action === 'in'
+        ? await rpc('check_in', {
+            p_assignment_id: selected.assignment_id,
+            p_lat: coords ? coords.latitude : null, p_lng: coords ? coords.longitude : null,
+            p_selfie_url: selfiePath, p_device_fingerprint: fp, p_user_agent: navigator.userAgent, p_gps_is_mock: false,
+          })
+        : await rpc('check_out', {
+            p_assignment_id: selected.assignment_id,
+            p_lat: coords ? coords.latitude : null, p_lng: coords ? coords.longitude : null, p_selfie_url: selfiePath,
+          })
+      if (out.ok) {
+        setGpsFallback(null)
+        if (action === 'in') {
+          const late = out.late_minutes > 0 ? ` (สาย ${out.late_minutes} นาที)` : ' ตรงเวลา'
+          const nogps = out.no_gps ? ' · ไม่มีพิกัด — หัวหน้าจะตรวจสอบ' : ''
+          setMsg({ type: 'ok', text: `✓ เข้างานสำเร็จ ${fmtTime(new Date().toISOString())}${late}${nogps}` })
+        } else {
+          setMsg({ type: 'ok', text: `✓ ออกงานสำเร็จ ${fmtTime(new Date().toISOString())}` })
+        }
+        await loadShifts()
+      } else if (out.error === 'outside_geofence') {
+        setMsg({ type: 'err', text: `คุณอยู่ห่างพื้นที่ ${Math.round(out.distance_m)} เมตร — เข้าใกล้จุดปฏิบัติงานแล้วลองใหม่` })
+      } else {
+        setMsg({ type: 'err', text: ERROR_TH[out.error] || `ไม่สำเร็จ (${out.error})` })
+      }
+    } catch (e) {
+      setMsg({ type: 'err', text: `บันทึกไม่สำเร็จ (${String(e.message || e)}) — ลองใหม่` })
+    } finally { setBusy(false); setStep('') }
   }
 
   async function onSelfie(e) {
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file || !selected) return
-    setBusy(true)
+    const action = pendingAction.current
+    setBusy(true); setMsg(null); setGpsFallback(null)
+    let selfiePath, fp
     try {
-      setStep('กำลังขอตำแหน่ง GPS… (ถ้ามีป๊อปอัพขออนุญาต กดอนุญาตนะครับ)')
-      const coords = await withTimeout(getPosition(), 20000, 'gps')
-      setStep('กำลังบีบอัดรูป…')
+      setStep('กำลังเตรียมรูป…')
       const blob = await withTimeout(compressImage(file), 15000, 'compress')
       setStep('กำลังอัปโหลดรูป…')
-      const selfiePath = await withTimeout(uploadSelfie(blob), 30000, 'upload')
-      setStep('กำลังบันทึกเวลา…')
-      const fp = await deviceFingerprint()
-
-      const action = pendingAction.current
-      const out = action === 'in'
-        ? await rpc('check_in', {
-            p_assignment_id: selected.assignment_id,
-            p_lat: coords.latitude, p_lng: coords.longitude,
-            p_selfie_url: selfiePath,
-            p_device_fingerprint: fp, p_user_agent: navigator.userAgent,
-            p_gps_is_mock: false,
-          })
-        : await rpc('check_out', {
-            p_assignment_id: selected.assignment_id,
-            p_lat: coords.latitude, p_lng: coords.longitude,
-            p_selfie_url: selfiePath,
-          })
-
-      if (out.ok) {
-        if (action === 'in') {
-          setMsg({ type: 'ok', text: out.late_minutes > 0 ? `เข้างานแล้ว (สาย ${out.late_minutes} นาที)` : 'เข้างานสำเร็จ ตรงเวลา' })
-        } else {
-          setMsg({ type: 'ok', text: 'ออกงานสำเร็จ' })
-        }
-        await loadShifts()
-      } else if (out.error === 'outside_geofence') {
-        setMsg({ type: 'err', text: `คุณอยู่ห่างพื้นที่ ${Math.round(out.distance_m)} เมตร — เข้าใกล้จุดปฏิบัติงานแล้วลองใหม่ หรือแจ้งหัวหน้ากะ` })
-      } else {
-        setMsg({ type: 'err', text: ERROR_TH[out.error] || `ไม่สำเร็จ (${out.error})` })
-      }
+      selfiePath = await withTimeout(uploadSelfie(blob), 30000, 'upload')
+      fp = await deviceFingerprint()
     } catch (err) {
       const m = String(err?.message || err)
-      if (err?.code === 1) setMsg({ type: 'err', text: 'ไม่ได้รับอนุญาตใช้ตำแหน่ง — เข้า ตั้งค่ามือถือ > แอป LINE > เปิดสิทธิ์ตำแหน่ง (Location) แล้วลองใหม่' })
-      else if (err?.code === 3 || m === 'timeout:gps') setMsg({ type: 'err', text: 'หาสัญญาณ GPS ไม่ได้ — ออกไปที่โล่งหรือเปิด Location Services แล้วลองใหม่' })
-      else if (m === 'timeout:upload') setMsg({ type: 'err', text: 'อัปโหลดรูปช้าเกินไป — สัญญาณเน็ตอ่อน ลองใหม่อีกครั้ง' })
-      else setMsg({ type: 'err', text: `เกิดข้อผิดพลาด (${m}) — ลองใหม่ หรือแคปหน้าจอนี้ส่งให้ผู้ดูแล` })
-    } finally {
-      setBusy(false)
-      setStep('')
+      setMsg({ type: 'err', text: m === 'timeout:upload' ? 'อัปโหลดรูปช้าเกินไป — สัญญาณเน็ตอ่อน ลองใหม่' : `เตรียมรูปไม่สำเร็จ (${m})` })
+      setBusy(false); setStep(''); return
+    }
+    // รูปพร้อมแล้ว → ลองขอ GPS แบบเร็ว
+    setStep('กำลังหาตำแหน่ง…')
+    try {
+      const coords = await withTimeout(getPosition(), 12000, 'gps')
+      await doSubmit(action, selfiePath, fp, coords)
+    } catch (err) {
+      // GPS ล้มเหลว → ไม่ error ทิ้ง แต่ให้ทางเลือกเข้างานแบบไม่มีพิกัด (รูปอัปแล้ว)
+      setBusy(false); setStep('')
+      setGpsFallback({ action, selfiePath, fp })
+      setMsg({ type: 'err', text: 'หาตำแหน่งไม่ได้ (อยู่ในอาคาร/สัญญาณอ่อน) — กดปุ่มด้านล่างเพื่อเข้างานโดยไม่มีพิกัด ระบบจะติดธงให้หัวหน้าตรวจสอบ' })
     }
   }
 
@@ -121,39 +127,31 @@ export default function Home() {
       )}
 
       {shifts?.map((s) => (
-        <div
-          key={s.assignment_id}
-          className="card"
-          onClick={() => setSelected(s)}
-          style={{
-            cursor: 'pointer',
-            borderColor: selected?.assignment_id === s.assignment_id ? 'var(--ink)' : 'var(--line)',
-            borderWidth: selected?.assignment_id === s.assignment_id ? 2 : 1,
-          }}
-        >
+        <div key={s.assignment_id} className="card" onClick={() => setSelected(s)}
+          style={{ cursor: 'pointer', borderColor: selected?.assignment_id === s.assignment_id ? 'var(--ink)' : 'var(--line)', borderWidth: selected?.assignment_id === s.assignment_id ? 2 : 1 }}>
           <div className="k">{s.status === 'checked_in' ? '● กำลังปฏิบัติงาน' : 'กะที่กำลังจะถึง'}</div>
           <div className="v">{s.property_name}{s.unit_name ? ` · ${s.unit_name}` : ''}</div>
           <p className="muted" style={{ marginTop: 6 }}>
-            {fmtTime(s.starts_at)} – {fmtTime(s.ends_at)}
-            {s.checked_in_at && ` · เข้างาน ${fmtTime(s.checked_in_at)}`}
+            {fmtTime(s.starts_at)} – {fmtTime(s.ends_at)}{s.checked_in_at && ` · เข้างาน ${fmtTime(s.checked_in_at)}`}
           </p>
         </div>
       ))}
 
-      {busy && (
-        <div className="notice">
-          <div className="bar"><span /></div>
-          {step}
-        </div>
-      )}
+      {busy && <div className="notice"><div className="bar"><span /></div>{step}</div>}
       {msg && <div className={`notice ${msg.type === 'err' ? 'err' : ''}`}>{msg.text}</div>}
 
-      {selected && selected.status === 'scheduled' && (
+      {gpsFallback && !busy && (
+        <button className="btn ghost" onClick={() => doSubmit(gpsFallback.action, gpsFallback.selfiePath, gpsFallback.fp, null)}>
+          {gpsFallback.action === 'in' ? 'เข้างานโดยไม่มีพิกัด' : 'ออกงานโดยไม่มีพิกัด'}
+        </button>
+      )}
+
+      {selected && selected.status === 'scheduled' && !gpsFallback && (
         <button className="btn" onClick={() => startAction('in')} disabled={busy}>
           {busy ? 'กำลังบันทึก…' : 'เข้างาน (ถ่ายรูปยืนยัน)'}
         </button>
       )}
-      {selected && selected.status === 'checked_in' && (
+      {selected && selected.status === 'checked_in' && !gpsFallback && (
         <button className="btn" onClick={() => startAction('out')} disabled={busy}>
           {busy ? 'กำลังบันทึก…' : 'ออกงาน (ถ่ายรูปยืนยัน)'}
         </button>
@@ -165,12 +163,8 @@ export default function Home() {
           <p className="brand" style={{ marginBottom: 8 }}>กะล่วงหน้า 7 วัน</p>
           {upcoming.map((u) => (
             <div key={u.id} className="card" style={{ padding: '14px 18px', marginBottom: 8 }}>
-              <div className="v" style={{ fontSize: 15 }}>
-                {fmtDay(u.starts_at)}{u.is_holiday_work ? ' · วันหยุด (OT)' : ''}
-              </div>
-              <p className="muted" style={{ marginTop: 4 }}>
-                {u.properties?.name} · {fmtTime(u.starts_at)}–{fmtTime(u.ends_at)}
-              </p>
+              <div className="v" style={{ fontSize: 15 }}>{fmtDay(u.starts_at)}{u.is_holiday_work ? ' · วันหยุด (OT)' : ''}</div>
+              <p className="muted" style={{ marginTop: 4 }}>{u.properties?.name} · {fmtTime(u.starts_at)}–{fmtTime(u.ends_at)}</p>
             </div>
           ))}
         </>
