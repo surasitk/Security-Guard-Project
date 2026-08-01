@@ -2,17 +2,26 @@ import { useEffect, useState } from 'react'
 import { initLiff, silentLogin } from './lib/api'
 import Register from './pages/Register.jsx'
 import Home from './pages/Home.jsx'
+import Scan from './pages/Scan.jsx'
+import Soon from './pages/Soon.jsx'
+
+// อ่านหน้าเป้าหมายจาก ?page= (rich menu ยิงคนละลิงก์)
+function targetPage() {
+  const p = new URLSearchParams(window.location.search).get('page')
+  return ['scan', 'incident', 'leave'].includes(p) ? p : 'home'
+}
 
 export default function App() {
-  const [state, setState] = useState('loading') // loading | register | home | error
+  const [state, setState] = useState('loading') // loading | register | ready | error
   const [errMsg, setErrMsg] = useState('')
+  const page = targetPage()
 
   useEffect(() => {
     (async () => {
       try {
         await initLiff()
         const registered = await silentLogin()
-        setState(registered ? 'home' : 'register')
+        setState(registered ? 'ready' : 'register')
       } catch (e) {
         setErrMsg(String(e.message || e))
         setState('error')
@@ -37,6 +46,10 @@ export default function App() {
       </div>
     )
   }
-  if (state === 'register') return <Register onDone={() => setState('home')} />
+  if (state === 'register') return <Register onDone={() => setState('ready')} />
+
+  if (page === 'scan') return <Scan />
+  if (page === 'incident') return <Soon title="แจ้งเหตุ" note="ระบบแจ้งเหตุ/บันทึกเหตุการณ์กำลังพัฒนา" />
+  if (page === 'leave') return <Soon title="ขอลา" note="ระบบยื่นใบลา/อนุมัติกำลังพัฒนา" />
   return <Home />
 }

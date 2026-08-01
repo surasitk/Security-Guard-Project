@@ -4,6 +4,7 @@ import Dashboard from './pages/Dashboard.jsx'
 import Monitor from './pages/Monitor.jsx'
 import People from './pages/People.jsx'
 import Properties from './pages/Properties.jsx'
+import Checkpoints from './pages/Checkpoints.jsx'
 import Shifts from './pages/Shifts.jsx'
 import Vendors from './pages/Vendors.jsx'
 import { rpc } from './lib/api'
@@ -14,6 +15,7 @@ const BASE_TABS = [
   { key: 'shifts', label: 'ตารางกะ', el: Shifts },
   { key: 'people', label: 'พนักงาน', el: People },
   { key: 'properties', label: 'โครงการ', el: Properties },
+  { key: 'checkpoints', label: 'จุดตรวจ (QR)', el: Checkpoints },
 ]
 const VENDOR_TAB = { key: 'vendors', label: 'Vendors', el: Vendors }
 
