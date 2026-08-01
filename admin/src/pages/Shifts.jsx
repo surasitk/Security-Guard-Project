@@ -1,6 +1,6 @@
 // ตารางกะ — สร้างแม่แบบกะ + generate กะรายเดือนให้ยาม + ดูกะล่วงหน้า
 import { useEffect, useState } from 'react'
-import { list, insert, rpc, tenantId, fmtTime, fmtDate } from '../lib/api'
+import { list, insert, update, rpc, tenantId, fmtTime, fmtDate } from '../lib/api'
 
 const DOW = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส']
 
@@ -27,8 +27,22 @@ export default function Shifts() {
   }
   useEffect(() => { load() }, [])
 
+  function overlaps(a1, a2, b1, b2) {
+    // เทียบเวลาแบบสตริง HH:MM — พอสำหรับเตือนเบื้องต้น (กะข้ามเที่ยงคืนไม่นับ)
+    return a1 < b2 && b1 < a2
+  }
+
   async function addTemplate(e) {
     e.preventDefault(); setMsg(null)
+    const dup = templates.find((t) => t.property_id === tForm.property_id
+      && t.name.trim() === tForm.name.trim()
+      && String(t.start_time).slice(0, 5) === tForm.start
+      && String(t.end_time).slice(0, 5) === tForm.end)
+    if (dup) { setMsg({ t: 'err', m: 'มีแม่แบบชื่อ/เวลานี้ในโครงการนี้อยู่แล้ว' }); return }
+    const olap = templates.find((t) => t.property_id === tForm.property_id
+      && !t.crosses_midnight && !tForm.cross
+      && overlaps(tForm.start, tForm.end, String(t.start_time).slice(0, 5), String(t.end_time).slice(0, 5)))
+    if (olap && !window.confirm(`เวลาเหลื่อมกับแม่แบบ "${olap.name}" (${String(olap.start_time).slice(0, 5)}-${String(olap.end_time).slice(0, 5)}) ในโครงการเดียวกัน\n\nถ้าเป็นคนละจุดประจำการ (เช่น ประตูหน้า/ลานจอด) กด OK เพื่อสร้างต่อ`)) return
     try {
       await insert('shift_templates', {
         tenant_id: tenantId(),
@@ -93,6 +107,30 @@ export default function Shifts() {
           <button className="btn inline" type="submit">สร้างแม่แบบ</button>
         </div>
       </form>
+
+      {templates.length > 0 && (
+        <table className="grid" style={{ marginTop: 14 }}>
+          <thead><tr><th>โครงการ</th><th>ชื่อกะ</th><th>เวลา</th><th>วันที่มีกะ</th><th></th></tr></thead>
+          <tbody>
+            {templates.map((t) => (
+              <tr key={t.id}>
+                <td>{t.properties?.name}</td>
+                <td>{t.name}{t.crosses_midnight ? ' · ข้ามคืน' : ''}</td>
+                <td>{String(t.start_time).slice(0, 5)}–{String(t.end_time).slice(0, 5)}</td>
+                <td>{(t.days_of_week || []).length === 7 ? 'ทุกวัน' : (t.days_of_week || []).map((d) => DOW[d]).join(' ')}</td>
+                <td>
+                  <button className="badge" style={{ cursor: 'pointer', fontFamily: 'var(--font)', background: 'none' }}
+                    onClick={async () => {
+                      if (!window.confirm(`ปิดใช้แม่แบบ "${t.name}"? (กะที่สร้างไปแล้วไม่หาย)`)) return
+                      try { await update('shift_templates', `id=eq.${t.id}`, { is_active: false }); load() }
+                      catch (e) { setMsg({ t: 'err', m: String(e.message) }) }
+                    }}>ปิดใช้</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
 
       <div className="section-h"><h2>2) จ่ายกะให้พนักงาน</h2></div>
       <form className="card" onSubmit={generate}>
