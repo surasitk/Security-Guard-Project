@@ -5,19 +5,23 @@ import Monitor from './pages/Monitor.jsx'
 import People from './pages/People.jsx'
 import Properties from './pages/Properties.jsx'
 import Shifts from './pages/Shifts.jsx'
+import Vendors from './pages/Vendors.jsx'
+import { rpc } from './lib/api'
 
-const TABS = [
+const BASE_TABS = [
   { key: 'dashboard', label: 'ภาพรวมวันนี้', el: Dashboard },
   { key: 'monitor', label: 'มอนิเตอร์', el: Monitor },
   { key: 'shifts', label: 'ตารางกะ', el: Shifts },
   { key: 'people', label: 'พนักงาน', el: People },
   { key: 'properties', label: 'โครงการ', el: Properties },
 ]
+const VENDOR_TAB = { key: 'vendors', label: 'Vendors', el: Vendors }
 
 export default function App() {
   const [state, setState] = useState('loading')
   const [err, setErr] = useState('')
   const [tab, setTab] = useState('dashboard')
+  const [isPlatform, setIsPlatform] = useState(false)
 
   useEffect(() => {
     (async () => {
@@ -28,6 +32,7 @@ export default function App() {
         if (out.error) { setErr(out.error); setState('error'); return }
         if (!['owner', 'admin', 'supervisor'].includes(out.user.role)) { setState('forbidden'); return }
         setState('ready')
+        rpc('is_platform_admin').then(setIsPlatform).catch(() => {})
       } catch (e) { setErr(String(e.message || e)); setState('error') }
     })()
   }, [])
@@ -37,7 +42,8 @@ export default function App() {
   if (state === 'forbidden') return <Center msg="บัญชีของคุณไม่มีสิทธิ์เข้าหลังบ้าน (ต้องเป็น owner / admin / supervisor)" />
   if (state === 'error') return <Center msg={`เชื่อมต่อไม่สำเร็จ — ${err}`} />
 
-  const Active = TABS.find((t) => t.key === tab).el
+  const TABS = isPlatform ? [...BASE_TABS, VENDOR_TAB] : BASE_TABS
+  const Active = (TABS.find((t) => t.key === tab) || TABS[0]).el
   const user = getUser()
 
   return (

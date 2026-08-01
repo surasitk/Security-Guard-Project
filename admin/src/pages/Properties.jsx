@@ -1,19 +1,38 @@
 // โครงการ/ไซต์ — รายการ + เพิ่มใหม่พร้อมพิกัด geofence
 import { useEffect, useState } from 'react'
-import { list, insert, update, tenantId } from '../lib/api'
+import { list, insert, update, rpc, tenantId } from '../lib/api'
 
 export default function Properties() {
   const [rows, setRows] = useState(null)
   const [form, setForm] = useState({ name: '', code: '', province: '', address: '', lat: '', lng: '', radius: '150', rate: '' })
   const [msg, setMsg] = useState(null)
   const [edit, setEdit] = useState(null) // { id, province, radius, rate }
+  const [vendors, setVendors] = useState([]) // เฉพาะ platform admin
+  const [vendorSel, setVendorSel] = useState('')
 
   const load = () => list('properties?select=*&order=created_at.desc').then(setRows).catch((e) => setMsg({ t: 'err', m: String(e.message) }))
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+    rpc('list_vendors').then((v) => { setVendors(v); setVendorSel(tenantId()) }).catch(() => {})
+  }, [])
 
   async function submit(e) {
     e.preventDefault(); setMsg(null)
     try {
+      // platform admin สร้างให้ vendor รายอื่นผ่าน RPC
+      if (vendors.length > 0 && vendorSel && vendorSel !== tenantId()) {
+        const out = await rpc('create_property_for_vendor', {
+          p_tenant_id: vendorSel,
+          p_name: form.name.trim(), p_code: form.code.trim(), p_province: form.province.trim(),
+          p_lat: form.lat ? Number(form.lat) : null, p_lng: form.lng ? Number(form.lng) : null,
+          p_radius: Number(form.radius) || 150, p_rate: form.rate ? Number(form.rate) : null,
+        })
+        if (!out.ok) throw new Error(out.error)
+        const vName = vendors.find((v) => v.id === vendorSel)?.name
+        setMsg({ t: 'ok', m: `เพิ่มโครงการ ${form.name} ให้ ${vName} แล้ว (จะเห็นในบัญชีของ vendor รายนั้น)` })
+        setForm({ name: '', code: '', province: '', address: '', lat: '', lng: '', radius: '150', rate: '' })
+        return
+      }
       const row = {
         tenant_id: tenantId(),
         name: form.name.trim(),
@@ -39,6 +58,13 @@ export default function Properties() {
       <div className="section-h"><h2>เพิ่มโครงการ</h2></div>
       <form className="card" onSubmit={submit}>
         <div className="form-grid">
+          {vendors.length > 0 && (
+            <div className="field"><label>Vendor (บริษัทเจ้าของโครงการ)</label>
+              <select value={vendorSel} onChange={(e) => setVendorSel(e.target.value)}>
+                {vendors.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
+              </select>
+            </div>
+          )}
           <div className="field"><label>ชื่อโครงการ *</label><input value={form.name} onChange={set('name')} required /></div>
           <div className="field"><label>รหัส *</label><input value={form.code} onChange={set('code')} placeholder="P001" required /></div>
           <div className="field"><label>จังหวัด</label><input value={form.province} onChange={set('province')} placeholder="ภูเก็ต" /></div>
