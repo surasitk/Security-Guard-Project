@@ -96,15 +96,39 @@ export async function rpc(fn, args = {}) {
   return res.json()
 }
 
-/** บีบอัดรูปฝั่ง client ~200KB ก่อนอัปโหลด (ตามเอกสาร F3) */
+/** รัน promise พร้อมเพดานเวลา — กันหน้าค้างเงียบ */
+export function withTimeout(promise, ms, label) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(`timeout:${label}`)), ms)),
+  ])
+}
+
+/** บีบอัดรูปฝั่ง client ~200KB ก่อนอัปโหลด (ตามเอกสาร F3) — มี fallback สำหรับเครื่องเก่า */
 export async function compressImage(file, maxDim = 1024, quality = 0.7) {
-  const bitmap = await createImageBitmap(file)
-  const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height))
+  let width, height, source
+  try {
+    const bitmap = await createImageBitmap(file)
+    width = bitmap.width; height = bitmap.height; source = bitmap
+  } catch {
+    // fallback: iOS/เครื่องเก่าที่ createImageBitmap ไม่รองรับไฟล์จากกล้อง
+    const url = URL.createObjectURL(file)
+    const img = new Image()
+    await new Promise((resolve, reject) => {
+      img.onload = resolve; img.onerror = () => reject(new Error('image_decode_failed'))
+      img.src = url
+    })
+    width = img.naturalWidth; height = img.naturalHeight; source = img
+    URL.revokeObjectURL(url)
+  }
+  const scale = Math.min(1, maxDim / Math.max(width, height))
   const canvas = document.createElement('canvas')
-  canvas.width = Math.round(bitmap.width * scale)
-  canvas.height = Math.round(bitmap.height * scale)
-  canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height)
-  return new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality))
+  canvas.width = Math.round(width * scale)
+  canvas.height = Math.round(height * scale)
+  canvas.getContext('2d').drawImage(source, 0, 0, canvas.width, canvas.height)
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality))
+  if (!blob) throw new Error('compress_failed')
+  return blob
 }
 
 export async function uploadSelfie(blob) {
@@ -128,10 +152,12 @@ async function tenantFolder() {
 
 export function getPosition() {
   return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) { reject(new Error('no_geolocation')); return }
     navigator.geolocation.getCurrentPosition(
       (pos) => resolve(pos.coords),
       (err) => reject(err),
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+      // maximumAge 30 วิ: ใช้พิกัดล่าสุดที่เพิ่งได้ ทำให้เร็วขึ้นมากใน LINE in-app browser
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 },
     )
   })
 }

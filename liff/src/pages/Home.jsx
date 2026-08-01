@@ -1,7 +1,7 @@
 // F3 — เข้างาน / ออกงาน: เลือกกะ → GPS + selfie → RPC check_in/check_out
 import { useEffect, useRef, useState } from 'react'
 import {
-  getUser, rpc, list, getPosition, compressImage, uploadSelfie, deviceFingerprint,
+  getUser, rpc, list, getPosition, compressImage, uploadSelfie, deviceFingerprint, withTimeout,
 } from '../lib/api'
 
 const ERROR_TH = {
@@ -25,6 +25,7 @@ export default function Home() {
   const [upcoming, setUpcoming] = useState([])
   const [selected, setSelected] = useState(null)
   const [busy, setBusy] = useState(false)
+  const [step, setStep] = useState('')
   const [msg, setMsg] = useState(null) // {type:'ok'|'err', text}
   const fileRef = useRef(null)
   const pendingAction = useRef(null) // 'in' | 'out'
@@ -53,9 +54,13 @@ export default function Home() {
     if (!file || !selected) return
     setBusy(true)
     try {
-      const coords = await getPosition()
-      const blob = await compressImage(file)
-      const selfiePath = await uploadSelfie(blob)
+      setStep('กำลังขอตำแหน่ง GPS… (ถ้ามีป๊อปอัพขออนุญาต กดอนุญาตนะครับ)')
+      const coords = await withTimeout(getPosition(), 20000, 'gps')
+      setStep('กำลังบีบอัดรูป…')
+      const blob = await withTimeout(compressImage(file), 15000, 'compress')
+      setStep('กำลังอัปโหลดรูป…')
+      const selfiePath = await withTimeout(uploadSelfie(blob), 30000, 'upload')
+      setStep('กำลังบันทึกเวลา…')
       const fp = await deviceFingerprint()
 
       const action = pendingAction.current
@@ -86,10 +91,14 @@ export default function Home() {
         setMsg({ type: 'err', text: ERROR_TH[out.error] || `ไม่สำเร็จ (${out.error})` })
       }
     } catch (err) {
-      if (err?.code === 1) setMsg({ type: 'err', text: 'ไม่ได้รับอนุญาตใช้ตำแหน่ง — เปิด GPS แล้วอนุญาตใน LINE' })
-      else setMsg({ type: 'err', text: 'เกิดข้อผิดพลาด ลองใหม่อีกครั้ง' })
+      const m = String(err?.message || err)
+      if (err?.code === 1) setMsg({ type: 'err', text: 'ไม่ได้รับอนุญาตใช้ตำแหน่ง — เข้า ตั้งค่ามือถือ > แอป LINE > เปิดสิทธิ์ตำแหน่ง (Location) แล้วลองใหม่' })
+      else if (err?.code === 3 || m === 'timeout:gps') setMsg({ type: 'err', text: 'หาสัญญาณ GPS ไม่ได้ — ออกไปที่โล่งหรือเปิด Location Services แล้วลองใหม่' })
+      else if (m === 'timeout:upload') setMsg({ type: 'err', text: 'อัปโหลดรูปช้าเกินไป — สัญญาณเน็ตอ่อน ลองใหม่อีกครั้ง' })
+      else setMsg({ type: 'err', text: `เกิดข้อผิดพลาด (${m}) — ลองใหม่ หรือแคปหน้าจอนี้ส่งให้ผู้ดูแล` })
     } finally {
       setBusy(false)
+      setStep('')
     }
   }
 
@@ -131,6 +140,7 @@ export default function Home() {
         </div>
       ))}
 
+      {busy && step && <div className="notice">{step}</div>}
       {msg && <div className={`notice ${msg.type === 'err' ? 'err' : ''}`}>{msg.text}</div>}
 
       {selected && selected.status === 'scheduled' && (
