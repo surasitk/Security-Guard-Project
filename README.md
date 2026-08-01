@@ -20,6 +20,8 @@ supabase/
   migrations/          # DDL + RLS + RPC (รันตามลำดับเลขไฟล์)
   functions/auth-line/ # Edge Function: ผูกบัญชี LINE + mint JWT (F1/F2)
 liff/                  # LIFF app (Vite + React) — ลงทะเบียน + เข้า/ออกงาน (F3)
+admin/                 # Web admin หลังบ้าน (Vite + React, LINE Login)
+docs/                  # build แล้วสำหรับ GitHub Pages (app/ + admin/)
 assets/richmenu/       # Rich Menu artwork (export จาก Figma)
 SETUP.md               # คู่มือ deploy ทีละขั้น
 ```
@@ -33,7 +35,8 @@ SETUP.md               # คู่มือ deploy ทีละขั้น
 - [x] Edge Function auth-line (F1 ลงทะเบียน + F2 login + PDPA consent)
 - [x] LIFF: Register + Home (check-in/out พร้อม GPS + selfie)
 - [x] Rich Menu artwork (guard) — Monotone Minimal ใน Figma
-- [ ] Web admin (Sprint ถัดไป — ระหว่างนี้ใช้ Supabase Studio จัดการข้อมูล)
+- [x] Web admin (docs/admin — ภาพรวมวันนี้ / ตารางกะ / พนักงาน / โครงการ)
+- [x] Deploy: Supabase (DB+RLS+RPC+Edge Function) ✓ · LINE Login channel 2010926067 ✓
 - [ ] Sprint 2: patrol (กลุ่ม C) + missed detection
 
 ## ธีม
@@ -43,3 +46,9 @@ SETUP.md               # คู่มือ deploy ทีละขั้น
 ฟอนต์: IBM Plex Sans Thai + Inter
 
 เอกสารอ้างอิงหลัก: Google Doc "Guard OS — Database Schema + System Flows"
+
+## URLs (production)
+
+- LIFF ยาม: https://liff.line.me/2010926067-2cuN81fZ → https://surasitk.github.io/Security-Guard-Project/app/
+- Admin: https://liff.line.me/2010926067-B1ybp5Oq หรือเปิดตรง https://surasitk.github.io/Security-Guard-Project/admin/
+- LINE Login channel: 2010926067 (provider: Guard OS)
