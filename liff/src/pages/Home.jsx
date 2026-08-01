@@ -1,7 +1,7 @@
 // F3 — เข้างาน / ออกงาน: เลือกกะ → GPS + selfie → RPC check_in/check_out
 import { useEffect, useRef, useState } from 'react'
 import {
-  getUser, rpc, getPosition, compressImage, uploadSelfie, deviceFingerprint,
+  getUser, rpc, list, getPosition, compressImage, uploadSelfie, deviceFingerprint,
 } from '../lib/api'
 
 const ERROR_TH = {
@@ -15,10 +15,14 @@ const ERROR_TH = {
 function fmtTime(ts) {
   return new Date(ts).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
 }
+function fmtDay(ts) {
+  return new Date(ts).toLocaleDateString('th-TH', { weekday: 'short', day: 'numeric', month: 'short' })
+}
 
 export default function Home() {
   const user = getUser()
   const [shifts, setShifts] = useState(null)
+  const [upcoming, setUpcoming] = useState([])
   const [selected, setSelected] = useState(null)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState(null) // {type:'ok'|'err', text}
@@ -29,6 +33,11 @@ export default function Home() {
     const rows = await rpc('my_current_assignments')
     setShifts(rows)
     setSelected(rows.length === 1 ? rows[0] : null)
+    // กะล่วงหน้า 7 วัน (ไม่รวมกะที่อยู่ในช่วง check-in แล้ว)
+    const now = new Date().toISOString()
+    const week = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString()
+    const up = await list(`shift_assignments?select=id,starts_at,ends_at,is_holiday_work,status,properties(name)&starts_at=gt.${now}&starts_at=lt.${week}&status=eq.scheduled&order=starts_at&limit=15`)
+    setUpcoming(up.filter((u) => !rows.some((r) => r.assignment_id === u.id)))
   }
   useEffect(() => { loadShifts().catch(() => setShifts([])) }, [])
 
@@ -133,6 +142,23 @@ export default function Home() {
         <button className="btn" onClick={() => startAction('out')} disabled={busy}>
           {busy ? 'กำลังบันทึก…' : 'ออกงาน (ถ่ายรูปยืนยัน)'}
         </button>
+      )}
+
+      {upcoming.length > 0 && (
+        <>
+          <div className="spacer" />
+          <p className="brand" style={{ marginBottom: 8 }}>กะล่วงหน้า 7 วัน</p>
+          {upcoming.map((u) => (
+            <div key={u.id} className="card" style={{ padding: '14px 18px', marginBottom: 8 }}>
+              <div className="v" style={{ fontSize: 15 }}>
+                {fmtDay(u.starts_at)}{u.is_holiday_work ? ' · วันหยุด (OT)' : ''}
+              </div>
+              <p className="muted" style={{ marginTop: 4 }}>
+                {u.properties?.name} · {fmtTime(u.starts_at)}–{fmtTime(u.ends_at)}
+              </p>
+            </div>
+          ))}
+        </>
       )}
     </div>
   )

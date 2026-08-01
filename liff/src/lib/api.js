@@ -81,6 +81,12 @@ async function authedFetch(path, options = {}, retried = false) {
   return res
 }
 
+export async function list(pathWithQuery) {
+  const res = await authedFetch(`/rest/v1/${pathWithQuery}`)
+  if (!res.ok) throw new Error(`GET ${pathWithQuery} → ${res.status}`)
+  return res.json()
+}
+
 export async function rpc(fn, args = {}) {
   const res = await authedFetch(`/rest/v1/rpc/${fn}`, {
     method: 'POST',
