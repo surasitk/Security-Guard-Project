@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react'
 import { initAuth, getUser } from './lib/api'
 import Dashboard from './pages/Dashboard.jsx'
+import Monitor from './pages/Monitor.jsx'
 import People from './pages/People.jsx'
 import Properties from './pages/Properties.jsx'
 import Shifts from './pages/Shifts.jsx'
 
 const TABS = [
   { key: 'dashboard', label: 'ภาพรวมวันนี้', el: Dashboard },
+  { key: 'monitor', label: 'มอนิเตอร์', el: Monitor },
   { key: 'shifts', label: 'ตารางกะ', el: Shifts },
   { key: 'people', label: 'พนักงาน', el: People },
   { key: 'properties', label: 'โครงการ', el: Properties },

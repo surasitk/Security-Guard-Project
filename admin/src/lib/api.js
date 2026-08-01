@@ -97,6 +97,17 @@ export async function rpc(fn, args = {}) {
   return body
 }
 
+/** สร้างลิงก์ชั่วคราวสำหรับดูรูปใน Storage (หมดอายุ 10 นาที) */
+export async function signedUrl(path) {
+  const res = await authed(`/storage/v1/object/sign/selfies/${path}`, {
+    method: 'POST',
+    body: JSON.stringify({ expiresIn: 600 }),
+  })
+  const body = await res.json()
+  if (!res.ok || !body.signedURL) throw new Error('sign_failed')
+  return `${SUPABASE_URL}/storage/v1${body.signedURL}`
+}
+
 /** วันนี้ตามเวลาไทย คืน ISO ช่วง [start, end) */
 export function todayRangeBkk() {
   const now = new Date()
