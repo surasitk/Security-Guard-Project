@@ -20,7 +20,7 @@ export default function Shifts() {
         list('shift_templates?select=*,properties(name)&is_active=is.true&order=name'),
         list('users?select=id,full_name,employee_code&role=in.(guard,shift_leader)&is_active=is.true&order=full_name'),
         list('properties?select=id,name&is_active=is.true&order=name'),
-        list(`shift_assignments?select=id,starts_at,ends_at,status,is_holiday_work,users(full_name),properties(name)&starts_at=gte.${new Date().toISOString()}&status=neq.cancelled&order=starts_at&limit=50`),
+        list(`shift_assignments?select=id,starts_at,ends_at,status,is_holiday_work,users!user_id(full_name),properties(name)&starts_at=gte.${new Date().toISOString()}&status=neq.cancelled&order=starts_at&limit=50`),
       ])
       setTemplates(t); setGuards(g); setProperties(p); setUpcoming(u)
     } catch (e) { setMsg({ t: 'err', m: String(e.message) }) }

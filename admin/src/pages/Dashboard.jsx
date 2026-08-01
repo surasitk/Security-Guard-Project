@@ -12,7 +12,7 @@ export default function Dashboard() {
       try {
         const [start, end] = todayRangeBkk()
         const [s, a] = await Promise.all([
-          list(`shift_assignments?select=id,starts_at,ends_at,status,is_holiday_work,users(full_name,employee_code),properties(name)&starts_at=gte.${start}&starts_at=lt.${end}&status=neq.cancelled&order=starts_at`),
+          list(`shift_assignments?select=id,starts_at,ends_at,status,is_holiday_work,users!user_id(full_name,employee_code),properties(name)&starts_at=gte.${start}&starts_at=lt.${end}&status=neq.cancelled&order=starts_at`),
           list(`attendance?select=check_in_at,check_out_at,late_minutes,in_distance_m,is_mock_flag,users(full_name),properties(name)&check_in_at=gte.${start}&order=check_in_at.desc&limit=30`),
         ])
         setShifts(s); setAtt(a)
