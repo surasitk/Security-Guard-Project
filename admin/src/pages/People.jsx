@@ -1,7 +1,7 @@
 // พนักงาน — รายชื่อ + เพิ่มพนักงานใหม่ + แก้ไขข้อมูล/ตำแหน่ง
 // (ยามลงทะเบียน LINE เองภายหลังด้วยรหัสพนักงาน+เบอร์ — เลือกตำแหน่งเองไม่ได้ ตำแหน่งกำหนดจากหน้านี้เท่านั้น)
 import { useEffect, useState } from 'react'
-import { list, insert, update, tenantId } from '../lib/api'
+import { list, insert, update, rpc, tenantId } from '../lib/api'
 
 const ROLES = [
   ['guard', 'ยาม'], ['shift_leader', 'หัวหน้ากะ'], ['supervisor', 'สายตรวจ/ผจก.โซน'],
@@ -34,8 +34,14 @@ export default function People() {
     } catch (e) { setMsg({ t: 'err', m: String(e.message) }) } finally { setSaving(false) }
   }
 
-  const load = () => list('users?select=*&order=created_at.desc').then(setRows).catch((e) => setMsg({ t: 'err', m: String(e.message) }))
+  const load = () => list('users?select=*&is_active=is.true&order=created_at.desc').then(setRows).catch((e) => setMsg({ t: 'err', m: String(e.message) }))
   useEffect(() => { load() }, [])
+
+  async function disableUser(u) {
+    if (!window.confirm(`ปิดใช้งานพนักงาน "${u.full_name}"?`)) return
+    try { const o = await rpc('set_user_active', { p_id: u.id, p_active: false }); if (!o.ok) throw new Error(o.error); load() }
+    catch (e) { setMsg({ t: 'err', m: String(e.message) }) }
+  }
 
   async function submit(e) {
     e.preventDefault(); setMsg(null)
@@ -109,7 +115,10 @@ export default function People() {
                 <td>{u.phone || '—'}</td>
                 <td>{u.daily_wage ? Number(u.daily_wage).toLocaleString() : '—'}</td>
                 <td>{u.line_user_id ? <span className="badge solid">ผูกแล้ว</span> : <span className="badge">ยังไม่ผูก</span>}</td>
-                <td><button className="badge" style={{ cursor: 'pointer', fontFamily: 'var(--font)', background: 'none' }} onClick={() => startEdit(u)}>แก้ไข</button></td>
+                <td style={{ whiteSpace: 'nowrap' }}>
+                  <button className="badge" style={{ cursor: 'pointer', fontFamily: 'var(--font)', background: 'none', marginRight: 6 }} onClick={() => startEdit(u)}>แก้ไข</button>
+                  <button className="badge" style={{ cursor: 'pointer', fontFamily: 'var(--font)', background: 'none' }} onClick={() => disableUser(u)}>ปิดใช้</button>
+                </td>
               </tr>
             ))}
           </tbody>
