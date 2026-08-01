@@ -1,6 +1,7 @@
-// พนักงาน — รายชื่อ + เพิ่มพนักงานใหม่ (ยามลงทะเบียน LINE เองภายหลังด้วยรหัสพนักงาน+เบอร์)
+// พนักงาน — รายชื่อ + เพิ่มพนักงานใหม่ + แก้ไขข้อมูล/ตำแหน่ง
+// (ยามลงทะเบียน LINE เองภายหลังด้วยรหัสพนักงาน+เบอร์ — เลือกตำแหน่งเองไม่ได้ ตำแหน่งกำหนดจากหน้านี้เท่านั้น)
 import { useEffect, useState } from 'react'
-import { list, insert, tenantId } from '../lib/api'
+import { list, insert, update, tenantId } from '../lib/api'
 
 const ROLES = [
   ['guard', 'ยาม'], ['shift_leader', 'หัวหน้ากะ'], ['supervisor', 'สายตรวจ/ผจก.โซน'],
@@ -12,6 +13,26 @@ export default function People() {
   const [rows, setRows] = useState(null)
   const [form, setForm] = useState({ employee_code: '', full_name: '', phone: '', role: 'guard', daily_wage: '', weekly_day_off: '' })
   const [msg, setMsg] = useState(null)
+  const [edit, setEdit] = useState(null) // { id, role, phone, daily_wage }
+  const [saving, setSaving] = useState(false)
+
+  function startEdit(u) {
+    setEdit({ id: u.id, role: u.role, phone: u.phone || '', daily_wage: u.daily_wage || '' })
+  }
+
+  async function saveEdit() {
+    setSaving(true); setMsg(null)
+    try {
+      await update('users', `id=eq.${edit.id}`, {
+        role: edit.role,
+        phone: edit.phone.trim() || null,
+        daily_wage: edit.daily_wage ? Number(edit.daily_wage) : null,
+      })
+      setMsg({ t: 'ok', m: 'บันทึกการแก้ไขแล้ว' })
+      setEdit(null)
+      load()
+    } catch (e) { setMsg({ t: 'err', m: String(e.message) }) } finally { setSaving(false) }
+  }
 
   const load = () => list('users?select=*&order=created_at.desc').then(setRows).catch((e) => setMsg({ t: 'err', m: String(e.message) }))
   useEffect(() => { load() }, [])
@@ -61,9 +82,26 @@ export default function People() {
       <div className="section-h"><h2>พนักงานทั้งหมด {rows ? `(${rows.length})` : ''}</h2></div>
       {!rows ? <p className="muted">กำลังโหลด…</p> : (
         <table className="grid">
-          <thead><tr><th>รหัส</th><th>ชื่อ</th><th>บทบาท</th><th>เบอร์</th><th>ค่าแรง/วัน</th><th>LINE</th></tr></thead>
+          <thead><tr><th>รหัส</th><th>ชื่อ</th><th>บทบาท</th><th>เบอร์</th><th>ค่าแรง/วัน</th><th>LINE</th><th></th></tr></thead>
           <tbody>
-            {rows.map((u) => (
+            {rows.map((u) => edit?.id === u.id ? (
+              <tr key={u.id}>
+                <td>{u.employee_code}</td>
+                <td>{u.full_name}</td>
+                <td>
+                  <select value={edit.role} onChange={(e) => setEdit({ ...edit, role: e.target.value })} style={{ padding: 8 }}>
+                    {ROLES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                  </select>
+                </td>
+                <td><input value={edit.phone} onChange={(e) => setEdit({ ...edit, phone: e.target.value })} style={{ padding: 8, width: 130 }} inputMode="tel" /></td>
+                <td><input value={edit.daily_wage} onChange={(e) => setEdit({ ...edit, daily_wage: e.target.value })} style={{ padding: 8, width: 90 }} inputMode="numeric" /></td>
+                <td>{u.line_user_id ? <span className="badge solid">ผูกแล้ว</span> : <span className="badge">ยังไม่ผูก</span>}</td>
+                <td style={{ whiteSpace: 'nowrap' }}>
+                  <button className="badge solid" style={{ cursor: 'pointer', border: 'none', fontFamily: 'var(--font)', marginRight: 6 }} onClick={saveEdit} disabled={saving}>{saving ? '…' : 'บันทึก'}</button>
+                  <button className="badge" style={{ cursor: 'pointer', fontFamily: 'var(--font)', background: 'none' }} onClick={() => setEdit(null)}>ยกเลิก</button>
+                </td>
+              </tr>
+            ) : (
               <tr key={u.id}>
                 <td>{u.employee_code}</td>
                 <td>{u.full_name}</td>
@@ -71,6 +109,7 @@ export default function People() {
                 <td>{u.phone || '—'}</td>
                 <td>{u.daily_wage ? Number(u.daily_wage).toLocaleString() : '—'}</td>
                 <td>{u.line_user_id ? <span className="badge solid">ผูกแล้ว</span> : <span className="badge">ยังไม่ผูก</span>}</td>
+                <td><button className="badge" style={{ cursor: 'pointer', fontFamily: 'var(--font)', background: 'none' }} onClick={() => startEdit(u)}>แก้ไข</button></td>
               </tr>
             ))}
           </tbody>
