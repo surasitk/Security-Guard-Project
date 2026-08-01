@@ -53,7 +53,8 @@ begin
   select tenant_id into v_tenant from properties where id = p_property_id;
   if v_tenant is null then return jsonb_build_object('ok', false, 'error', 'property_not_found'); end if;
   if not can_manage_tenant(v_tenant) then return jsonb_build_object('ok', false, 'error', 'forbidden'); end if;
-  v_code := 'CP' || upper(substr(encode(gen_random_bytes(8), 'hex'), 1, 12));
+  -- ใช้ gen_random_uuid() (มีใน public) แทน gen_random_bytes (อยู่ใน extensions ต้อง pgcrypto)
+  v_code := 'CP' || upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 12));
   insert into checkpoints (tenant_id, property_id, name, code)
   values (v_tenant, p_property_id, p_name, v_code) returning id into v_id;
   return jsonb_build_object('ok', true, 'id', v_id, 'code', v_code);
