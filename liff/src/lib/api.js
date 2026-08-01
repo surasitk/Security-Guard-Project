@@ -11,9 +11,23 @@ let currentUser = null
 
 export function getUser() { return currentUser }
 
+/** ID token ของ LINE มีอายุ ~1 ชม. — ถ้าหมดอายุต้องบังคับ login ใหม่ */
+function idTokenFresh() {
+  try {
+    const d = liff.getDecodedIDToken()
+    return d && d.exp * 1000 > Date.now() + 60_000
+  } catch { return false }
+}
+
+export function forceRelogin() {
+  try { liff.logout() } catch { /* ignore */ }
+  liff.login({ redirectUri: window.location.href })
+}
+
 export async function initLiff() {
   await liff.init({ liffId: import.meta.env.VITE_LIFF_ID })
-  if (!liff.isLoggedIn()) liff.login()
+  if (!liff.isLoggedIn()) { liff.login(); return }
+  if (!idTokenFresh()) forceRelogin()
 }
 
 async function callAuth(body) {
@@ -29,8 +43,13 @@ async function callAuth(body) {
 export async function silentLogin() {
   const idToken = liff.getIDToken()
   const out = await callAuth({ mode: 'login', id_token: idToken })
-  if (out.ok) { accessToken = out.access_token; currentUser = out.user; return true }
+  if (out.ok) { sessionStorage.removeItem('guardos_relogin'); accessToken = out.access_token; currentUser = out.user; return true }
   if (out.error === 'not_registered') return false
+  if (out.error === 'invalid_line_token' && !sessionStorage.getItem('guardos_relogin')) {
+    sessionStorage.setItem('guardos_relogin', '1')
+    forceRelogin()
+    return new Promise(() => {}) // กำลัง redirect — ค้างสถานะโหลดไว้
+  }
   throw new Error(out.error || 'auth_failed')
 }
 
