@@ -140,7 +140,12 @@ export default function Home() {
         </div>
       ))}
 
-      {busy && step && <div className="notice">{step}</div>}
+      {busy && (
+        <div className="notice">
+          <div className="bar"><span /></div>
+          {step}
+        </div>
+      )}
       {msg && <div className={`notice ${msg.type === 'err' ? 'err' : ''}`}>{msg.text}</div>}
 
       {selected && selected.status === 'scheduled' && (

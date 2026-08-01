@@ -81,3 +81,14 @@ h1 { font-size: 26px; font-weight: 600; margin: 6px 0 4px; letter-spacing: -0.01
 
 .consent { font-size: 13px; color: var(--ink-soft); line-height: 1.7; }
 .consent a { color: var(--ink); }
+
+/* progress bar แบบ indeterminate ตอนกำลังบันทึกเข้างาน */
+.bar { height: 6px; background: var(--line); border-radius: 99px; overflow: hidden; margin: 10px 0; }
+.bar > span {
+  display: block; height: 100%; width: 40%; background: var(--ink); border-radius: 99px;
+  animation: barslide 1.1s ease-in-out infinite;
+}
+@keyframes barslide {
+  0% { margin-left: -40%; }
+  100% { margin-left: 100%; }
+}

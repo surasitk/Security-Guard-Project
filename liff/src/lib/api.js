@@ -104,8 +104,8 @@ export function withTimeout(promise, ms, label) {
   ])
 }
 
-/** บีบอัดรูปฝั่ง client ~200KB ก่อนอัปโหลด (ตามเอกสาร F3) — มี fallback สำหรับเครื่องเก่า */
-export async function compressImage(file, maxDim = 1024, quality = 0.7) {
+/** บีบอัดรูปฝั่ง client ให้เล็ก (~40-80KB) — selfie ไม่ต้องคมมาก ขอแค่ยืนยันตัวตน+อัปโหลดเร็ว */
+export async function compressImage(file, maxDim = 640, quality = 0.5) {
   let width, height, source
   try {
     const bitmap = await createImageBitmap(file)

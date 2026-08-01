@@ -47,10 +47,19 @@ export default function Dashboard() {
 
   const shifts = shiftsAll.filter(match)
   const att = attAll.filter(match)
+  const now = Date.now()
+  // สถานะที่คำนวณ ณ ตอนนี้ (ยังไม่มี cron มาตี absent จริงใน DB — คำนวณฝั่งจอไปก่อน)
+  const derive = (s) => {
+    if (s.status !== 'scheduled') return s.status
+    if (now > new Date(s.ends_at).getTime()) return 'absent'       // เลยเวลาเลิกกะแล้วไม่เข้า = ขาด
+    if (now >= new Date(s.starts_at).getTime()) return 'overdue'    // เลยเวลาเริ่มแล้วยังไม่เข้า
+    return 'scheduled'
+  }
   const total = shifts.length
   const checkedIn = shifts.filter((s) => s.status === 'checked_in').length
   const done = shifts.filter((s) => s.status === 'checked_out').length
-  const waiting = shifts.filter((s) => s.status === 'scheduled').length
+  const absent = shifts.filter((s) => derive(s) === 'absent').length
+  const waiting = shifts.filter((s) => ['scheduled', 'overdue'].includes(derive(s))).length
   const late = att.filter((a) => a.late_minutes > 0).length
   const flagged = att.filter((a) => a.is_mock_flag).length
 
@@ -67,6 +76,7 @@ export default function Dashboard() {
         <div className="stat"><div className="n">{checkedIn}</div><div className="l">กำลังปฏิบัติงาน</div></div>
         <div className="stat"><div className="n">{done}</div><div className="l">ออกงานแล้ว</div></div>
         <div className="stat"><div className="n">{waiting}</div><div className="l">ยังไม่เข้างาน</div></div>
+        <div className="stat"><div className="n">{absent}</div><div className="l">ขาดงาน</div></div>
         <div className="stat"><div className="n">{late}</div><div className="l">เข้าสาย</div></div>
         <div className="stat"><div className="n">{flagged}</div><div className="l">ธงตรวจสอบ</div></div>
       </div>
@@ -81,7 +91,7 @@ export default function Dashboard() {
                 <td>{s.users?.full_name} <span className="muted">({s.users?.employee_code})</span></td>
                 <td>{s.properties?.name}{s.is_holiday_work ? ' · วันหยุด' : ''}</td>
                 <td>{fmtTime(s.starts_at)}–{fmtTime(s.ends_at)}</td>
-                <td><Status s={s.status} /></td>
+                <td><Status s={derive(s)} /></td>
               </tr>
             ))}
           </tbody>
@@ -110,6 +120,6 @@ export default function Dashboard() {
 }
 
 function Status({ s }) {
-  const map = { scheduled: 'รอเข้างาน', checked_in: 'กำลังปฏิบัติงาน', checked_out: 'ออกงานแล้ว', absent: 'ขาด' }
-  return <span className={`badge ${s === 'checked_in' ? 'solid' : ''}`}>{map[s] || s}</span>
+  const map = { scheduled: 'รอเข้างาน', overdue: 'เลยเวลาเริ่ม', checked_in: 'กำลังปฏิบัติงาน', checked_out: 'ออกงานแล้ว', absent: 'ขาดงาน' }
+  return <span className={`badge ${s === 'checked_in' ? 'solid' : ''}`} style={s === 'absent' ? { fontWeight: 600 } : undefined}>{map[s] || s}</span>
 }
