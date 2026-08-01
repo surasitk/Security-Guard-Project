@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { initLiff, silentLogin } from './lib/api'
+import { initLiff, silentLogin, readParams } from './lib/api'
 import Register from './pages/Register.jsx'
 import Home from './pages/Home.jsx'
 import Scan from './pages/Scan.jsx'
@@ -7,7 +7,7 @@ import Soon from './pages/Soon.jsx'
 
 // อ่านหน้าเป้าหมายจาก ?page= (rich menu ยิงคนละลิงก์)
 function targetPage() {
-  const p = new URLSearchParams(window.location.search).get('page')
+  const p = readParams().get('page')
   return ['scan', 'incident', 'leave'].includes(p) ? p : 'home'
 }
 

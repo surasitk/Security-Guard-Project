@@ -11,6 +11,17 @@ let currentUser = null
 
 export function getUser() { return currentUser }
 
+/** อ่าน query param แบบทนทาน — LIFF บางกรณีห่อ deep-link ไว้ใน liff.state */
+export function readParams() {
+  const p = new URLSearchParams(window.location.search)
+  const state = p.get('liff.state')
+  if (state) {
+    const inner = new URLSearchParams(state.startsWith('?') ? state.slice(1) : state)
+    for (const [k, v] of inner) if (!p.has(k)) p.set(k, v)
+  }
+  return p
+}
+
 /** ID token ของ LINE มีอายุ ~1 ชม. — ถ้าหมดอายุต้องบังคับ login ใหม่ */
 function idTokenFresh() {
   try {

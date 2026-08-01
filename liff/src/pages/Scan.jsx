@@ -2,7 +2,7 @@
 // เปิดจาก rich menu (?page=scan) หรือถูกเปิดพร้อม &code=... (สแกน QR จาก LINE) → auto submit
 import { useEffect, useRef, useState } from 'react'
 import liff from '@line/liff'
-import { getUser, rpc, getPosition, deviceFingerprint, withTimeout } from '../lib/api'
+import { getUser, rpc, getPosition, deviceFingerprint, withTimeout, readParams } from '../lib/api'
 
 const ERR_TH = {
   checkpoint_not_found: 'ไม่พบจุดตรวจนี้ หรือถูกปิดใช้งาน — ตรวจสอบ QR อีกครั้ง',
@@ -60,7 +60,7 @@ export default function Scan() {
   // ถ้าเปิดมาพร้อม code ใน URL (สแกนจาก LINE) → ยิงเลย
   useEffect(() => {
     if (didAuto.current) return
-    const code = new URLSearchParams(window.location.search).get('code')
+    const code = readParams().get('code')
     if (code) { didAuto.current = true; submit(code.trim()) }
   }, [])
 
