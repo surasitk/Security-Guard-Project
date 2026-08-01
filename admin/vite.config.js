@@ -2,6 +2,6 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 export default defineConfig({
-  base: '/Security-Guard-Project/app/',
   plugins: [react()],
+  base: '/Security-Guard-Project/admin/',
 })
