@@ -13,6 +13,12 @@ export default function Shifts() {
   const [tForm, setTForm] = useState({ property_id: '', name: 'กะกลางวัน', start: '07:00', end: '19:00', cross: false, days: [0, 1, 2, 3, 4, 5, 6] })
   const [gForm, setGForm] = useState({ template_id: '', user_id: '', from: '', to: '' })
   const [properties, setProperties] = useState([])
+  // จัดการกะที่กำลังจะถึง: กรอง + เลือกหลายแถว → ยกเลิก / เปลี่ยนคน
+  const [fUser, setFUser] = useState('')
+  const [fProp, setFProp] = useState('')
+  const [sel, setSel] = useState(new Set())
+  const [swapTo, setSwapTo] = useState('')
+  const [busy, setBusy] = useState(false)
 
   const load = async () => {
     try {
@@ -20,9 +26,9 @@ export default function Shifts() {
         list('shift_templates?select=*,properties(name)&is_active=is.true&order=name'),
         list('users?select=id,full_name,employee_code&role=in.(guard,shift_leader)&is_active=is.true&order=full_name'),
         list('properties?select=id,name&is_active=is.true&order=name'),
-        list(`shift_assignments?select=id,starts_at,ends_at,status,is_holiday_work,users!user_id(full_name),properties(name)&starts_at=gte.${new Date().toISOString()}&status=neq.cancelled&order=starts_at&limit=50`),
+        list(`shift_assignments?select=id,starts_at,ends_at,status,is_holiday_work,user_id,property_id,users!user_id(full_name),properties(name)&starts_at=gte.${new Date().toISOString()}&status=neq.cancelled&order=starts_at&limit=500`),
       ])
-      setTemplates(t); setGuards(g); setProperties(p); setUpcoming(u)
+      setTemplates(t); setGuards(g); setProperties(p); setUpcoming(u); setSel(new Set())
     } catch (e) { setMsg({ t: 'err', m: String(e.message) }) }
   }
   useEffect(() => { load() }, [])
@@ -71,6 +77,39 @@ export default function Shifts() {
       else setMsg({ t: 'err', m: out.error })
       load()
     } catch (e2) { setMsg({ t: 'err', m: String(e2.message) }) }
+  }
+
+  const shown = (upcoming || []).filter((s) => (!fUser || s.user_id === fUser) && (!fProp || s.property_id === fProp))
+  const selectable = shown.filter((s) => s.status === 'scheduled')
+  const allOn = selectable.length > 0 && selectable.every((s) => sel.has(s.id))
+  function toggleRow(id) { const n = new Set(sel); n.has(id) ? n.delete(id) : n.add(id); setSel(n) }
+  function toggleAll() { setSel(allOn ? new Set() : new Set(selectable.map((s) => s.id))) }
+  const people = [...new Map((upcoming || []).map((s) => [s.user_id, s.users?.full_name])).entries()]
+  const places = [...new Map((upcoming || []).map((s) => [s.property_id, s.properties?.name])).entries()]
+
+  async function cancelSelected() {
+    const ids = [...sel]
+    if (!window.confirm(`ยกเลิก ${ids.length} กะที่เลือก? (กะจะหายจากตารางและแอปยาม แต่ยังเก็บประวัติไว้)`)) return
+    setBusy(true); setMsg(null)
+    try {
+      await update('shift_assignments', `id=in.(${ids.join(',')})&status=eq.scheduled`, { status: 'cancelled' })
+      setMsg({ t: 'ok', m: `ยกเลิกแล้ว ${ids.length} กะ` })
+      load()
+    } catch (e) { setMsg({ t: 'err', m: String(e.message) }) } finally { setBusy(false) }
+  }
+
+  async function swapSelected() {
+    const ids = [...sel]
+    const who = guards.find((g) => g.id === swapTo)
+    if (!who || !window.confirm(`เปลี่ยน ${ids.length} กะที่เลือกให้ ${who.full_name} รับแทน?`)) return
+    setBusy(true); setMsg(null)
+    const res = await Promise.allSettled(ids.map((id) =>
+      update('shift_assignments', `id=eq.${id}&status=eq.scheduled`, { user_id: swapTo })))
+    const fail = res.filter((r) => r.status === 'rejected').length
+    setMsg(fail
+      ? { t: 'err', m: `เปลี่ยนสำเร็จ ${ids.length - fail} กะ · ไม่สำเร็จ ${fail} กะ (มักเพราะ ${who.full_name} มีกะเวลาเดียวกันอยู่แล้ว)` }
+      : { t: 'ok', m: `เปลี่ยนให้ ${who.full_name} แล้ว ${ids.length} กะ` })
+    setBusy(false); setSwapTo(''); load()
   }
 
   function toggleDay(i) {
@@ -155,18 +194,53 @@ export default function Shifts() {
       </form>
       {msg && <div className={`notice ${msg.t === 'err' ? 'err' : ''}`}>{msg.m}</div>}
 
-      <div className="section-h"><h2>กะที่กำลังจะถึง</h2></div>
-      {!upcoming ? <p className="muted">กำลังโหลด…</p> : upcoming.length === 0 ? <p className="muted">ยังไม่มีกะล่วงหน้า</p> : (
+      <div className="section-h"><h2>กะที่กำลังจะถึง {upcoming ? `(${shown.length})` : ''}</h2></div>
+      {upcoming && upcoming.length > 0 && (
+        <div className="card" style={{ marginBottom: 12 }}>
+          <div className="form-grid">
+            <div className="field"><label>กรองพนักงาน</label>
+              <select value={fUser} onChange={(e) => { setFUser(e.target.value); setSel(new Set()) }}>
+                <option value="">ทุกคน</option>{people.map(([id, n]) => <option key={id} value={id}>{n}</option>)}
+              </select>
+            </div>
+            <div className="field"><label>กรองโครงการ</label>
+              <select value={fProp} onChange={(e) => { setFProp(e.target.value); setSel(new Set()) }}>
+                <option value="">ทุกโครงการ</option>{places.map(([id, n]) => <option key={id} value={id}>{n}</option>)}
+              </select>
+            </div>
+          </div>
+          {sel.size > 0 && (
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end', marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--line)' }}>
+              <strong style={{ alignSelf: 'center' }}>เลือก {sel.size} กะ</strong>
+              <button className="btn inline" onClick={cancelSelected} disabled={busy}>ยกเลิกกะที่เลือก</button>
+              <div className="field" style={{ margin: 0, minWidth: 220 }}>
+                <label>หรือเปลี่ยนให้คนอื่นรับแทน</label>
+                <select value={swapTo} onChange={(e) => setSwapTo(e.target.value)}>
+                  <option value="">— เลือกพนักงาน —</option>
+                  {guards.map((g) => <option key={g.id} value={g.id}>{g.full_name} ({g.employee_code})</option>)}
+                </select>
+              </div>
+              <button className="btn inline ghost" onClick={swapSelected} disabled={busy || !swapTo}>เปลี่ยนคน</button>
+              <button className="badge" style={{ cursor: 'pointer', fontFamily: 'var(--font)', background: 'none', alignSelf: 'center' }} onClick={() => setSel(new Set())}>ล้างที่เลือก</button>
+            </div>
+          )}
+        </div>
+      )}
+      {!upcoming ? <p className="muted">กำลังโหลด…</p> : shown.length === 0 ? <p className="muted">ยังไม่มีกะล่วงหน้า</p> : (
         <table className="grid">
-          <thead><tr><th>วันที่</th><th>พนักงาน</th><th>โครงการ</th><th>เวลา</th><th>สถานะ</th></tr></thead>
+          <thead><tr>
+            <th style={{ width: 36 }}><input type="checkbox" checked={allOn} onChange={toggleAll} title="เลือกทั้งหมดที่แสดง" /></th>
+            <th>วันที่</th><th>พนักงาน</th><th>โครงการ</th><th>เวลา</th><th>สถานะ</th>
+          </tr></thead>
           <tbody>
-            {upcoming.map((s) => (
-              <tr key={s.id}>
+            {shown.map((s) => (
+              <tr key={s.id} style={sel.has(s.id) ? { background: 'var(--paper)' } : undefined}>
+                <td><input type="checkbox" checked={sel.has(s.id)} disabled={s.status !== 'scheduled'} onChange={() => toggleRow(s.id)} /></td>
                 <td>{fmtDate(s.starts_at)}{s.is_holiday_work ? ' · วันหยุด' : ''}</td>
                 <td>{s.users?.full_name}</td>
                 <td>{s.properties?.name}</td>
                 <td>{fmtTime(s.starts_at)}–{fmtTime(s.ends_at)}</td>
-                <td><span className="badge">{s.status === 'scheduled' ? 'รอถึงกะ' : s.status}</span></td>
+                <td><span className="badge">{s.status === 'scheduled' ? 'รอถึงกะ' : s.status === 'checked_in' ? 'กำลังปฏิบัติงาน' : s.status}</span></td>
               </tr>
             ))}
           </tbody>
