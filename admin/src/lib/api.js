@@ -7,8 +7,27 @@ const FN_URL = `${SUPABASE_URL}/functions/v1/auth-line`
 
 let accessToken = null
 let currentUser = null
+let currentVendor = null
+
+const ACT_KEY = 'guardos_act_tenant'   // Vendor ที่ Super Admin เลือกไว้ (จำไว้ข้ามการรีเฟรช)
+const SCOPE_KEY = 'guardos_scope'      // โครงการที่เลือกในแถบด้านบน ('' = ทุกโครงการ)
+
+function store(k, v) { try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k) } catch { /* ignore */ } }
+function recall(k) { try { return localStorage.getItem(k) || '' } catch { return '' } }
 
 export function getUser() { return currentUser }
+export function getVendor() { return currentVendor }
+export function getScope() { return recall(SCOPE_KEY) }
+export function setScope(id) { store(SCOPE_KEY, id) }
+/** ตัวกรอง PostgREST ตามโครงการที่เลือก */
+export function scopeQ(scope, col = 'property_id') { return scope ? `&${col}=eq.${scope}` : '' }
+
+/** Super Admin สลับ Vendor → ขอ token ใหม่ของ Vendor นั้น */
+export async function switchVendor(id) {
+  store(ACT_KEY, id)
+  store(SCOPE_KEY, '')
+  return initAuth()
+}
 export function tenantId() {
   return JSON.parse(atob(accessToken.split('.')[1])).app_metadata.tenant_id
 }
@@ -33,9 +52,14 @@ export async function initAuth() {
   const res = await fetch(FN_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}` },
-    body: JSON.stringify({ mode: 'login', id_token: liff.getIDToken() }),
+    body: JSON.stringify({ mode: 'login', id_token: liff.getIDToken(), act_tenant_id: recall(ACT_KEY) || undefined }),
   })
   const out = await res.json()
+  // Vendor ที่จำไว้ใช้ไม่ได้แล้ว (ไม่ใช่ Super Admin / ถูกลบ) → กลับไปบริษัทตัวเอง
+  if (!out.ok && ['forbidden_switch_vendor', 'vendor_not_found'].includes(out.error) && recall(ACT_KEY)) {
+    store(ACT_KEY, ''); store(SCOPE_KEY, '')
+    return initAuth()
+  }
   if (!out.ok) {
     // token ใช้ไม่ได้ทั้งที่ยังไม่หมดอายุ → ลอง login ใหม่ 1 ครั้ง (กัน loop ด้วย sessionStorage)
     if (out.error === 'invalid_line_token' && !sessionStorage.getItem('guardos_relogin')) {
@@ -48,7 +72,8 @@ export async function initAuth() {
   sessionStorage.removeItem('guardos_relogin')
   accessToken = out.access_token
   currentUser = out.user
-  return { user: out.user }
+  currentVendor = out.vendor || null
+  return { user: out.user, vendor: currentVendor }
 }
 
 async function authed(path, options = {}, retried = false) {
