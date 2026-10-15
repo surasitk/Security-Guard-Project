@@ -136,3 +136,9 @@ table.grid td.muted, table.grid td.wrap { white-space: normal; min-width: 180px;
   .audit-head .sum { grid-column: 2 / 3; }
   .audit-items li { grid-template-columns: 1fr; gap: 2px; padding-left: 18px; }
 }
+
+/* ── Super Admin: สลับ Vendor ── */
+.vendor-switch { margin-top: 18px; padding: 0 4px; }
+.vendor-switch label { display: block; font-size: 12px; color: #8e959c; margin: 0 6px 6px; }
+.vendor-switch select { min-height: 40px; font-size: 14px; background-color: #262b31; color: #fff; border-color: #3a4047; }
+@media (max-width: 880px) { .vendor-switch { margin: 8px 0 10px; } }

@@ -43,20 +43,29 @@ async function verifyLineIdToken(idToken: string): Promise<LineProfile | null> {
   return await res.json();
 }
 
-async function mintJwt(user: {
-  id: string;
-  tenant_id: string;
-  role: string;
-}): Promise<string> {
+async function mintJwt(
+  user: { id: string; tenant_id: string; role: string },
+  acting?: { tenant_id: string },
+): Promise<string> {
   const secret = new TextEncoder().encode(Deno.env.get("GUARD_JWT_SECRET")!);
+  // Super Admin สลับไปดู Vendor อื่น → token ของ Vendor นั้นในสิทธิ์ owner
+  // (user_id ยังเป็นตัวจริง audit จึงบันทึกชื่อคนทำได้ถูกต้อง)
   return await new SignJWT({
     aud: "authenticated",
     role: "authenticated",
-    app_metadata: {
-      tenant_id: user.tenant_id,
-      user_id: user.id,
-      user_role: user.role,
-    },
+    app_metadata: acting
+      ? {
+        tenant_id: acting.tenant_id,
+        user_id: user.id,
+        user_role: "owner",
+        home_tenant_id: user.tenant_id,
+        acting: true,
+      }
+      : {
+        tenant_id: user.tenant_id,
+        user_id: user.id,
+        user_role: user.role,
+      },
   })
     .setProtectedHeader({ alg: "HS256", typ: "JWT" })
     .setSubject(user.id)
@@ -84,7 +93,7 @@ Deno.serve(async (req) => {
     });
 
   try {
-    const { mode, id_token, employee_code, phone, consent_version } = await req.json();
+    const { mode, id_token, employee_code, phone, consent_version, act_tenant_id } = await req.json();
     if (!id_token) return json({ ok: false, error: "missing_id_token" }, 400);
 
     const profile = await verifyLineIdToken(id_token);
@@ -148,8 +157,35 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (!user) return json({ ok: false, error: "not_registered" }, 404);
 
-    const token = await mintJwt(user);
-    return json({ ok: true, access_token: token, user: publicUser(user) });
+    const { data: pa } = await admin
+      .from("platform_admins").select("user_id").eq("user_id", user.id).maybeSingle();
+    const isPlatformAdmin = !!pa;
+
+    // Vendor ที่กำลังใช้งาน: ค่าเริ่มต้น = บริษัทของผู้ใช้เอง
+    let actingTenantId = user.tenant_id as string;
+    if (act_tenant_id && act_tenant_id !== user.tenant_id) {
+      if (!isPlatformAdmin) return json({ ok: false, error: "forbidden_switch_vendor" }, 403);
+      const { data: t } = await admin
+        .from("tenants").select("id").eq("id", act_tenant_id).maybeSingle();
+      if (!t) return json({ ok: false, error: "vendor_not_found" }, 404);
+      actingTenantId = act_tenant_id;
+    }
+    const acting = actingTenantId !== user.tenant_id;
+    const { data: tenant } = await admin
+      .from("tenants").select("id, name").eq("id", actingTenantId).maybeSingle();
+
+    const token = await mintJwt(user, acting ? { tenant_id: actingTenantId } : undefined);
+    return json({
+      ok: true,
+      access_token: token,
+      user: {
+        ...publicUser(user),
+        effective_role: acting ? "owner" : user.role,
+        is_platform_admin: isPlatformAdmin,
+        home_tenant_id: user.tenant_id,
+      },
+      vendor: tenant ?? { id: actingTenantId, name: null },
+    });
   } catch (e) {
     console.error("auth-line error:", e);
     return json({ ok: false, error: "internal_error" }, 500);

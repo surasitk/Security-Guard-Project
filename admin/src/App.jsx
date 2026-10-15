@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { initAuth, getUser } from './lib/api'
+import { initAuth, getUser, getVendor, switchVendor } from './lib/api'
 import Dashboard from './pages/Dashboard.jsx'
 import Monitor from './pages/Monitor.jsx'
 import People from './pages/People.jsx'
@@ -38,6 +38,8 @@ export default function App() {
   const [tab, setTab] = useState('dashboard')
   const [isPlatform, setIsPlatform] = useState(false)
   const [vendors, setVendors] = useState([])
+  const [ctx, setCtx] = useState(0)          // เปลี่ยนเมื่อสลับ Vendor → หน้าโหลดข้อมูลใหม่
+  const [switching, setSwitching] = useState(false)
 
   useEffect(() => {
     (async () => {
@@ -63,6 +65,16 @@ export default function App() {
   const user = getUser()
 
   const current = TABS.find((t) => t.key === tab) || TABS[0]
+  const vendor = getVendor()
+  const acting = isPlatform && vendor && user.home_tenant_id && vendor.id !== user.home_tenant_id
+  async function onVendor(e) {
+    setSwitching(true)
+    try {
+      const out = await switchVendor(e.target.value)
+      if (out?.error) setErr(out.error)
+      setCtx((n) => n + 1)
+    } finally { setSwitching(false) }
+  }
   return (
     <div className="shell">
       <aside className="side">
@@ -74,6 +86,14 @@ export default function App() {
             </button>
           ))}
         </nav>
+        {isPlatform && vendors.length > 0 && (
+          <div className="vendor-switch">
+            <label htmlFor="vsw">กำลังจัดการ Vendor</label>
+            <select id="vsw" value={vendor?.id || ''} onChange={onVendor} disabled={switching}>
+              {vendors.map((v) => <option key={v.id} value={v.id}>{v.name}{v.id === user.home_tenant_id ? ' (บริษัทของฉัน)' : ''}</option>)}
+            </select>
+          </div>
+        )}
         <div className="me">
           <div className="av">{(user.full_name || '?').trim().charAt(0)}</div>
           <div className="who"><b>{user.full_name}</b>{isPlatform ? 'Super Admin' : (ROLE_TH[user.role] || user.role)}</div>
@@ -84,7 +104,8 @@ export default function App() {
           <div className="page-head">
             <div><h1>{current.label}</h1><p>{current.desc}</p></div>
           </div>
-          <Active isPlatform={isPlatform} vendors={vendors} />
+          {acting && <div className="notice info" style={{ marginTop: 0 }}>คุณกำลังจัดการข้อมูลของ <b>{vendor.name}</b> ในฐานะ Super Admin — ทุกการแก้ไขบันทึกในชื่อคุณ</div>}
+          {switching ? <p className="muted">กำลังสลับ Vendor…</p> : <Active key={`${tab}-${ctx}`} isPlatform={isPlatform} vendors={vendors} />}
         </div>
       </main>
     </div>

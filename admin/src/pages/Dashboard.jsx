@@ -17,8 +17,8 @@ export default function Dashboard() {
       try {
         const [start, end] = todayRangeBkk()
         const [s, a] = await Promise.all([
-          list(`shift_assignments?select=id,starts_at,ends_at,status,kind,is_holiday_work,users!user_id(full_name,employee_code),properties(id,name,province)&starts_at=gte.${start}&starts_at=lt.${end}&status=neq.cancelled&order=starts_at`),
-          list(`attendance?select=check_in_at,check_out_at,late_minutes,early_leave_minutes,early_reason,flag_reason,in_distance_m,is_mock_flag,users(full_name),properties(id,name,province)&check_in_at=gte.${start}&order=check_in_at.desc&limit=30`),
+          list(`shift_assignments?select=id,starts_at,ends_at,status,kind,is_holiday_work,users!user_id(full_name,employee_code),properties!inner(id,name,province,is_test)&properties.is_test=is.false&starts_at=gte.${start}&starts_at=lt.${end}&status=neq.cancelled&order=starts_at`),
+          list(`attendance?select=check_in_at,check_out_at,late_minutes,early_leave_minutes,early_reason,flag_reason,in_distance_m,is_mock_flag,users(full_name),properties!inner(id,name,province,is_test)&properties.is_test=is.false&check_in_at=gte.${start}&order=check_in_at.desc&limit=30`),
         ])
         setShifts(s); setAtt(a)
         const cutoff = new Date(Date.now() - 3600 * 1000).toISOString()

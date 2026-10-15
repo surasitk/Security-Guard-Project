@@ -23,9 +23,10 @@ export default function Monitor() {
         const [logs, us, ps] = await Promise.all([
           list(`v_attendance_log?check_in_at=gte.${since}&order=check_in_at.desc&limit=200`),
           list('users?select=id,full_name,employee_code'),
-          list('properties?select=id,name,province'),
+          list('properties?select=id,name,province,is_test'),
         ])
-        setRows(logs)
+        const testIds = new Set(ps.filter((p) => p.is_test).map((p) => p.id))
+        setRows(logs.filter((l) => !testIds.has(l.property_id)))   // ไม่นับโครงการทดสอบ
         setUsers(Object.fromEntries(us.map((u) => [u.id, u])))
         setProps(Object.fromEntries(ps.map((p) => [p.id, p])))
         try {

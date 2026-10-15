@@ -157,7 +157,7 @@ export default function Properties() {
             {rows.map((p) => (
               <tr key={p.id}>
                 <td>{p.code}</td>
-                <td>{p.name}</td>
+                <td>{p.name}{p.is_test && <span className="badge warn" style={{ marginLeft: 8 }}>ทดสอบ · ไม่นับในรายงาน</span>}</td>
                 <td>{[p.subdistrict, p.district, p.province, p.postcode].filter(Boolean).join(' · ') || '—'}</td>
                 <td>{p.lat != null
                   ? <a href={`https://maps.google.com/?q=${p.lat},${p.lng}`} target="_blank" rel="noreferrer" style={{ color: 'var(--ink)' }}>แผนที่</a>

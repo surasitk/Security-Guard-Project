@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from 'react'
 import {
   getUser, rpc, list, getPosition, compressImage, uploadSelfie, deviceFingerprint, withTimeout, notifyLine,
 } from '../lib/api'
+import ShiftCalendar from '../components/ShiftCalendar.jsx'
 
 const ERROR_TH = {
   not_your_assignment: 'กะนี้ไม่ใช่ของคุณ',
@@ -23,6 +24,7 @@ const ERROR_TH = {
   next_shift_too_soon: 'กะถัดไปของคุณใกล้เริ่มแล้ว — รอเข้างานตามกะ',
   role_not_allowed: 'ตำแหน่งของคุณใช้เช็คอินแบบนี้ไม่ได้',
   property_not_found: 'ไม่พบโครงการนี้ หรือถูกปิดใช้งาน',
+  platform_admin_test_only: 'Super Admin เข้างานได้เฉพาะโครงการทดสอบ',
 }
 const REASONS = ['ป่วย / ไม่สบาย', 'ธุระด่วนทางบ้าน', 'หัวหน้าสั่งให้ออก', 'สลับกะกับเพื่อนแล้ว']
 const FIELD_ROLES = ['supervisor', 'assistant_supervisor']
@@ -34,11 +36,12 @@ const ROLE_TH = { guard: 'ยาม', shift_leader: 'หัวหน้ากะ
 export default function Home() {
   const user = getUser()
   const isField = FIELD_ROLES.includes(user?.role)
-  const canEmergency = ['guard', 'shift_leader'].includes(user?.role)
+  const [isPlatform, setIsPlatform] = useState(false)    // Super Admin: เข้างานได้เฉพาะโครงการทดสอบ
+  const canEmergency = ['guard', 'shift_leader'].includes(user?.role) || isPlatform
 
   const [shifts, setShifts] = useState(null)
   const [projects, setProjects] = useState([])
-  const [upcoming, setUpcoming] = useState([])
+  const [calKey, setCalKey] = useState(0)
   const [selected, setSelected] = useState(null)
   const [busy, setBusy] = useState(false)
   const [step, setStep] = useState('')
@@ -54,17 +57,17 @@ export default function Home() {
   async function load() {
     const [rows, projs] = await Promise.all([
       rpc('my_current_assignments'),
-      (isField || canEmergency) ? rpc('my_projects').catch(() => []) : Promise.resolve([]),
+      rpc('my_projects').catch(() => []),
     ])
     setShifts(rows); setProjects(projs || [])
     const cur = rows.find((r) => r.status === 'checked_in')
     setSelected(cur || (rows.length === 1 ? rows[0] : null))
-    const now = new Date().toISOString()
-    const week = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString()
-    const up = await list(`shift_assignments?select=id,starts_at,ends_at,is_holiday_work,status,properties(name)&user_id=eq.${user.id}&starts_at=gt.${now}&starts_at=lt.${week}&status=eq.scheduled&order=starts_at&limit=15`)
-    setUpcoming(up.filter((u) => !rows.some((r) => r.assignment_id === u.id)))
+    setCalKey((k) => k + 1)
   }
-  useEffect(() => { load().catch(() => setShifts([])) }, [])
+  useEffect(() => {
+    load().catch(() => setShifts([]))
+    rpc('is_platform_admin').then((v) => setIsPlatform(!!v)).catch(() => {})
+  }, [])
 
   const current = shifts?.find((s) => s.status === 'checked_in') || null
   const scheduled = (shifts || []).filter((s) => s.status === 'scheduled')
@@ -160,7 +163,7 @@ export default function Home() {
     }
   }
 
-  const adhocTitle = isField ? 'เช็คอินโครงการ' : 'เข้างานฉุกเฉิน'
+  const adhocTitle = isField ? 'เช็คอินโครงการ' : isPlatform ? 'เข้างานทดสอบ' : 'เข้างานฉุกเฉิน'
 
   return (
     <div className="page">
@@ -170,7 +173,7 @@ export default function Home() {
           <h1>สวัสดี {user?.full_name}</h1>
           <p className="sub">รหัสพนักงาน {user?.employee_code}</p>
         </div>
-        <span className="pill role">{ROLE_TH[user?.role] || user?.role}</span>
+        <span className="pill role">{isPlatform ? 'Super Admin' : (ROLE_TH[user?.role] || user?.role)}</span>
       </div>
 
       <input ref={fileRef} type="file" accept="image/*" capture="user" hidden onChange={onSelfie} />
@@ -254,9 +257,9 @@ export default function Home() {
             <>
               {canEmergency && <div className="spacer" />}
               <button className={`btn ${isField ? 'duty' : 'ghost'}`} onClick={() => { setMsg(null); setPickProp(null); setFlow('pick') }} disabled={busy}>
-                {isField ? 'เช็คอินโครงการ' : 'เข้างานฉุกเฉิน (แทนคน)'}
+                {isField ? 'เช็คอินโครงการ' : isPlatform ? 'เข้างานทดสอบ (โครงการ Test)' : 'เข้างานฉุกเฉิน (แทนคน)'}
               </button>
-              {canEmergency && <p className="muted" style={{ marginTop: 6 }}>ใช้เมื่อหัวหน้าเรียกให้มาแทนคนที่ขาด ในโครงการที่คุณมีชื่อ</p>}
+              {canEmergency && <p className="muted" style={{ marginTop: 6 }}>{isPlatform ? 'Super Admin ลองเข้า-ออกงานแบบยามได้ในโครงการทดสอบ — ข้อมูลไม่ปนกับลูกค้าและไม่นับในรายงาน' : 'ใช้เมื่อหัวหน้าเรียกให้มาแทนคนที่ขาด ในโครงการที่คุณมีชื่อ'}</p>}
             </>
           )}
           {flow === 'pick' && (
@@ -288,20 +291,8 @@ export default function Home() {
         </>
       )}
 
-      {upcoming.length > 0 && (
-        <>
-          <p className="section-title">กะ 7 วันข้างหน้า</p>
-          <div className="week">
-            {upcoming.map((u) => (
-              <div key={u.id} className="week-row">
-                <span className="d">{fmtDay(u.starts_at)}</span>
-                <span className="p">{u.properties?.name}{u.is_holiday_work ? ' (วันหยุด OT)' : ''}</span>
-                <span className="t">{fmtTime(u.starts_at)}–{fmtTime(u.ends_at)}</span>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
+      <p className="section-title">ตารางกะ</p>
+      <ShiftCalendar key={calKey} />
     </div>
   )
 }

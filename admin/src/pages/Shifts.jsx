@@ -1,6 +1,6 @@
 // ตารางกะ — สร้างแม่แบบกะ + generate กะรายเดือนให้ยาม + ดูกะล่วงหน้า
 import { useEffect, useState } from 'react'
-import { list, insert, update, rpc, tenantId, fmtTime, fmtDate } from '../lib/api'
+import { list, insert, update, rpc, tenantId, fmtTime, fmtDate, getUser } from '../lib/api'
 
 const DOW = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส']
 
@@ -26,9 +26,9 @@ export default function Shifts() {
   const load = async () => {
     try {
       const [t, g, p, u] = await Promise.all([
-        list('shift_templates?select=*,properties(name)&is_active=is.true&order=name'),
+        list('shift_templates?select=*,properties(name,is_test)&is_active=is.true&order=name'),
         list('users?select=id,full_name,employee_code&role=in.(guard,shift_leader)&is_active=is.true&order=full_name'),
-        list('properties?select=id,name&is_active=is.true&order=name'),
+        list('properties?select=id,name,is_test&is_active=is.true&order=name'),
         list(`shift_assignments?select=id,starts_at,ends_at,status,is_holiday_work,user_id,property_id,users!user_id(full_name),properties(name)&starts_at=gte.${new Date().toISOString()}&status=neq.cancelled&order=starts_at&limit=500`),
       ])
       setTemplates(t); setGuards(g); setProperties(p); setUpcoming(u); setSel(new Set())
@@ -126,6 +126,13 @@ export default function Shifts() {
     } catch (e2) { setMsg({ t: 'err', m: String(e2.message) }) }
   }
 
+  // โครงการทดสอบ: จ่ายกะได้เฉพาะ Super Admin เอง · โครงการจริง: เฉพาะยาม/หัวหน้ากะ
+  const gTpl = templates.find((t) => t.id === gForm.template_id)
+  const me = getUser()
+  const assignable = gTpl?.properties?.is_test
+    ? [{ id: me.id, full_name: me.full_name, employee_code: me.employee_code, self: true }]
+    : guards.filter((g) => g.id !== me.id)
+
   const shown = (upcoming || []).filter((s) => (!fUser || s.user_id === fUser) && (!fProp || s.property_id === fProp))
   const selectable = shown.filter((s) => s.status === 'scheduled')
   const allOn = selectable.length > 0 && selectable.every((s) => sel.has(s.id))
@@ -171,7 +178,7 @@ export default function Shifts() {
           <div className="field"><label>โครงการ *</label>
             <select value={tForm.property_id} onChange={(e) => setTForm({ ...tForm, property_id: e.target.value })} required disabled={!!editId}>
               <option value="">— เลือก —</option>
-              {properties.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              {properties.map((p) => <option key={p.id} value={p.id}>{p.is_test ? '🧪 ' : ''}{p.name}</option>)}
             </select>
           </div>
           <div className="field"><label>ชื่อกะ</label><input value={tForm.name} onChange={(e) => setTForm({ ...tForm, name: e.target.value })} /></div>
@@ -234,15 +241,15 @@ export default function Shifts() {
       <form className="card" onSubmit={generate}>
         <div className="form-grid">
           <div className="field"><label>แม่แบบกะ *</label>
-            <select value={gForm.template_id} onChange={(e) => setGForm({ ...gForm, template_id: e.target.value })} required>
+            <select value={gForm.template_id} onChange={(e) => setGForm({ ...gForm, template_id: e.target.value, user_id: '' })} required>
               <option value="">— เลือก —</option>
-              {templates.map((t) => <option key={t.id} value={t.id}>{t.properties?.name} · {t.name} ({String(t.start_time).slice(0, 5)}-{String(t.end_time).slice(0, 5)})</option>)}
+              {templates.map((t) => <option key={t.id} value={t.id}>{t.properties?.is_test ? '🧪 ' : ''}{t.properties?.name} · {t.name} ({String(t.start_time).slice(0, 5)}-{String(t.end_time).slice(0, 5)})</option>)}
             </select>
           </div>
           <div className="field"><label>พนักงาน *</label>
             <select value={gForm.user_id} onChange={(e) => setGForm({ ...gForm, user_id: e.target.value })} required>
               <option value="">— เลือก —</option>
-              {guards.map((g) => <option key={g.id} value={g.id}>{g.full_name} ({g.employee_code})</option>)}
+              {assignable.map((g) => <option key={g.id} value={g.id}>{g.full_name} ({g.employee_code}){g.self ? ' · ตัวคุณ (ทดสอบ)' : ''}</option>)}
             </select>
           </div>
           <div className="field"><label>ตั้งแต่วันที่ *</label><input type="date" value={gForm.from} onChange={(e) => setGForm({ ...gForm, from: e.target.value })} required /></div>
@@ -276,7 +283,7 @@ export default function Shifts() {
                 <label>หรือเปลี่ยนให้คนอื่นรับแทน</label>
                 <select value={swapTo} onChange={(e) => setSwapTo(e.target.value)}>
                   <option value="">— เลือกพนักงาน —</option>
-                  {guards.map((g) => <option key={g.id} value={g.id}>{g.full_name} ({g.employee_code})</option>)}
+                  {guards.filter((g) => g.id !== getUser().id).map((g) => <option key={g.id} value={g.id}>{g.full_name} ({g.employee_code})</option>)}
                 </select>
               </div>
               <button className="btn inline ghost" onClick={swapSelected} disabled={busy || !swapTo}>เปลี่ยนคน</button>
