@@ -70,26 +70,45 @@ export default function Dashboard() {
   const checkedIn = shifts.filter((s) => s.status === 'checked_in').length
   const done = shifts.filter((s) => s.status === 'checked_out').length
   const absent = shifts.filter((s) => derive(s) === 'absent').length
-  const waiting = shifts.filter((s) => ['scheduled', 'overdue'].includes(derive(s))).length
+  const overdue = shifts.filter((s) => derive(s) === 'overdue').length
+  const waitOnTime = shifts.filter((s) => derive(s) === 'scheduled').length
   const late = att.filter((a) => a.late_minutes > 0).length
   const flagged = att.filter((a) => a.is_mock_flag || a.flag_reason).length
 
   return (
     <div>
       {(provinces.length > 1 || propOptions.length > 1) && (
-        <div className="card" style={{ padding: '14px 18px', marginBottom: 18 }}>
+        <div className="filters">
           <FilterChips label="จังหวัด" options={provinces} selected={provSel} onChange={setProvSel} />
           <FilterChips label="โครงการ" options={propOptions} selected={propSel} onChange={setPropSel} />
         </div>
       )}
+      <section className="board" aria-label="สถานะเวรวันนี้">
+        <div className="board-top">
+          <div className="big">{checkedIn}<small>คนกำลังปฏิบัติงาน จากกะวันนี้ {total} กะ</small></div>
+          <span className="muted">อัปเดต {fmtTime(new Date().toISOString())} น.</span>
+        </div>
+        {total > 0 && (
+          <div className="dutybar" role="img" aria-label={`ปฏิบัติงาน ${checkedIn} · ออกแล้ว ${done} · รอเข้า ${waitOnTime} · เลยเวลาเริ่ม ${overdue} · ขาด ${absent}`}>
+            <span className="on" style={{ width: `${checkedIn / total * 100}%` }} />
+            <span className="done" style={{ width: `${done / total * 100}%` }} />
+            <span className="late" style={{ width: `${overdue / total * 100}%` }} />
+            <span className="wait" style={{ width: `${waitOnTime / total * 100}%` }} />
+            <span className="absent" style={{ width: `${absent / total * 100}%` }} />
+          </div>
+        )}
+        <div className="legend">
+          <span><i style={{ background: 'var(--duty)' }} />กำลังปฏิบัติงาน<b>{checkedIn}</b></span>
+          <span><i style={{ background: 'var(--ink)' }} />ออกงานแล้ว<b>{done}</b></span>
+          <span><i style={{ background: 'var(--warn)' }} />เลยเวลาเริ่ม<b>{overdue}</b></span>
+          <span><i style={{ background: '#b9bfc4' }} />รอเข้างาน<b>{waitOnTime}</b></span>
+          <span><i style={{ background: 'var(--alert)' }} />ขาดงาน<b>{absent}</b></span>
+        </div>
+      </section>
       <div className="stat-row">
-        <div className="stat"><div className="n">{total}</div><div className="l">กะวันนี้</div></div>
-        <div className="stat"><div className="n">{checkedIn}</div><div className="l">กำลังปฏิบัติงาน</div></div>
-        <div className="stat"><div className="n">{done}</div><div className="l">ออกงานแล้ว</div></div>
-        <div className="stat"><div className="n">{waiting}</div><div className="l">ยังไม่เข้างาน</div></div>
-        <div className="stat"><div className="n">{absent}</div><div className="l">ขาดงาน</div></div>
-        <div className="stat"><div className="n">{late}</div><div className="l">เข้าสาย</div></div>
-        <div className="stat"><div className="n">{flagged}</div><div className="l">ธงตรวจสอบ</div></div>
+        <div className={`stat ${late ? 'warn' : ''}`}><div className="n">{late}</div><div className="l">เข้าสายวันนี้</div></div>
+        <div className={`stat ${flagged ? 'warn' : ''}`}><div className="n">{flagged}</div><div className="l">รายการติดธงตรวจสอบ</div></div>
+        <div className={`stat ${stuck.length ? 'alert' : ''}`}><div className="n">{stuck.length}</div><div className="l">ลืมเช็คเอาต์ รอปิดกะ</div></div>
       </div>
 
       {stuck.length > 0 && (
@@ -119,7 +138,7 @@ export default function Dashboard() {
             {shifts.map((s) => (
               <tr key={s.id}>
                 <td>{s.users?.full_name} <span className="muted">({s.users?.employee_code})</span></td>
-                <td>{s.properties?.name}{s.is_holiday_work ? ' · วันหยุด' : ''}{s.kind && s.kind !== 'scheduled' ? <span className="badge" style={{ marginLeft: 6 }}>{KIND[s.kind]}</span> : null}</td>
+                <td>{s.properties?.name}{s.is_holiday_work ? ' · วันหยุด' : ''}{s.kind && s.kind !== 'scheduled' ? <span className="badge warn" style={{ marginLeft: 6 }}>{KIND[s.kind]}</span> : null}</td>
                 <td>{fmtTime(s.starts_at)}–{fmtTime(s.ends_at)}</td>
                 <td><Status s={derive(s)} /></td>
               </tr>
@@ -142,7 +161,7 @@ export default function Dashboard() {
                 <td>
                   {a.early_reason && <div>เหตุผล: {a.early_reason}</div>}
                   {(a.is_mock_flag || a.flag_reason)
-                    ? (a.flag_reason || 'mock_gps').split(',').map((f) => <span key={f} className="badge" style={{ marginRight: 4 }}>{FLAG[f] || f}</span>)
+                    ? (a.flag_reason || 'mock_gps').split(',').map((f) => <span key={f} className={`badge ${f === 'early_checkout' || f === 'emergency' ? 'warn' : 'alert'}`} style={{ marginRight: 4 }}>{FLAG[f] || f}</span>)
                     : (!a.early_reason && <span className="muted">ปกติ</span>)}
                 </td>
               </tr>
@@ -161,6 +180,7 @@ const FLAG = {
 }
 
 function Status({ s }) {
-  const map = { scheduled: 'รอเข้างาน', overdue: 'เลยเวลาเริ่ม', checked_in: 'กำลังปฏิบัติงาน', checked_out: 'ออกงานแล้ว', absent: 'ขาดงาน' }
-  return <span className={`badge ${s === 'checked_in' ? 'solid' : ''}`} style={s === 'absent' ? { fontWeight: 600 } : undefined}>{map[s] || s}</span>
+  const map = { scheduled: 'รอเข้างาน', overdue: 'เลยเวลาเริ่ม', checked_in: 'กำลังปฏิบัติงาน', checked_out: 'ออกงานแล้ว', absent: 'ขาดงาน', cancelled: 'ยกเลิก' }
+  const tone = { checked_in: 'duty', overdue: 'warn', absent: 'alert', checked_out: 'solid' }[s] || ''
+  return <span className={`badge ${tone}`}>{map[s] || s}</span>
 }

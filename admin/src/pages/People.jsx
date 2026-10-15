@@ -140,12 +140,14 @@ export default function People({ isPlatform = false, vendors = [] }) {
             <div className="field"><label>รหัสพนักงาน *</label><input value={form.employee_code} onChange={set('employee_code')} placeholder="SG-001" required /></div>
             <div className="field"><label>ชื่อ-สกุล *</label><input value={form.full_name} onChange={set('full_name')} required /></div>
             <div className="field"><label>เบอร์โทร</label><input value={form.phone} onChange={set('phone')} inputMode="tel" /></div>
-            <div className="field"><label>บทบาท *</label>
+            <div className="field"><label>ค่าแรง/วัน (บาท)</label><input value={form.daily_wage} onChange={set('daily_wage')} inputMode="numeric" /></div>
+            <div className="form-sep">บทบาทและสิทธิ์</div>
+            <div className="field wide"><label>บทบาท *</label>
               <select value={form.role} onChange={set('role')}>{roleOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
               <p className="hint">{roleDesc}</p>
             </div>
-            <div className="field"><label>ค่าแรง/วัน (บาท)</label><input value={form.daily_wage} onChange={set('daily_wage')} inputMode="numeric" /></div>
-            <div className="field"><label>วันหยุดประจำสัปดาห์ (เลือกได้หลายวัน)</label>
+            <div className="form-sep">วันหยุดประจำสัปดาห์</div>
+            <div className="field wide"><label>เลือกได้หลายวัน</label>
               <div className="prop-checks">
                 {DAYS.map((d, i) => (
                   <label key={i} className={form.days_off.includes(i) ? 'on' : ''}>
@@ -155,33 +157,33 @@ export default function People({ isPlatform = false, vendors = [] }) {
               </div>
               <p className="hint">กะที่ตรงวันหยุดจะติดธง OT วันหยุด (2.5x) ตอนจ่ายกะ</p>
             </div>
+            <div className="form-sep">โครงการและสิทธิ์พิเศษ</div>
+            {SCOPED.includes(form.role) && (
+              <div className="field wide">
+                <label>โครงการที่ได้รับมอบหมาย ({form.property_ids.length}/{limit})</label>
+                {formProps.length ? (
+                  <div className="prop-checks">
+                    {formProps.map((p) => (
+                      <label key={p.id} className={form.property_ids.includes(p.id) ? 'on' : ''} style={!form.property_ids.includes(p.id) && form.property_ids.length >= limit ? { opacity: 0.45 } : undefined}>
+                        <input type="checkbox" checked={form.property_ids.includes(p.id)} disabled={!form.property_ids.includes(p.id) && form.property_ids.length >= limit} onChange={() => toggleProp(p.id)} />
+                        {p.name}
+                      </label>
+                    ))}
+                  </div>
+                ) : <p className="hint">Vendor นี้ยังไม่มีโครงการ — สร้างในแท็บโครงการก่อน</p>}
+                {!form.property_ids.length && formProps.length > 0 && <p className="hint">ยังไม่ได้เลือก — ผู้ใช้จะไม่เห็นโครงการใดเลย</p>}
+              </div>
+            )}
+
+            {isPlatform && (
+              <label className="consent" style={{ display: 'flex', gap: 10, alignItems: 'flex-start', gridColumn: '1 / -1' }}>
+                <input type="checkbox" checked={form.platform_admin} onChange={(e) => setForm({ ...form, platform_admin: e.target.checked })} style={{ marginTop: 4 }} disabled={form.id === me.id} />
+                <span><b>Super Admin</b> — เห็นและสลับดูได้ทุก Vendor สร้าง Vendor ใหม่ และตั้ง Super Admin คนอื่นได้ ควรให้เฉพาะทีมเจ้าของแพลตฟอร์ม</span>
+              </label>
+            )}
           </div>
 
-          {SCOPED.includes(form.role) && (
-            <div className="field" style={{ marginTop: 16 }}>
-              <label>โครงการที่ได้รับมอบหมาย ({form.property_ids.length}/{limit})</label>
-              {formProps.length ? (
-                <div className="prop-checks">
-                  {formProps.map((p) => (
-                    <label key={p.id} className={form.property_ids.includes(p.id) ? 'on' : ''} style={!form.property_ids.includes(p.id) && form.property_ids.length >= limit ? { opacity: 0.45 } : undefined}>
-                      <input type="checkbox" checked={form.property_ids.includes(p.id)} disabled={!form.property_ids.includes(p.id) && form.property_ids.length >= limit} onChange={() => toggleProp(p.id)} />
-                      {p.name}
-                    </label>
-                  ))}
-                </div>
-              ) : <p className="hint">Vendor นี้ยังไม่มีโครงการ — สร้างในแท็บโครงการก่อน</p>}
-              {!form.property_ids.length && formProps.length > 0 && <p className="hint">ยังไม่ได้เลือก — ผู้ใช้จะไม่เห็นโครงการใดเลย</p>}
-            </div>
-          )}
-
-          {isPlatform && (
-            <label className="consent" style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginTop: 16 }}>
-              <input type="checkbox" checked={form.platform_admin} onChange={(e) => setForm({ ...form, platform_admin: e.target.checked })} style={{ marginTop: 4 }} disabled={form.id === me.id} />
-              <span><b>Super Admin</b> — เห็นและสลับดูได้ทุก Vendor สร้าง Vendor ใหม่ และตั้ง Super Admin คนอื่นได้ ควรให้เฉพาะทีมเจ้าของแพลตฟอร์ม</span>
-            </label>
-          )}
-
-          <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
+          <div style={{ display: 'flex', gap: 8, marginTop: 22 }}>
             <button className="btn inline" type="submit" disabled={busy}>{busy ? 'กำลังบันทึก…' : (form.id ? 'บันทึกการแก้ไข' : 'เพิ่มผู้ใช้')}</button>
             <button className="btn inline ghost" type="button" onClick={() => setForm(null)}>ยกเลิก</button>
           </div>

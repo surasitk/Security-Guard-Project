@@ -73,7 +73,7 @@ export default function Monitor() {
 
   return (
     <div>
-      <div className="card" style={{ padding: '14px 18px', marginBottom: 18 }}>
+      <div className="filters">
         <FilterChips label="จังหวัด" options={provinces} selected={provSel} onChange={setProvSel} />
         <FilterChips label="โครงการ" options={propOptions} selected={propSel} onChange={setPropSel} />
       </div>

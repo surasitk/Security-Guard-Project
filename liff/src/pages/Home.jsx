@@ -29,6 +29,7 @@ const FIELD_ROLES = ['supervisor', 'assistant_supervisor']
 const fmtTime = (ts) => new Date(ts).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
 const fmtDay = (ts) => new Date(ts).toLocaleDateString('th-TH', { weekday: 'short', day: 'numeric', month: 'short' })
 const KIND_LABEL = { adhoc: 'เช็คอินโครงการ', emergency: 'เข้างานฉุกเฉิน' }
+const ROLE_TH = { guard: 'ยาม', shift_leader: 'หัวหน้ากะ', supervisor: 'สายตรวจ', assistant_supervisor: 'ผู้ช่วยสายตรวจ', admin: 'แอดมิน', owner: 'เจ้าของ', client: 'ลูกค้า' }
 
 export default function Home() {
   const user = getUser()
@@ -159,41 +160,45 @@ export default function Home() {
     }
   }
 
-  const cardStyle = (on) => ({ cursor: 'pointer', borderColor: on ? 'var(--ink)' : 'var(--line)', borderWidth: on ? 2 : 1 })
   const adhocTitle = isField ? 'เช็คอินโครงการ' : 'เข้างานฉุกเฉิน'
 
   return (
     <div className="page">
-      <p className="brand">GUARD OS</p>
-      <h1>สวัสดี {user?.full_name}</h1>
-      <p className="sub">รหัสพนักงาน {user?.employee_code}</p>
+      <div className="hello">
+        <div>
+          <p className="brand">Guard OS</p>
+          <h1>สวัสดี {user?.full_name}</h1>
+          <p className="sub">รหัสพนักงาน {user?.employee_code}</p>
+        </div>
+        <span className="pill role">{ROLE_TH[user?.role] || user?.role}</span>
+      </div>
 
       <input ref={fileRef} type="file" accept="image/*" capture="user" hidden onChange={onSelfie} />
 
       {shifts === null && <p className="muted">กำลังโหลด…</p>}
 
       {current && (
-        <div className="card" style={cardStyle(true)}>
-          <div className="k">● กำลังปฏิบัติงาน{current.kind !== 'scheduled' ? ` · ${KIND_LABEL[current.kind]}` : ''}</div>
+        <div className="card duty on">
+          <span className="pill duty">กำลังปฏิบัติงาน</span>
+          {current.kind !== 'scheduled' && <span className="pill warn" style={{ marginLeft: 6 }}>{KIND_LABEL[current.kind]}</span>}
           <div className="v">{current.property_name}{current.unit_name ? ` · ${current.unit_name}` : ''}</div>
-          <p className="muted" style={{ marginTop: 6 }}>
-            เข้างาน {fmtTime(current.checked_in_at)}
-            {current.kind === 'scheduled' && ` · กะ ${fmtTime(current.starts_at)}–${fmtTime(current.ends_at)} · เช็คเอาต์ได้ถึง ${fmtTime(current.checkout_deadline)}`}
-          </p>
+          <p className="when">เข้างาน {fmtTime(current.checked_in_at)} น.{current.kind === 'scheduled' && ` · กะ ${fmtTime(current.starts_at)}–${fmtTime(current.ends_at)}`}</p>
+          {current.kind === 'scheduled' && <p className="muted" style={{ marginTop: 4 }}>เช็คเอาต์ได้ถึง {fmtTime(current.checkout_deadline)} น.</p>}
         </div>
       )}
 
       {!current && scheduled.map((s) => (
-        <div key={s.assignment_id} className="card" onClick={() => setSelected(s)} style={cardStyle(selected?.assignment_id === s.assignment_id)}>
-          <div className="k">กะที่กำลังจะถึง</div>
+        <div key={s.assignment_id} role="button" tabIndex={0} onClick={() => setSelected(s)} onKeyDown={(e) => e.key === 'Enter' && setSelected(s)}
+          className={`card duty ${selected?.assignment_id === s.assignment_id ? 'selected' : ''}`} style={{ cursor: 'pointer' }}>
+          <span className="pill">กะของคุณวันนี้</span>
           <div className="v">{s.property_name}{s.unit_name ? ` · ${s.unit_name}` : ''}</div>
-          <p className="muted" style={{ marginTop: 6 }}>{fmtTime(s.starts_at)} – {fmtTime(s.ends_at)}</p>
+          <p className="when">{fmtTime(s.starts_at)} – {fmtTime(s.ends_at)} น.</p>
         </div>
       ))}
 
       {shifts && !current && scheduled.length === 0 && !flow && (
-        <div className="card">
-          <div className="k">กะของคุณ</div>
+        <div className="card duty">
+          <span className="pill">ตอนนี้</span>
           <div className="v">ไม่มีกะในช่วงเวลานี้</div>
           <p className="muted" style={{ marginTop: 8 }}>
             {isField ? (projects.length ? 'กด "เช็คอินโครงการ" ด้านล่างเพื่อเริ่มงาน' : 'ยังไม่ได้รับมอบหมายโครงการ — ติดต่อผู้ดูแล')
@@ -202,40 +207,42 @@ export default function Home() {
         </div>
       )}
 
-      {busy && <div className="notice"><div className="bar"><span /></div>{step}</div>}
+      {busy && <div className="notice info"><div className="bar"><span /></div>{step}</div>}
       {msg && <div className={`notice ${msg.type === 'err' ? 'err' : ''}`}>{msg.text}</div>}
 
+      <div className="dock" hidden={!(gpsFallback && !busy) && !(!gpsFallback && !flow && current) && !(!gpsFallback && !flow && !current && selected?.status === 'scheduled')}>
       {gpsFallback && !busy && (
         <button className="btn ghost" onClick={() => doSubmit(gpsFallback.action, gpsFallback.selfiePath, gpsFallback.fp, null)}>
           {gpsFallback.action.type === 'out' ? 'ออกงานโดยไม่มีพิกัด' : 'เข้างานโดยไม่มีพิกัด'}
         </button>
       )}
-
       {!gpsFallback && !flow && current && (
         pastDeadline
           ? <div className="notice err">เลยเวลาเช็คเอาต์แล้ว (เกิน 1 ชม. หลังจบกะ) — ติดต่อหัวหน้าให้ปิดกะ</div>
           : <button className="btn" onClick={startCheckout} disabled={busy}>
-              {busy ? 'กำลังบันทึก…' : isEarly ? 'ออกงานก่อนเวลา (ถ่ายรูปยืนยัน)' : 'ออกงาน (ถ่ายรูปยืนยัน)'}
+              {busy ? 'กำลังบันทึก…' : isEarly ? 'ออกงานก่อนเวลา · ถ่ายรูปยืนยัน' : 'ออกงาน · ถ่ายรูปยืนยัน'}
             </button>
       )}
       {!gpsFallback && !flow && !current && selected?.status === 'scheduled' && (
-        <button className="btn" onClick={() => openCamera({ type: 'in', assignment: selected })} disabled={busy}>
-          {busy ? 'กำลังบันทึก…' : 'เข้างาน (ถ่ายรูปยืนยัน)'}
+        <button className="btn duty" onClick={() => openCamera({ type: 'in', assignment: selected })} disabled={busy}>
+          {busy ? 'กำลังบันทึก…' : 'เข้างาน · ถ่ายรูปยืนยัน'}
         </button>
       )}
+      </div>
 
       {flow === 'reason' && current && (
         <div className="card">
-          <div className="k">ออกงานก่อนเวลา</div>
-          <div className="v" style={{ fontSize: 16 }}>กะจบ {fmtTime(current.ends_at)} · เหตุผลจะถูกส่งให้ผู้ดูแลทาง LINE</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, margin: '12px 0' }}>
+          <span className="pill warn">ออกงานก่อนเวลา</span>
+          <div className="v" style={{ marginTop: 8 }}>กะจบ {fmtTime(current.ends_at)} น.</div>
+          <p className="muted">เลือกหรือพิมพ์เหตุผล ระบบจะส่งให้ผู้ดูแลทาง LINE</p>
+          <div className="chips">
             {REASONS.map((r) => (
               <button key={r} type="button" className={`chip ${reason === r ? 'on' : ''}`} onClick={() => setReason(r)}>{r}</button>
             ))}
           </div>
           <textarea className="input" rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="เหตุผลที่ออกก่อนเวลา" />
           <button className="btn" disabled={!reason.trim() || busy} onClick={() => openCamera({ type: 'out', assignment: current, reason: reason.trim() })}>
-            ยืนยันออกงาน (ถ่ายรูปยืนยัน)
+            ยืนยันออกงาน · ถ่ายรูป
           </button>
           <button className="btn ghost" onClick={() => setFlow(null)}>ยกเลิก</button>
         </div>
@@ -246,7 +253,7 @@ export default function Home() {
           {!flow && (
             <>
               {canEmergency && <div className="spacer" />}
-              <button className={`btn ${isField ? '' : 'ghost'}`} onClick={() => { setMsg(null); setPickProp(null); setFlow('pick') }} disabled={busy}>
+              <button className={`btn ${isField ? 'duty' : 'ghost'}`} onClick={() => { setMsg(null); setPickProp(null); setFlow('pick') }} disabled={busy}>
                 {isField ? 'เช็คอินโครงการ' : 'เข้างานฉุกเฉิน (แทนคน)'}
               </button>
               {canEmergency && <p className="muted" style={{ marginTop: 6 }}>ใช้เมื่อหัวหน้าเรียกให้มาแทนคนที่ขาด ในโครงการที่คุณมีชื่อ</p>}
@@ -254,7 +261,8 @@ export default function Home() {
           )}
           {flow === 'pick' && (
             <div className="card">
-              <div className="k">{adhocTitle} · เลือกโครงการ</div>
+              <span className="pill">{adhocTitle}</span>
+              <div className="v" style={{ margin: '8px 0 12px' }}>เลือกโครงการ</div>
               {projects.map((p) => (
                 <label key={p.property_id} className="choice">
                   <input type="radio" name="proj" checked={pickProp?.property_id === p.property_id} onChange={() => setPickProp(p)} />
@@ -267,13 +275,13 @@ export default function Home() {
           )}
           {flow === 'confirm' && pickProp && (
             <div className="card">
-              <div className="k">ยืนยัน{adhocTitle}</div>
-              <div className="v">{pickProp.property_name}</div>
+              <span className="pill">ยืนยัน{adhocTitle}</span>
+              <div className="v" style={{ marginTop: 8 }}>{pickProp.property_name}</div>
               <p className="muted" style={{ margin: '6px 0 12px' }}>
                 {isField ? 'เวลาเข้างานบันทึกตามเวลาเซิร์ฟเวอร์ · ต้องเช็คเอาต์ก่อนไปเช็คอินโครงการถัดไป'
                   : 'ระบบจะบันทึกเป็นการเข้างานฉุกเฉิน และแสดงให้ผู้ดูแลเห็นในหน้าภาพรวม'}
               </p>
-              <button className="btn" disabled={busy} onClick={() => openCamera({ type: 'adhoc', property: pickProp })}>ยืนยันเช็คอิน (ถ่ายรูปยืนยัน)</button>
+              <button className="btn" disabled={busy} onClick={() => openCamera({ type: 'adhoc', property: pickProp })}>ยืนยันเช็คอิน · ถ่ายรูป</button>
               <button className="btn ghost" onClick={() => setFlow('pick')}>เปลี่ยนโครงการ</button>
             </div>
           )}
@@ -282,14 +290,16 @@ export default function Home() {
 
       {upcoming.length > 0 && (
         <>
-          <div className="spacer" />
-          <p className="brand" style={{ marginBottom: 8 }}>กะล่วงหน้า 7 วัน</p>
-          {upcoming.map((u) => (
-            <div key={u.id} className="card" style={{ padding: '14px 18px', marginBottom: 8 }}>
-              <div className="v" style={{ fontSize: 15 }}>{fmtDay(u.starts_at)}{u.is_holiday_work ? ' · วันหยุด (OT)' : ''}</div>
-              <p className="muted" style={{ marginTop: 4 }}>{u.properties?.name} · {fmtTime(u.starts_at)}–{fmtTime(u.ends_at)}</p>
-            </div>
-          ))}
+          <p className="section-title">กะ 7 วันข้างหน้า</p>
+          <div className="week">
+            {upcoming.map((u) => (
+              <div key={u.id} className="week-row">
+                <span className="d">{fmtDay(u.starts_at)}</span>
+                <span className="p">{u.properties?.name}{u.is_holiday_work ? ' (วันหยุด OT)' : ''}</span>
+                <span className="t">{fmtTime(u.starts_at)}–{fmtTime(u.ends_at)}</span>
+              </div>
+            ))}
+          </div>
         </>
       )}
     </div>

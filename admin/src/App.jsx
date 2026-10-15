@@ -9,15 +9,28 @@ import Shifts from './pages/Shifts.jsx'
 import Vendors from './pages/Vendors.jsx'
 import { rpc } from './lib/api'
 
+// ไอคอนเส้น 18px (วาดเอง — ไม่พึ่งไลบรารี)
+const I = {
+  dash: <path d="M3 13h7V3H3zM14 21h7v-8h-7zM3 21h7v-4H3zM14 9h7V3h-7z" />,
+  eye: <><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z" /><circle cx="12" cy="12" r="3" /></>,
+  cal: <><rect x="3" y="4.5" width="18" height="16" rx="2" /><path d="M3 9.5h18M8 2.5v4M16 2.5v4" /></>,
+  users: <><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5M16 4.8a3.3 3.3 0 0 1 0 6.4M18.5 14.8c1.6.8 2.6 2.5 3 5.2" /></>,
+  site: <><path d="M4 21V8l8-5 8 5v13" /><path d="M9 21v-6h6v6M4 21h16" /></>,
+  qr: <><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3" /></>,
+  org: <><path d="M3 21h18M5 21V7l7-4 7 4v14" /><path d="M9 10h.01M15 10h.01M9 14h.01M15 14h.01" /></>,
+}
+const Icon = ({ k }) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{I[k]}</svg>
+
 const BASE_TABS = [
-  { key: 'dashboard', label: 'ภาพรวมวันนี้', el: Dashboard },
-  { key: 'monitor', label: 'มอนิเตอร์', el: Monitor },
-  { key: 'shifts', label: 'ตารางกะ', el: Shifts },
-  { key: 'people', label: 'ผู้ใช้และสิทธิ์', el: People },
-  { key: 'properties', label: 'โครงการ', el: Properties },
-  { key: 'checkpoints', label: 'จุดตรวจ (QR)', el: Checkpoints },
+  { key: 'dashboard', label: 'ภาพรวมวันนี้', icon: 'dash', desc: 'ใครอยู่เวร ใครยังไม่เข้า และสิ่งที่ต้องจัดการวันนี้', el: Dashboard },
+  { key: 'monitor', label: 'มอนิเตอร์', icon: 'eye', desc: 'เหตุการณ์เข้า-ออกงาน 7 วันล่าสุด พร้อมรูปและพิกัด', el: Monitor },
+  { key: 'shifts', label: 'ตารางกะ', icon: 'cal', desc: 'สร้างแม่แบบกะ จ่ายกะ และจัดการกะที่กำลังจะถึง', el: Shifts },
+  { key: 'people', label: 'ผู้ใช้และสิทธิ์', icon: 'users', desc: 'ข้อมูลผู้ใช้ บทบาท โครงการที่ได้รับมอบหมาย และวันหยุด', el: People },
+  { key: 'properties', label: 'โครงการ', icon: 'site', desc: 'ที่ตั้ง พิกัด และรัศมีเช็คอินของแต่ละโครงการ', el: Properties },
+  { key: 'checkpoints', label: 'จุดตรวจ (QR)', icon: 'qr', desc: 'จุดเดินตรวจและ QR สำหรับติดหน้างาน', el: Checkpoints },
 ]
-const VENDOR_TAB = { key: 'vendors', label: 'Vendors', el: Vendors }
+const VENDOR_TAB = { key: 'vendors', label: 'บริษัทในระบบ', icon: 'org', desc: 'บริษัท รปภ. ที่ใช้ Guard OS (เฉพาะ Super Admin)', el: Vendors }
+const ROLE_TH = { owner: 'เจ้าของ', admin: 'แอดมิน', supervisor: 'สายตรวจ', shift_leader: 'หัวหน้ากะ' }
 
 export default function App() {
   const [state, setState] = useState('loading')
@@ -42,41 +55,46 @@ export default function App() {
 
   if (state === 'loading') return <Center msg="กำลังเชื่อมต่อ…" />
   if (state === 'unregistered') return <Center msg="บัญชี LINE นี้ยังไม่ได้ลงทะเบียนในระบบ — ให้ผู้ดูแลเพิ่มคุณเป็นพนักงานก่อน แล้วลงทะเบียนผ่านแอปใน LINE" />
-  if (state === 'forbidden') return <Center msg="บัญชีของคุณไม่มีสิทธิ์เข้าหลังบ้าน (ต้องเป็น owner / admin / supervisor)" />
+  if (state === 'forbidden') return <Center msg="บัญชีของคุณไม่มีสิทธิ์เข้าหลังบ้าน (ต้องเป็นเจ้าของ แอดมิน สายตรวจ หรือหัวหน้ากะ)" />
   if (state === 'error') return <Center msg={`เชื่อมต่อไม่สำเร็จ — ${err}`} />
 
   const TABS = isPlatform ? [...BASE_TABS, VENDOR_TAB] : BASE_TABS
   const Active = (TABS.find((t) => t.key === tab) || TABS[0]).el
   const user = getUser()
 
+  const current = TABS.find((t) => t.key === tab) || TABS[0]
   return (
-    <div className="admin-shell">
-      <div className="topbar">
-        <div>
-          <p className="brand">GUARD OS — ADMIN</p>
-          <h1>หลังบ้านระบบยาม</h1>
+    <div className="shell">
+      <aside className="side">
+        <p className="brand">Guard OS <small>หลังบ้าน</small></p>
+        <nav className="nav" aria-label="เมนูหลัก">
+          {TABS.map((t) => (
+            <button key={t.key} className={tab === t.key ? 'active' : ''} aria-current={tab === t.key ? 'page' : undefined} onClick={() => setTab(t.key)}>
+              <Icon k={t.icon} />{t.label}
+            </button>
+          ))}
+        </nav>
+        <div className="me">
+          <div className="av">{(user.full_name || '?').trim().charAt(0)}</div>
+          <div className="who"><b>{user.full_name}</b>{isPlatform ? 'Super Admin' : (ROLE_TH[user.role] || user.role)}</div>
         </div>
-        <p className="muted">{user.full_name} · {user.role}</p>
-      </div>
-      <div className="tabs">
-        {TABS.map((t) => (
-          <button key={t.key} className={`tab ${tab === t.key ? 'active' : ''}`} onClick={() => setTab(t.key)}>
-            {t.label}
-          </button>
-        ))}
-      </div>
-      <Active isPlatform={isPlatform} vendors={vendors} />
+      </aside>
+      <main className="main">
+        <div className="main-inner">
+          <div className="page-head">
+            <div><h1>{current.label}</h1><p>{current.desc}</p></div>
+          </div>
+          <Active isPlatform={isPlatform} vendors={vendors} />
+        </div>
+      </main>
     </div>
   )
 }
 
 function Center({ msg }) {
   return (
-    <div className="page center">
-      <div className="spacer" />
-      <p className="brand">GUARD OS — ADMIN</p>
-      <div className="spacer" />
-      <p className="sub">{msg}</p>
+    <div className="splash">
+      <div><p className="brand">Guard OS</p><p>{msg}</p></div>
     </div>
   )
 }
