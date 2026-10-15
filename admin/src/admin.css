@@ -114,3 +114,25 @@ button.badge.solid:hover { background: #2a2f35; }
 table.grid td { white-space: nowrap; }
 table.grid td.muted, table.grid td.wrap { white-space: normal; min-width: 180px; }
 .actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+/* ── การแก้ไขระบบ: กลุ่มตามผู้ทำ ── */
+.audit { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--shadow); overflow: hidden; }
+.audit-group + .audit-group { border-top: 1px solid var(--line); }
+.audit-head { display: grid; grid-template-columns: 34px minmax(160px, 240px) 1fr 14px; gap: 14px; align-items: center; width: 100%; padding: 14px 18px; border: 0; background: none; font-family: var(--font); text-align: left; cursor: pointer; color: var(--ink); }
+.audit-head:hover { background: #fafbfa; }
+.audit-head .av { width: 34px; height: 34px; border-radius: 50%; background: var(--sunk); display: grid; place-items: center; font-weight: 600; }
+.audit-head .who { display: flex; flex-direction: column; min-width: 0; line-height: 1.35; }
+.audit-head .sum { display: flex; flex-wrap: wrap; gap: 6px; }
+.audit-head .chev { width: 12px; height: 8px; color: var(--mute); transition: transform .15s; }
+.audit-group.open .chev { transform: rotate(180deg); }
+.audit-group.open .audit-head { background: #fafbfa; }
+.audit-items { list-style: none; border-top: 1px solid var(--line); padding: 6px 0; background: #fcfcfb; }
+.audit-items li { display: grid; grid-template-columns: 130px 150px 1fr; gap: 12px; padding: 8px 18px 8px 66px; font-size: 14px; }
+.audit-items .t { color: var(--mute); white-space: nowrap; }
+.audit-items .act { font-weight: 600; }
+.audit-items .d { color: var(--ink-2); }
+@media (max-width: 880px) {
+  .audit-head { grid-template-columns: 34px 1fr 14px; }
+  .audit-head .sum { grid-column: 2 / 3; }
+  .audit-items li { grid-template-columns: 1fr; gap: 2px; padding-left: 18px; }
+}
