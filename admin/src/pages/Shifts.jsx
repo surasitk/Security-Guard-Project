@@ -19,6 +19,9 @@ export default function Shifts() {
   const [sel, setSel] = useState(new Set())
   const [swapTo, setSwapTo] = useState('')
   const [busy, setBusy] = useState(false)
+  const [editId, setEditId] = useState(null)        // แม่แบบที่กำลังแก้ไข
+  const [applyFuture, setApplyFuture] = useState(true)
+  const EMPTY_T = { property_id: '', name: 'กะกลางวัน', start: '07:00', end: '19:00', cross: false, days: [0, 1, 2, 3, 4, 5, 6] }
 
   const load = async () => {
     try {
@@ -38,8 +41,52 @@ export default function Shifts() {
     return a1 < b2 && b1 < a2
   }
 
+  function startEditTemplate(t) {
+    setMsg(null); setEditId(t.id); setApplyFuture(true)
+    setTForm({
+      property_id: t.property_id, name: t.name,
+      start: String(t.start_time).slice(0, 5), end: String(t.end_time).slice(0, 5),
+      cross: !!t.crosses_midnight, days: t.days_of_week || [],
+    })
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+  function cancelEditTemplate() { setEditId(null); setTForm(EMPTY_T) }
+
+  // เวลาไทย (+07:00) — วันที่ของกะเดิม + เวลาใหม่
+  const bkkDate = (ts) => new Date(new Date(ts).getTime() + 7 * 3600 * 1000).toISOString().slice(0, 10)
+  const addDay = (d) => new Date(Date.parse(`${d}T00:00:00Z`) + 86400000).toISOString().slice(0, 10)
+
+  async function saveTemplateEdit() {
+    const before = templates.find((t) => t.id === editId)
+    try {
+      await update('shift_templates', `id=eq.${editId}`, {
+        name: tForm.name, start_time: tForm.start, end_time: tForm.end,
+        crosses_midnight: tForm.cross, days_of_week: tForm.days,
+      })
+      let moved = 0, failed = 0
+      const timeChanged = before && (String(before.start_time).slice(0, 5) !== tForm.start
+        || String(before.end_time).slice(0, 5) !== tForm.end || !!before.crosses_midnight !== tForm.cross)
+      if (applyFuture && timeChanged) {
+        const fut = await list(`shift_assignments?select=id,starts_at&template_id=eq.${editId}&status=eq.scheduled&starts_at=gte.${new Date().toISOString()}`)
+        const res = await Promise.allSettled(fut.map((a) => {
+          const d = bkkDate(a.starts_at)
+          return update('shift_assignments', `id=eq.${a.id}&status=eq.scheduled`, {
+            starts_at: `${d}T${tForm.start}:00+07:00`,
+            ends_at: `${tForm.cross ? addDay(d) : d}T${tForm.end}:00+07:00`,
+          })
+        }))
+        moved = res.filter((r) => r.status === 'fulfilled').length
+        failed = res.length - moved
+      }
+      setMsg({ t: failed ? 'err' : 'ok', m: `บันทึกแม่แบบ "${tForm.name}" แล้ว`
+        + (moved ? ` · ปรับเวลากะที่จ่ายไว้ ${moved} กะ` : '') + (failed ? ` · ปรับไม่สำเร็จ ${failed} กะ (เวลาชนกับกะอื่นของคนเดิม)` : '') })
+      cancelEditTemplate(); load()
+    } catch (e2) { setMsg({ t: 'err', m: String(e2.message) }) }
+  }
+
   async function addTemplate(e) {
     e.preventDefault(); setMsg(null)
+    if (editId) return saveTemplateEdit()
     const dup = templates.find((t) => t.property_id === tForm.property_id
       && t.name.trim() === tForm.name.trim()
       && String(t.start_time).slice(0, 5) === tForm.start
@@ -118,11 +165,11 @@ export default function Shifts() {
 
   return (
     <div>
-      <div className="section-h"><h2>1) แม่แบบกะ (ต่อโครงการ)</h2></div>
+      <div className="section-h"><h2>{editId ? `1) แก้ไขแม่แบบกะ: ${templates.find((t) => t.id === editId)?.name || ''}` : '1) แม่แบบกะ (ต่อโครงการ)'}</h2></div>
       <form className="card" onSubmit={addTemplate}>
         <div className="form-grid">
           <div className="field"><label>โครงการ *</label>
-            <select value={tForm.property_id} onChange={(e) => setTForm({ ...tForm, property_id: e.target.value })} required>
+            <select value={tForm.property_id} onChange={(e) => setTForm({ ...tForm, property_id: e.target.value })} required disabled={!!editId}>
               <option value="">— เลือก —</option>
               {properties.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
@@ -143,8 +190,18 @@ export default function Shifts() {
               ))}
             </div>
           </div>
-          <button className="btn inline" type="submit">สร้างแม่แบบ</button>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+            <button className="btn inline" type="submit">{editId ? 'บันทึกการแก้ไข' : 'สร้างแม่แบบ'}</button>
+            {editId && <button className="btn inline ghost" type="button" onClick={cancelEditTemplate}>ยกเลิก</button>}
+          </div>
         </div>
+        {editId && (
+          <label style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 12, fontSize: 14 }}>
+            <input type="checkbox" checked={applyFuture} onChange={(e) => setApplyFuture(e.target.checked)} />
+            ปรับเวลาของกะที่จ่ายไปแล้ว (ตั้งแต่วันนี้ และยังไม่เข้างาน) ให้ตรงกับเวลาใหม่ด้วย
+          </label>
+        )}
+        {editId && <p className="muted" style={{ marginTop: 6 }}>การเปลี่ยน "วันที่มีกะ" มีผลกับการจ่ายกะครั้งต่อไป · กะที่จ่ายไว้แล้วในวันที่ไม่ต้องการ ให้ยกเลิกในตาราง "กะที่กำลังจะถึง"</p>}
       </form>
 
       {templates.length > 0 && (
@@ -157,7 +214,9 @@ export default function Shifts() {
                 <td>{t.name}{t.crosses_midnight ? ' · ข้ามคืน' : ''}</td>
                 <td>{String(t.start_time).slice(0, 5)}–{String(t.end_time).slice(0, 5)}</td>
                 <td>{(t.days_of_week || []).length === 7 ? 'ทุกวัน' : (t.days_of_week || []).map((d) => DOW[d]).join(' ')}</td>
-                <td>
+                <td style={{ whiteSpace: 'nowrap' }}>
+                  <button className="badge" style={{ cursor: 'pointer', fontFamily: 'var(--font)', background: 'none', marginRight: 6 }}
+                    onClick={() => startEditTemplate(t)}>แก้ไข</button>
                   <button className="badge" style={{ cursor: 'pointer', fontFamily: 'var(--font)', background: 'none' }}
                     onClick={async () => {
                       if (!window.confirm(`ปิดใช้แม่แบบ "${t.name}"? (กะที่สร้างไปแล้วไม่หาย)`)) return
