@@ -110,6 +110,14 @@ export async function rpc(fn, args = {}) {
   return body
 }
 
+/** เรียก Edge Function (ใช้ token ของผู้ใช้) */
+export async function callFn(name, body) {
+  const res = await authed(`/functions/v1/${name}`, { method: 'POST', body: JSON.stringify(body) })
+  const out = await res.json().catch(() => null)
+  if (!res.ok) throw new Error(out?.error || `${name} → ${res.status}`)
+  return out
+}
+
 /** สร้างลิงก์ชั่วคราวสำหรับดูรูปใน Storage (หมดอายุ 10 นาที) */
 export async function signedUrl(path) {
   const res = await authed(`/storage/v1/object/sign/selfies/${path}`, {
