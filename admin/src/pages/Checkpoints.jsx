@@ -1,12 +1,12 @@
 // จุดตรวจ (QR) — สร้างจุดตรวจผูกกับโครงการ · สร้าง QR ให้พิมพ์ติดหน้างาน · ยามสแกนแล้วบันทึกเวลา
 import { useEffect, useMemo, useState } from 'react'
 import QRCode from 'qrcode'
-import { list, rpc, fmtDate } from '../lib/api'
+import { list, rpc, fmtDate, scopeQ } from '../lib/api'
 
 const LIFF_ID = '2010926067-2cuN81fZ'
 const scanUrl = (code) => `https://liff.line.me/${LIFF_ID}?page=scan&code=${code}`
 
-export default function Checkpoints() {
+export default function Checkpoints({ scope = '' }) {
   const [rows, setRows] = useState(null)
   const [props, setProps] = useState([])
   const [propId, setPropId] = useState('')
@@ -15,10 +15,10 @@ export default function Checkpoints() {
   const [busy, setBusy] = useState(false)
   const [qr, setQr] = useState(null) // { code, name, property, dataUrl }
 
-  const load = () => list('v_checkpoints?select=*&order=property_name,name').then(setRows).catch((e) => setMsg({ t: 'err', m: String(e.message) }))
+  const load = () => list(`v_checkpoints?select=*&order=property_name,name${scopeQ(scope)}`).then(setRows).catch((e) => setMsg({ t: 'err', m: String(e.message) }))
   useEffect(() => {
     load()
-    list('v_properties?select=id,name&is_active=is.true&order=name').then(setProps).catch(() => {})
+    list(`v_properties?select=id,name&is_active=is.true&order=name${scopeQ(scope, 'id')}`).then(setProps).catch(() => {})
   }, [])
 
   async function create(e) {

@@ -1,12 +1,12 @@
 // Monitoring — log เหตุการณ์ทั้งหมด (เข้า/ออกงาน + พิกัด + รูป + ธงผิดปกติ + การแก้ไขระบบ)
 // filter จังหวัด/โครงการแบบ multi-select · Sprint 2 จะเพิ่ม patrol scans + incidents เข้า log เดียวกัน
 import { useEffect, useMemo, useState } from 'react'
-import { list, signedUrl, fmtTime, fmtDate } from '../lib/api'
+import { list, signedUrl, fmtTime, fmtDate, scopeQ } from '../lib/api'
 import FilterChips from '../components/FilterChips.jsx'
 
 const DAYS_BACK = 7
 
-export default function Monitor() {
+export default function Monitor({ scope = '' }) {
   const [rows, setRows] = useState(null)
   const [users, setUsers] = useState({})
   const [props, setProps] = useState({})
@@ -20,7 +20,7 @@ export default function Monitor() {
       try {
         const since = new Date(Date.now() - DAYS_BACK * 24 * 3600 * 1000).toISOString()
         const [logs, us, ps] = await Promise.all([
-          list(`v_attendance_log?check_in_at=gte.${since}&order=check_in_at.desc&limit=200`),
+          list(`v_attendance_log?check_in_at=gte.${since}&order=check_in_at.desc&limit=200${scopeQ(scope)}`),
           list('users?select=id,full_name,employee_code'),
           list('properties?select=id,name,province'),
         ])

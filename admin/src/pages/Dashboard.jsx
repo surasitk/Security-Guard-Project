@@ -1,9 +1,9 @@
 // ภาพรวมวันนี้ — กะทั้งหมด / เข้าแล้ว / สาย / ยังไม่เข้า + รายการลงเวลาสด + filter จังหวัด/โครงการ
 import { useEffect, useMemo, useState } from 'react'
-import { list, todayRangeBkk, fmtTime } from '../lib/api'
+import { list, todayRangeBkk, fmtTime, scopeQ } from '../lib/api'
 import FilterChips from '../components/FilterChips.jsx'
 
-export default function Dashboard() {
+export default function Dashboard({ scope = '' }) {
   const [shiftsAll, setShifts] = useState(null)
   const [attAll, setAtt] = useState([])
   const [provSel, setProvSel] = useState(new Set())
@@ -15,8 +15,8 @@ export default function Dashboard() {
       try {
         const [start, end] = todayRangeBkk()
         const [s, a] = await Promise.all([
-          list(`shift_assignments?select=id,starts_at,ends_at,status,is_holiday_work,users!user_id(full_name,employee_code),properties(id,name,province)&starts_at=gte.${start}&starts_at=lt.${end}&status=neq.cancelled&order=starts_at`),
-          list(`attendance?select=check_in_at,check_out_at,late_minutes,in_distance_m,is_mock_flag,users(full_name),properties(id,name,province)&check_in_at=gte.${start}&order=check_in_at.desc&limit=30`),
+          list(`shift_assignments?select=id,starts_at,ends_at,status,is_holiday_work,users!user_id(full_name,employee_code),properties(id,name,province)&starts_at=gte.${start}&starts_at=lt.${end}&status=neq.cancelled&order=starts_at${scopeQ(scope)}`),
+          list(`attendance?select=check_in_at,check_out_at,late_minutes,in_distance_m,is_mock_flag,users(full_name),properties(id,name,province)&check_in_at=gte.${start}&order=check_in_at.desc&limit=30${scopeQ(scope)}`),
         ])
         setShifts(s); setAtt(a)
       } catch (e) { setErr(String(e.message || e)) }

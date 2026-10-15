@@ -1,7 +1,7 @@
 // โครงการ/ไซต์ — CRUD มาตรฐาน: list มีปุ่มแก้ไข/ปิดใช้ · กด "เพิ่ม" หรือ "แก้ไข" → ฟอร์มเต็มจอ (ซ่อน list)
 // ที่อยู่ dropdown จังหวัด→อำเภอ→ตำบล + รหัสไปรษณีย์อัตโนมัติ · แผนที่ปักหมุด/ค้นหา · เขียนพิกัดผ่าน RPC (เสถียร)
 import { useEffect, useMemo, useState } from 'react'
-import { list, rpc, tenantId } from '../lib/api'
+import { list, rpc, tenantId, scopeQ } from '../lib/api'
 import { loadThaiAddress } from '../lib/thaiAddress'
 import MapPicker from '../components/MapPicker.jsx'
 
@@ -10,7 +10,7 @@ const EMPTY = {
   address: '', lat: null, lng: null, radius: '150', rate: '',
 }
 
-export default function Properties() {
+export default function Properties({ scope = '', onContextChange }) {
   const [rows, setRows] = useState(null)
   const [addr, setAddr] = useState(null)
   const [vendors, setVendors] = useState([])
@@ -21,7 +21,7 @@ export default function Properties() {
   const [msg, setMsg] = useState(null)
   const [busy, setBusy] = useState(false)
 
-  const load = () => list('v_properties?select=*&is_active=is.true&order=created_at.desc').then(setRows).catch((e) => setMsg({ t: 'err', m: String(e.message) }))
+  const load = () => list(`v_properties?select=*&is_active=is.true&order=created_at.desc${scopeQ(scope, 'id')}`).then(setRows).catch((e) => setMsg({ t: 'err', m: String(e.message) }))
   useEffect(() => {
     load()
     loadThaiAddress().then(setAddr).catch(() => setMsg({ t: 'err', m: 'โหลดข้อมูลที่อยู่ไม่สำเร็จ' }))
@@ -61,7 +61,7 @@ export default function Properties() {
     })
     setMode('edit'); setMsg(null)
   }
-  function backToList() { setMode('list'); setMsg(null); load() }
+  function backToList() { setMode('list'); setMsg(null); load(); onContextChange?.() }
 
   async function submit(e) {
     e.preventDefault(); setMsg(null); setBusy(true)
@@ -83,7 +83,7 @@ export default function Properties() {
 
   async function disable(row) {
     if (!window.confirm(`ปิดใช้งานโครงการ "${row.name}"? (กะที่ผูกไว้ยังอยู่ แต่โครงการจะไม่แสดงในรายการ)`)) return
-    try { const o = await rpc('set_property_active', { p_id: row.id, p_active: false }); if (!o.ok) throw new Error(o.error); load() }
+    try { const o = await rpc('set_property_active', { p_id: row.id, p_active: false }); if (!o.ok) throw new Error(o.error); load(); onContextChange?.() }
     catch (e) { setMsg({ t: 'err', m: String(e.message) }) }
   }
 

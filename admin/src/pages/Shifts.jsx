@@ -1,10 +1,10 @@
 // ตารางกะ — สร้างแม่แบบกะ + generate กะรายเดือนให้ยาม + ดูกะล่วงหน้า
 import { useEffect, useState } from 'react'
-import { list, insert, update, rpc, tenantId, fmtTime, fmtDate } from '../lib/api'
+import { list, insert, update, rpc, tenantId, fmtTime, fmtDate, scopeQ } from '../lib/api'
 
 const DOW = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส']
 
-export default function Shifts() {
+export default function Shifts({ scope = '' }) {
   const [templates, setTemplates] = useState([])
   const [guards, setGuards] = useState([])
   const [upcoming, setUpcoming] = useState(null)
@@ -17,10 +17,10 @@ export default function Shifts() {
   const load = async () => {
     try {
       const [t, g, p, u] = await Promise.all([
-        list('shift_templates?select=*,properties(name)&is_active=is.true&order=name'),
+        list(`shift_templates?select=*,properties(name)&is_active=is.true&order=name${scopeQ(scope)}`),
         list('users?select=id,full_name,employee_code&role=in.(guard,shift_leader)&is_active=is.true&order=full_name'),
-        list('properties?select=id,name&is_active=is.true&order=name'),
-        list(`shift_assignments?select=id,starts_at,ends_at,status,is_holiday_work,users!user_id(full_name),properties(name)&starts_at=gte.${new Date().toISOString()}&status=neq.cancelled&order=starts_at&limit=50`),
+        list(`properties?select=id,name&is_active=is.true&order=name${scopeQ(scope, 'id')}`),
+        list(`shift_assignments?select=id,starts_at,ends_at,status,is_holiday_work,users!user_id(full_name),properties(name)&starts_at=gte.${new Date().toISOString()}&status=neq.cancelled&order=starts_at&limit=50${scopeQ(scope)}`),
       ])
       setTemplates(t); setGuards(g); setProperties(p); setUpcoming(u)
     } catch (e) { setMsg({ t: 'err', m: String(e.message) }) }
