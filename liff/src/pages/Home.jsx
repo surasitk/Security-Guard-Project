@@ -61,7 +61,7 @@ export default function Home() {
     setSelected(cur || (rows.length === 1 ? rows[0] : null))
     const now = new Date().toISOString()
     const week = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString()
-    const up = await list(`shift_assignments?select=id,starts_at,ends_at,is_holiday_work,status,properties(name)&starts_at=gt.${now}&starts_at=lt.${week}&status=eq.scheduled&order=starts_at&limit=15`)
+    const up = await list(`shift_assignments?select=id,starts_at,ends_at,is_holiday_work,status,properties(name)&user_id=eq.${user.id}&starts_at=gt.${now}&starts_at=lt.${week}&status=eq.scheduled&order=starts_at&limit=15`)
     setUpcoming(up.filter((u) => !rows.some((r) => r.assignment_id === u.id)))
   }
   useEffect(() => { load().catch(() => setShifts([])) }, [])
