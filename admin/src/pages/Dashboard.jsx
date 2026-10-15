@@ -1,6 +1,6 @@
 // ภาพรวมวันนี้ — กะทั้งหมด / เข้าแล้ว / สาย / ยังไม่เข้า + รายการลงเวลาสด + filter จังหวัด/โครงการ
 import { useEffect, useMemo, useState } from 'react'
-import { list, todayRangeBkk, fmtTime } from '../lib/api'
+import { list, rpc, todayRangeBkk, fmtTime } from '../lib/api'
 import FilterChips from '../components/FilterChips.jsx'
 
 export default function Dashboard() {
@@ -9,19 +9,30 @@ export default function Dashboard() {
   const [provSel, setProvSel] = useState(new Set())
   const [propSel, setPropSel] = useState(new Set())
   const [err, setErr] = useState('')
+  const [stuck, setStuck] = useState([])
+  const [reload, setReload] = useState(0)
 
   useEffect(() => {
     (async () => {
       try {
         const [start, end] = todayRangeBkk()
         const [s, a] = await Promise.all([
-          list(`shift_assignments?select=id,starts_at,ends_at,status,is_holiday_work,users!user_id(full_name,employee_code),properties(id,name,province)&starts_at=gte.${start}&starts_at=lt.${end}&status=neq.cancelled&order=starts_at`),
-          list(`attendance?select=check_in_at,check_out_at,late_minutes,in_distance_m,is_mock_flag,users(full_name),properties(id,name,province)&check_in_at=gte.${start}&order=check_in_at.desc&limit=30`),
+          list(`shift_assignments?select=id,starts_at,ends_at,status,kind,is_holiday_work,users!user_id(full_name,employee_code),properties(id,name,province)&starts_at=gte.${start}&starts_at=lt.${end}&status=neq.cancelled&order=starts_at`),
+          list(`attendance?select=check_in_at,check_out_at,late_minutes,early_leave_minutes,early_reason,flag_reason,in_distance_m,is_mock_flag,users(full_name),properties(id,name,province)&check_in_at=gte.${start}&order=check_in_at.desc&limit=30`),
         ])
         setShifts(s); setAtt(a)
+        const cutoff = new Date(Date.now() - 3600 * 1000).toISOString()
+        setStuck(await list(`shift_assignments?select=id,starts_at,ends_at,kind,users!user_id(full_name,employee_code),properties(name)&status=eq.checked_in&ends_at=lt.${cutoff}&order=ends_at`).catch(() => []))
       } catch (e) { setErr(String(e.message || e)) }
     })()
-  }, [])
+  }, [reload])
+
+  async function closeShift(x) {
+    const note = window.prompt(`ปิดกะของ ${x.users?.full_name} (ลืมเช็คเอาต์)\nบันทึกหมายเหตุ (ไม่บังคับ):`, 'ลืมเช็คเอาต์')
+    if (note === null) return
+    try { const o = await rpc('admin_close_assignment', { p_assignment_id: x.id, p_note: note }); if (!o.ok) throw new Error(o.error); setReload((n) => n + 1) }
+    catch (e) { setErr(String(e.message || e)) }
+  }
 
   const provinces = useMemo(() => {
     if (!shiftsAll) return []
@@ -61,7 +72,7 @@ export default function Dashboard() {
   const absent = shifts.filter((s) => derive(s) === 'absent').length
   const waiting = shifts.filter((s) => ['scheduled', 'overdue'].includes(derive(s))).length
   const late = att.filter((a) => a.late_minutes > 0).length
-  const flagged = att.filter((a) => a.is_mock_flag).length
+  const flagged = att.filter((a) => a.is_mock_flag || a.flag_reason).length
 
   return (
     <div>
@@ -81,6 +92,25 @@ export default function Dashboard() {
         <div className="stat"><div className="n">{flagged}</div><div className="l">ธงตรวจสอบ</div></div>
       </div>
 
+      {stuck.length > 0 && (
+        <>
+          <div className="section-h"><h2>ลืมเช็คเอาต์ (เกิน 1 ชม. หลังจบกะ) · {stuck.length}</h2></div>
+          <table className="grid">
+            <thead><tr><th>พนักงาน</th><th>โครงการ</th><th>กะ</th><th></th></tr></thead>
+            <tbody>
+              {stuck.map((x) => (
+                <tr key={x.id}>
+                  <td>{x.users?.full_name} <span className="muted">({x.users?.employee_code})</span></td>
+                  <td>{x.properties?.name}{x.kind !== 'scheduled' ? <span className="badge" style={{ marginLeft: 6 }}>{KIND[x.kind]}</span> : null}</td>
+                  <td>{new Date(x.starts_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', timeZone: 'Asia/Bangkok' })} {fmtTime(x.starts_at)}–{fmtTime(x.ends_at)}</td>
+                  <td><button className="badge solid" style={{ cursor: 'pointer', border: 'none', fontFamily: 'var(--font)' }} onClick={() => closeShift(x)}>ปิดกะ</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
+
       <div className="section-h"><h2>กะวันนี้</h2></div>
       {total === 0 ? <p className="muted">ยังไม่มีกะวันนี้ — สร้างจากแท็บ "ตารางกะ"</p> : (
         <table className="grid">
@@ -89,7 +119,7 @@ export default function Dashboard() {
             {shifts.map((s) => (
               <tr key={s.id}>
                 <td>{s.users?.full_name} <span className="muted">({s.users?.employee_code})</span></td>
-                <td>{s.properties?.name}{s.is_holiday_work ? ' · วันหยุด' : ''}</td>
+                <td>{s.properties?.name}{s.is_holiday_work ? ' · วันหยุด' : ''}{s.kind && s.kind !== 'scheduled' ? <span className="badge" style={{ marginLeft: 6 }}>{KIND[s.kind]}</span> : null}</td>
                 <td>{fmtTime(s.starts_at)}–{fmtTime(s.ends_at)}</td>
                 <td><Status s={derive(s)} /></td>
               </tr>
@@ -108,8 +138,13 @@ export default function Dashboard() {
                 <td>{a.users?.full_name}</td>
                 <td>{a.properties?.name}</td>
                 <td>{fmtTime(a.check_in_at)}{a.late_minutes > 0 && <span className="muted"> (สาย {a.late_minutes} น.)</span>}</td>
-                <td>{fmtTime(a.check_out_at)}</td>
-                <td>{a.is_mock_flag ? <span className="badge">ตรวจสอบ</span> : <span className="muted">ปกติ</span>}</td>
+                <td>{fmtTime(a.check_out_at)}{a.early_leave_minutes > 0 && <span className="muted"> (ก่อนเวลา {a.early_leave_minutes} น.)</span>}</td>
+                <td>
+                  {a.early_reason && <div>เหตุผล: {a.early_reason}</div>}
+                  {(a.is_mock_flag || a.flag_reason)
+                    ? (a.flag_reason || 'mock_gps').split(',').map((f) => <span key={f} className="badge" style={{ marginRight: 4 }}>{FLAG[f] || f}</span>)
+                    : (!a.early_reason && <span className="muted">ปกติ</span>)}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -117,6 +152,12 @@ export default function Dashboard() {
       )}
     </div>
   )
+}
+
+const KIND = { adhoc: 'เช็คอินโครงการ', emergency: 'ฉุกเฉิน' }
+const FLAG = {
+  no_gps: 'ไม่มีพิกัด', mock_gps_suspected: 'สงสัย GPS ปลอม', kiosk_wrong_property: 'เครื่องผิดโครงการ',
+  emergency: 'เข้างานฉุกเฉิน', early_checkout: 'ออกก่อนเวลา', closed_by_admin: 'ผู้ดูแลปิดกะ', auto_closed_admin: 'ปิดโดยระบบ',
 }
 
 function Status({ s }) {

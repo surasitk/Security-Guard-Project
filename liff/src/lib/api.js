@@ -179,3 +179,13 @@ export async function deviceFingerprint() {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(data))
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 32)
 }
+
+/** แจ้ง Owner/Admin ทาง LINE OA (คิวจาก check_out ก่อนเวลา) — ยิงแล้วไม่ต้องรอผล */
+export async function notifyLine(notificationId) {
+  try {
+    await authedFetch('/functions/v1/notify-line', {
+      method: 'POST',
+      body: JSON.stringify({ notification_id: notificationId }),
+    })
+  } catch { /* คิวยังอยู่ในฐานข้อมูล ส่งซ้ำภายหลังได้ */ }
+}

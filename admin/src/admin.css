@@ -29,3 +29,7 @@ table.grid tr:last-child td { border-bottom: none; }
 .section-h { display: flex; justify-content: space-between; align-items: center; margin: 28px 0 12px; }
 .section-h h2 { font-size: 18px; font-weight: 600; }
 select { width: 100%; padding: 13px; border: 1px solid var(--line); border-radius: 10px; font-family: var(--font); font-size: 15px; background: var(--card); color: var(--ink); }
+.prop-checks { display: flex; flex-wrap: wrap; gap: 8px; }
+.prop-checks label { display: inline-flex; gap: 6px; align-items: center; padding: 6px 10px; border: 1px solid var(--line); border-radius: 999px; font-size: 13px; cursor: pointer; margin: 0; }
+.prop-checks label.on { border-color: var(--ink); }
+.hint { font-size: 12.5px; color: var(--ink-mute); margin-top: 6px; }

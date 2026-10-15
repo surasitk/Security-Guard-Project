@@ -1,76 +1,129 @@
-// F3 — เข้างาน / ออกงาน: ถ่ายรูป → อัปโหลด → ขอ GPS (ถ้าไม่ได้ ให้เข้างานแบบไม่มีพิกัด+ติดธง) → RPC
+// F3 — เข้างาน / ออกงาน
+// · กะปกติ: เช็คอินได้ก่อนเวลา 45 นาที · เช็คเอาต์ได้ถึง 1 ชม. หลังจบกะ · ออกก่อนเวลาต้องใส่เหตุผล (แจ้ง Admin ทาง LINE)
+// · สายตรวจ/ผู้ช่วยสายตรวจ: เช็คอินได้แม้ไม่มีกะ → เลือกโครงการที่ได้รับมอบหมาย → ยืนยัน
+// · ยาม/หัวหน้ากะ: เข้างานฉุกเฉิน (แทนคน) ในโครงการที่มีชื่อ
+// · ต้องเช็คเอาต์ก่อน ถึงเช็คอินใหม่ได้
+// ขั้นตอนบันทึก: ถ่ายรูป → อัปโหลด → ขอ GPS (ไม่ได้ = บันทึกแบบไม่มีพิกัด+ติดธง) → RPC
 import { useEffect, useRef, useState } from 'react'
 import {
-  getUser, rpc, list, getPosition, compressImage, uploadSelfie, deviceFingerprint, withTimeout,
+  getUser, rpc, list, getPosition, compressImage, uploadSelfie, deviceFingerprint, withTimeout, notifyLine,
 } from '../lib/api'
 
 const ERROR_TH = {
   not_your_assignment: 'กะนี้ไม่ใช่ของคุณ',
   wrong_status: 'กะนี้ลงเวลาไปแล้ว',
-  outside_time_window: 'อยู่นอกช่วงเวลาของกะ',
+  outside_time_window: 'ยังไม่ถึงเวลา — เช็คอินได้ก่อนเริ่มกะไม่เกิน 45 นาที',
   not_checked_in: 'ยังไม่ได้ลงเวลาเข้างานของกะนี้',
   device_blocked: 'เครื่องนี้ถูกระงับการใช้งาน — ติดต่อหัวหน้ากะ',
+  already_checked_in: 'คุณยังไม่ได้เช็คเอาต์งานก่อนหน้า — เช็คเอาต์ก่อนแล้วค่อยเช็คอินใหม่',
+  use_scheduled_shift: 'คุณมีกะตามตารางช่วงนี้ — ใช้ปุ่มเข้างานของกะนั้นแทน',
+  not_member_of_project: 'คุณไม่ได้รับมอบหมายในโครงการนี้',
+  checkout_window_closed: 'เลยเวลาเช็คเอาต์แล้ว (เกิน 1 ชม. หลังจบกะ) — ติดต่อหัวหน้าให้ปิดกะ',
+  reason_required: 'กรุณาใส่เหตุผลที่ออกก่อนเวลา',
+  next_shift_too_soon: 'กะถัดไปของคุณใกล้เริ่มแล้ว — รอเข้างานตามกะ',
+  role_not_allowed: 'ตำแหน่งของคุณใช้เช็คอินแบบนี้ไม่ได้',
+  property_not_found: 'ไม่พบโครงการนี้ หรือถูกปิดใช้งาน',
 }
+const REASONS = ['ป่วย / ไม่สบาย', 'ธุระด่วนทางบ้าน', 'หัวหน้าสั่งให้ออก', 'สลับกะกับเพื่อนแล้ว']
+const FIELD_ROLES = ['supervisor', 'assistant_supervisor']
 const fmtTime = (ts) => new Date(ts).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
 const fmtDay = (ts) => new Date(ts).toLocaleDateString('th-TH', { weekday: 'short', day: 'numeric', month: 'short' })
+const KIND_LABEL = { adhoc: 'เช็คอินโครงการ', emergency: 'เข้างานฉุกเฉิน' }
 
 export default function Home() {
   const user = getUser()
+  const isField = FIELD_ROLES.includes(user?.role)
+  const canEmergency = ['guard', 'shift_leader'].includes(user?.role)
+
   const [shifts, setShifts] = useState(null)
+  const [projects, setProjects] = useState([])
   const [upcoming, setUpcoming] = useState([])
   const [selected, setSelected] = useState(null)
   const [busy, setBusy] = useState(false)
   const [step, setStep] = useState('')
-  const [msg, setMsg] = useState(null)          // {type:'ok'|'err', text}
-  const [gpsFallback, setGpsFallback] = useState(null) // { action, selfiePath, fp } เมื่อ GPS ล้มเหลว
+  const [msg, setMsg] = useState(null)               // {type:'ok'|'err', text}
+  const [gpsFallback, setGpsFallback] = useState(null)
+  // ขั้นตอนบนจอ: null | 'pick' (เลือกโครงการ) | 'confirm' | 'reason' (เหตุผลออกก่อนเวลา)
+  const [flow, setFlow] = useState(null)
+  const [pickProp, setPickProp] = useState(null)
+  const [reason, setReason] = useState('')
   const fileRef = useRef(null)
-  const pendingAction = useRef(null)
+  const pending = useRef(null)                       // { type:'in'|'out'|'adhoc', assignment, property, reason }
 
-  async function loadShifts() {
-    const rows = await rpc('my_current_assignments')
-    setShifts(rows)
-    setSelected(rows.length === 1 ? rows[0] : null)
+  async function load() {
+    const [rows, projs] = await Promise.all([
+      rpc('my_current_assignments'),
+      (isField || canEmergency) ? rpc('my_projects').catch(() => []) : Promise.resolve([]),
+    ])
+    setShifts(rows); setProjects(projs || [])
+    const cur = rows.find((r) => r.status === 'checked_in')
+    setSelected(cur || (rows.length === 1 ? rows[0] : null))
     const now = new Date().toISOString()
     const week = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString()
     const up = await list(`shift_assignments?select=id,starts_at,ends_at,is_holiday_work,status,properties(name)&starts_at=gt.${now}&starts_at=lt.${week}&status=eq.scheduled&order=starts_at&limit=15`)
     setUpcoming(up.filter((u) => !rows.some((r) => r.assignment_id === u.id)))
   }
-  useEffect(() => { loadShifts().catch(() => setShifts([])) }, [])
+  useEffect(() => { load().catch(() => setShifts([])) }, [])
 
-  function startAction(action) {
+  const current = shifts?.find((s) => s.status === 'checked_in') || null
+  const scheduled = (shifts || []).filter((s) => s.status === 'scheduled')
+  const pastDeadline = current && current.checkout_deadline && new Date() > new Date(current.checkout_deadline)
+  const isEarly = current && current.kind === 'scheduled' && new Date() < new Date(current.ends_at)
+
+  function openCamera(action) {
     setMsg(null); setGpsFallback(null)
-    pendingAction.current = action
+    pending.current = action
     fileRef.current.click()
   }
 
-  // ยิง RPC จริง — coords อาจเป็น null (เข้างานแบบไม่มีพิกัด)
+  function startCheckout() {
+    if (isEarly) { setReason(''); setFlow('reason'); return }
+    openCamera({ type: 'out', assignment: current })
+  }
+
   async function doSubmit(action, selfiePath, fp, coords) {
     setStep('กำลังบันทึกเวลา…'); setBusy(true)
+    const lat = coords ? coords.latitude : null
+    const lng = coords ? coords.longitude : null
     try {
-      const out = action === 'in'
-        ? await rpc('check_in', {
-            p_assignment_id: selected.assignment_id,
-            p_lat: coords ? coords.latitude : null, p_lng: coords ? coords.longitude : null,
-            p_selfie_url: selfiePath, p_device_fingerprint: fp, p_user_agent: navigator.userAgent, p_gps_is_mock: false,
-          })
-        : await rpc('check_out', {
-            p_assignment_id: selected.assignment_id,
-            p_lat: coords ? coords.latitude : null, p_lng: coords ? coords.longitude : null, p_selfie_url: selfiePath,
-          })
+      let out
+      if (action.type === 'in') {
+        out = await rpc('check_in', {
+          p_assignment_id: action.assignment.assignment_id, p_lat: lat, p_lng: lng,
+          p_selfie_url: selfiePath, p_device_fingerprint: fp, p_user_agent: navigator.userAgent, p_gps_is_mock: false,
+        })
+      } else if (action.type === 'adhoc') {
+        out = await rpc('adhoc_check_in', {
+          p_property_id: action.property.property_id, p_lat: lat, p_lng: lng,
+          p_selfie_url: selfiePath, p_device_fingerprint: fp, p_user_agent: navigator.userAgent, p_gps_is_mock: false,
+        })
+      } else {
+        out = await rpc('check_out', {
+          p_assignment_id: action.assignment.assignment_id, p_lat: lat, p_lng: lng,
+          p_selfie_url: selfiePath, p_reason: action.reason || null,
+        })
+      }
       if (out.ok) {
-        setGpsFallback(null)
-        if (action === 'in') {
+        setGpsFallback(null); setFlow(null); setPickProp(null)
+        const t = fmtTime(new Date().toISOString())
+        const nogps = out.no_gps ? ' · ไม่มีพิกัด — หัวหน้าจะตรวจสอบ' : ''
+        if (action.type === 'in') {
           const late = out.late_minutes > 0 ? ` (สาย ${out.late_minutes} นาที)` : ' ตรงเวลา'
-          const nogps = out.no_gps ? ' · ไม่มีพิกัด — หัวหน้าจะตรวจสอบ' : ''
-          setMsg({ type: 'ok', text: `✓ เข้างานสำเร็จ ${fmtTime(new Date().toISOString())}${late}${nogps}` })
+          setMsg({ type: 'ok', text: `✓ เข้างานสำเร็จ ${t}${late}${nogps}` })
+        } else if (action.type === 'adhoc') {
+          setMsg({ type: 'ok', text: `✓ ${out.kind === 'emergency' ? 'เข้างานฉุกเฉิน' : 'เช็คอิน'}ที่ ${out.property} สำเร็จ ${t}${nogps}` })
         } else {
-          setMsg({ type: 'ok', text: `✓ ออกงานสำเร็จ ${fmtTime(new Date().toISOString())}` })
+          if (out.notification_id) notifyLine(out.notification_id)
+          setMsg({ type: 'ok', text: out.early_leave_minutes > 0
+            ? `✓ ออกงานสำเร็จ ${t} (ก่อนเวลา ${out.early_leave_minutes} นาที) · แจ้งผู้ดูแลแล้ว`
+            : `✓ ออกงานสำเร็จ ${t}` })
         }
-        await loadShifts()
+        await load()
       } else if (out.error === 'outside_geofence') {
         setMsg({ type: 'err', text: `คุณอยู่ห่างพื้นที่ ${Math.round(out.distance_m)} เมตร — เข้าใกล้จุดปฏิบัติงานแล้วลองใหม่` })
       } else {
         setMsg({ type: 'err', text: ERROR_TH[out.error] || `ไม่สำเร็จ (${out.error})` })
+        if (out.error === 'checkout_window_closed' || out.error === 'already_checked_in') load().catch(() => {})
       }
     } catch (e) {
       setMsg({ type: 'err', text: `บันทึกไม่สำเร็จ (${String(e.message || e)}) — ลองใหม่` })
@@ -80,8 +133,8 @@ export default function Home() {
   async function onSelfie(e) {
     const file = e.target.files?.[0]
     e.target.value = ''
-    if (!file || !selected) return
-    const action = pendingAction.current
+    const action = pending.current
+    if (!file || !action) return
     setBusy(true); setMsg(null); setGpsFallback(null)
     let selfiePath, fp
     try {
@@ -95,18 +148,19 @@ export default function Home() {
       setMsg({ type: 'err', text: m === 'timeout:upload' ? 'อัปโหลดรูปช้าเกินไป — สัญญาณเน็ตอ่อน ลองใหม่' : `เตรียมรูปไม่สำเร็จ (${m})` })
       setBusy(false); setStep(''); return
     }
-    // รูปพร้อมแล้ว → ลองขอ GPS แบบเร็ว
     setStep('กำลังหาตำแหน่ง…')
     try {
       const coords = await withTimeout(getPosition(), 12000, 'gps')
       await doSubmit(action, selfiePath, fp, coords)
-    } catch (err) {
-      // GPS ล้มเหลว → ไม่ error ทิ้ง แต่ให้ทางเลือกเข้างานแบบไม่มีพิกัด (รูปอัปแล้ว)
+    } catch {
       setBusy(false); setStep('')
       setGpsFallback({ action, selfiePath, fp })
-      setMsg({ type: 'err', text: 'หาตำแหน่งไม่ได้ (อยู่ในอาคาร/สัญญาณอ่อน) — กดปุ่มด้านล่างเพื่อเข้างานโดยไม่มีพิกัด ระบบจะติดธงให้หัวหน้าตรวจสอบ' })
+      setMsg({ type: 'err', text: 'หาตำแหน่งไม่ได้ (อยู่ในอาคาร/สัญญาณอ่อน) — กดปุ่มด้านล่างเพื่อบันทึกโดยไม่มีพิกัด ระบบจะติดธงให้หัวหน้าตรวจสอบ' })
     }
   }
+
+  const cardStyle = (on) => ({ cursor: 'pointer', borderColor: on ? 'var(--ink)' : 'var(--line)', borderWidth: on ? 2 : 1 })
+  const adhocTitle = isField ? 'เช็คอินโครงการ' : 'เข้างานฉุกเฉิน'
 
   return (
     <div className="page">
@@ -116,45 +170,114 @@ export default function Home() {
 
       <input ref={fileRef} type="file" accept="image/*" capture="user" hidden onChange={onSelfie} />
 
-      {shifts === null && <p className="muted">กำลังโหลดกะ…</p>}
+      {shifts === null && <p className="muted">กำลังโหลด…</p>}
 
-      {shifts?.length === 0 && (
-        <div className="card">
-          <div className="k">กะของคุณ</div>
-          <div className="v">ไม่มีกะในช่วงเวลานี้</div>
-          <p className="muted" style={{ marginTop: 8 }}>หากคิดว่าข้อมูลผิด ติดต่อหัวหน้ากะ</p>
+      {current && (
+        <div className="card" style={cardStyle(true)}>
+          <div className="k">● กำลังปฏิบัติงาน{current.kind !== 'scheduled' ? ` · ${KIND_LABEL[current.kind]}` : ''}</div>
+          <div className="v">{current.property_name}{current.unit_name ? ` · ${current.unit_name}` : ''}</div>
+          <p className="muted" style={{ marginTop: 6 }}>
+            เข้างาน {fmtTime(current.checked_in_at)}
+            {current.kind === 'scheduled' && ` · กะ ${fmtTime(current.starts_at)}–${fmtTime(current.ends_at)} · เช็คเอาต์ได้ถึง ${fmtTime(current.checkout_deadline)}`}
+          </p>
         </div>
       )}
 
-      {shifts?.map((s) => (
-        <div key={s.assignment_id} className="card" onClick={() => setSelected(s)}
-          style={{ cursor: 'pointer', borderColor: selected?.assignment_id === s.assignment_id ? 'var(--ink)' : 'var(--line)', borderWidth: selected?.assignment_id === s.assignment_id ? 2 : 1 }}>
-          <div className="k">{s.status === 'checked_in' ? '● กำลังปฏิบัติงาน' : 'กะที่กำลังจะถึง'}</div>
+      {!current && scheduled.map((s) => (
+        <div key={s.assignment_id} className="card" onClick={() => setSelected(s)} style={cardStyle(selected?.assignment_id === s.assignment_id)}>
+          <div className="k">กะที่กำลังจะถึง</div>
           <div className="v">{s.property_name}{s.unit_name ? ` · ${s.unit_name}` : ''}</div>
-          <p className="muted" style={{ marginTop: 6 }}>
-            {fmtTime(s.starts_at)} – {fmtTime(s.ends_at)}{s.checked_in_at && ` · เข้างาน ${fmtTime(s.checked_in_at)}`}
-          </p>
+          <p className="muted" style={{ marginTop: 6 }}>{fmtTime(s.starts_at)} – {fmtTime(s.ends_at)}</p>
         </div>
       ))}
+
+      {shifts && !current && scheduled.length === 0 && !flow && (
+        <div className="card">
+          <div className="k">กะของคุณ</div>
+          <div className="v">ไม่มีกะในช่วงเวลานี้</div>
+          <p className="muted" style={{ marginTop: 8 }}>
+            {isField ? (projects.length ? 'กด "เช็คอินโครงการ" ด้านล่างเพื่อเริ่มงาน' : 'ยังไม่ได้รับมอบหมายโครงการ — ติดต่อผู้ดูแล')
+              : 'เช็คอินได้ก่อนเริ่มกะ 45 นาที · หากคิดว่าข้อมูลผิด ติดต่อหัวหน้ากะ'}
+          </p>
+        </div>
+      )}
 
       {busy && <div className="notice"><div className="bar"><span /></div>{step}</div>}
       {msg && <div className={`notice ${msg.type === 'err' ? 'err' : ''}`}>{msg.text}</div>}
 
       {gpsFallback && !busy && (
         <button className="btn ghost" onClick={() => doSubmit(gpsFallback.action, gpsFallback.selfiePath, gpsFallback.fp, null)}>
-          {gpsFallback.action === 'in' ? 'เข้างานโดยไม่มีพิกัด' : 'ออกงานโดยไม่มีพิกัด'}
+          {gpsFallback.action.type === 'out' ? 'ออกงานโดยไม่มีพิกัด' : 'เข้างานโดยไม่มีพิกัด'}
         </button>
       )}
 
-      {selected && selected.status === 'scheduled' && !gpsFallback && (
-        <button className="btn" onClick={() => startAction('in')} disabled={busy}>
+      {!gpsFallback && !flow && current && (
+        pastDeadline
+          ? <div className="notice err">เลยเวลาเช็คเอาต์แล้ว (เกิน 1 ชม. หลังจบกะ) — ติดต่อหัวหน้าให้ปิดกะ</div>
+          : <button className="btn" onClick={startCheckout} disabled={busy}>
+              {busy ? 'กำลังบันทึก…' : isEarly ? 'ออกงานก่อนเวลา (ถ่ายรูปยืนยัน)' : 'ออกงาน (ถ่ายรูปยืนยัน)'}
+            </button>
+      )}
+      {!gpsFallback && !flow && !current && selected?.status === 'scheduled' && (
+        <button className="btn" onClick={() => openCamera({ type: 'in', assignment: selected })} disabled={busy}>
           {busy ? 'กำลังบันทึก…' : 'เข้างาน (ถ่ายรูปยืนยัน)'}
         </button>
       )}
-      {selected && selected.status === 'checked_in' && !gpsFallback && (
-        <button className="btn" onClick={() => startAction('out')} disabled={busy}>
-          {busy ? 'กำลังบันทึก…' : 'ออกงาน (ถ่ายรูปยืนยัน)'}
-        </button>
+
+      {flow === 'reason' && current && (
+        <div className="card">
+          <div className="k">ออกงานก่อนเวลา</div>
+          <div className="v" style={{ fontSize: 16 }}>กะจบ {fmtTime(current.ends_at)} · เหตุผลจะถูกส่งให้ผู้ดูแลทาง LINE</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, margin: '12px 0' }}>
+            {REASONS.map((r) => (
+              <button key={r} type="button" className={`chip ${reason === r ? 'on' : ''}`} onClick={() => setReason(r)}>{r}</button>
+            ))}
+          </div>
+          <textarea className="input" rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="เหตุผลที่ออกก่อนเวลา" />
+          <button className="btn" disabled={!reason.trim() || busy} onClick={() => openCamera({ type: 'out', assignment: current, reason: reason.trim() })}>
+            ยืนยันออกงาน (ถ่ายรูปยืนยัน)
+          </button>
+          <button className="btn ghost" onClick={() => setFlow(null)}>ยกเลิก</button>
+        </div>
+      )}
+
+      {!current && !gpsFallback && projects.length > 0 && (isField || canEmergency) && (
+        <>
+          {!flow && (
+            <>
+              {canEmergency && <div className="spacer" />}
+              <button className={`btn ${isField ? '' : 'ghost'}`} onClick={() => { setMsg(null); setPickProp(null); setFlow('pick') }} disabled={busy}>
+                {isField ? 'เช็คอินโครงการ' : 'เข้างานฉุกเฉิน (แทนคน)'}
+              </button>
+              {canEmergency && <p className="muted" style={{ marginTop: 6 }}>ใช้เมื่อหัวหน้าเรียกให้มาแทนคนที่ขาด ในโครงการที่คุณมีชื่อ</p>}
+            </>
+          )}
+          {flow === 'pick' && (
+            <div className="card">
+              <div className="k">{adhocTitle} · เลือกโครงการ</div>
+              {projects.map((p) => (
+                <label key={p.property_id} className="choice">
+                  <input type="radio" name="proj" checked={pickProp?.property_id === p.property_id} onChange={() => setPickProp(p)} />
+                  <span>{p.property_name}{p.province ? <span className="muted"> · {p.province}</span> : null}</span>
+                </label>
+              ))}
+              <button className="btn" disabled={!pickProp} onClick={() => setFlow('confirm')}>ถัดไป</button>
+              <button className="btn ghost" onClick={() => setFlow(null)}>ยกเลิก</button>
+            </div>
+          )}
+          {flow === 'confirm' && pickProp && (
+            <div className="card">
+              <div className="k">ยืนยัน{adhocTitle}</div>
+              <div className="v">{pickProp.property_name}</div>
+              <p className="muted" style={{ margin: '6px 0 12px' }}>
+                {isField ? 'เวลาเข้างานบันทึกตามเวลาเซิร์ฟเวอร์ · ต้องเช็คเอาต์ก่อนไปเช็คอินโครงการถัดไป'
+                  : 'ระบบจะบันทึกเป็นการเข้างานฉุกเฉิน และแสดงให้ผู้ดูแลเห็นในหน้าภาพรวม'}
+              </p>
+              <button className="btn" disabled={busy} onClick={() => openCamera({ type: 'adhoc', property: pickProp })}>ยืนยันเช็คอิน (ถ่ายรูปยืนยัน)</button>
+              <button className="btn ghost" onClick={() => setFlow('pick')}>เปลี่ยนโครงการ</button>
+            </div>
+          )}
+        </>
       )}
 
       {upcoming.length > 0 && (

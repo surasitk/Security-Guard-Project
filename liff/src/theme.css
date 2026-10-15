@@ -92,3 +92,11 @@ h1 { font-size: 26px; font-weight: 600; margin: 6px 0 4px; letter-spacing: -0.01
   0% { margin-left: -40%; }
   100% { margin-left: 100%; }
 }
+
+/* ตัวเลือกโครงการ / เหตุผลออกก่อนเวลา */
+.choice { display: flex; gap: 10px; align-items: center; padding: 12px 2px; border-bottom: 1px solid var(--line); font-size: 15px; cursor: pointer; }
+.choice:last-of-type { margin-bottom: 14px; }
+.chip { font-family: var(--font); font-size: 13px; padding: 7px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); color: var(--ink); cursor: pointer; }
+.chip.on { border-color: var(--ink); background: var(--ink); color: #fff; }
+textarea.input { width: 100%; box-sizing: border-box; padding: 12px; border: 1px solid var(--line); border-radius: 10px; font-family: var(--font); font-size: 15px; margin-bottom: 12px; background: var(--card); color: var(--ink); resize: vertical; }
+.card .btn { margin-top: 8px; }

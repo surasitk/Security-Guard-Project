@@ -13,7 +13,7 @@ const BASE_TABS = [
   { key: 'dashboard', label: 'ภาพรวมวันนี้', el: Dashboard },
   { key: 'monitor', label: 'มอนิเตอร์', el: Monitor },
   { key: 'shifts', label: 'ตารางกะ', el: Shifts },
-  { key: 'people', label: 'พนักงาน', el: People },
+  { key: 'people', label: 'ผู้ใช้และสิทธิ์', el: People },
   { key: 'properties', label: 'โครงการ', el: Properties },
   { key: 'checkpoints', label: 'จุดตรวจ (QR)', el: Checkpoints },
 ]
@@ -24,6 +24,7 @@ export default function App() {
   const [err, setErr] = useState('')
   const [tab, setTab] = useState('dashboard')
   const [isPlatform, setIsPlatform] = useState(false)
+  const [vendors, setVendors] = useState([])
 
   useEffect(() => {
     (async () => {
@@ -32,9 +33,9 @@ export default function App() {
         if (!out) return // กำลัง redirect ไป LINE Login
         if (out.error === 'not_registered') { setState('unregistered'); return }
         if (out.error) { setErr(out.error); setState('error'); return }
-        if (!['owner', 'admin', 'supervisor'].includes(out.user.role)) { setState('forbidden'); return }
+        if (!['owner', 'admin', 'supervisor', 'shift_leader'].includes(out.user.role)) { setState('forbidden'); return }
         setState('ready')
-        rpc('is_platform_admin').then(setIsPlatform).catch(() => {})
+        rpc('is_platform_admin').then((pa) => { setIsPlatform(pa); if (pa) rpc('list_vendors').then(setVendors).catch(() => {}) }).catch(() => {})
       } catch (e) { setErr(String(e.message || e)); setState('error') }
     })()
   }, [])
@@ -64,7 +65,7 @@ export default function App() {
           </button>
         ))}
       </div>
-      <Active />
+      <Active isPlatform={isPlatform} vendors={vendors} />
     </div>
   )
 }
