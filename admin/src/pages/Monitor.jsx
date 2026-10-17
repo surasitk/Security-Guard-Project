@@ -128,7 +128,7 @@ const ACTION_TH = {
   line_account_bound: 'ผูกบัญชี LINE', create_vendor: 'สร้างบริษัท', update_vendor: 'แก้ไขบริษัท',
   admin_close_assignment: 'ปิดกะ (ลืมเช็คเอาต์)', create_checkpoint: 'สร้างจุดตรวจ', save_property: 'บันทึกโครงการ',
 }
-const ROLE_TH = { owner: 'เจ้าของ', admin: 'แอดมิน', supervisor: 'สายตรวจ', assistant_supervisor: 'ผู้ช่วยสายตรวจ', shift_leader: 'หัวหน้ากะ', guard: 'ยาม', client: 'ลูกค้า' }
+const ROLE_TH = { owner: 'เจ้าของ', admin: 'แอดมิน', supervisor: 'สายตรวจ', assistant_supervisor: 'ผู้ช่วยสายตรวจ', trainer: 'ครูฝึก', spare: 'ตัวสแปร์', shift_leader: 'หัวหน้ากะ', guard: 'ยาม', client: 'ลูกค้า' }
 const dmy = (d) => d ? new Date(d).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' }) : ''
 
 function describe(a, users, tpls) {
