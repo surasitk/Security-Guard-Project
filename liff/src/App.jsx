@@ -4,6 +4,7 @@ import Register from './pages/Register.jsx'
 import Home from './pages/Home.jsx'
 import Scan from './pages/Scan.jsx'
 import Soon from './pages/Soon.jsx'
+import Incident from './pages/Incident.jsx'
 
 // อ่านหน้าเป้าหมายจาก ?page= (rich menu ยิงคนละลิงก์)
 function targetPage() {
@@ -49,7 +50,7 @@ export default function App() {
   if (state === 'register') return <Register onDone={() => setState('ready')} />
 
   if (page === 'scan') return <Scan />
-  if (page === 'incident') return <Soon title="แจ้งเหตุ" note="ระบบแจ้งเหตุ/บันทึกเหตุการณ์กำลังพัฒนา" />
+  if (page === 'incident') return <Incident />
   if (page === 'leave') return <Soon title="ขอลา" note="ระบบยื่นใบลา/อนุมัติกำลังพัฒนา" />
   return <Home />
 }

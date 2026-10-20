@@ -146,7 +146,8 @@ language sql stable security definer set search_path = public as $$
 $$;
 
 -- ผู้ที่ส่งไปแทนได้: ตัวสแปร์ / ครูฝึก / สายตรวจ / ผู้ช่วย / ยาม / หัวหน้ากะ ที่มีสิทธิ์ในโครงการนั้น (ผูกโครงการ)
--- ไม่ได้อยู่เวรตอนนี้ และไม่มีกะของตัวเองในตอนนี้ · เรียงจากใกล้ที่สุด (ตำแหน่งล่าสุด 24 ชม. หรือโครงการที่ผูกไว้)
+-- ไม่ได้อยู่เวรตอนนี้ และไม่มีกะของตัวเองในตอนนี้ · ตัวสแปร์ก่อน แล้วเรียงจากใกล้ที่สุด
+-- (ตำแหน่งล่าสุดใน 24 ชม. หรือโครงการอื่นที่ผูกไว้ซึ่งใกล้ที่สุด)
 create or replace function dispatch_candidates(p_property_id uuid)
 returns table (user_id uuid, full_name text, employee_code text, role text, phone text, has_line boolean,
                distance_m numeric, location_source text)
@@ -175,7 +176,7 @@ language sql stable security definer set search_path = public as $$
   ) last on true
   left join lateral (
     select p2.center as loc from property_managers pm2 join properties p2 on p2.id = pm2.property_id
-    where pm2.user_id = c.id and p2.center is not null and t.center is not null
+    where pm2.user_id = c.id and pm2.property_id <> p_property_id and p2.center is not null and t.center is not null
     order by st_distance(p2.center, t.center) limit 1
   ) home on true
   order by (c.role = 'spare') desc, 7 nulls last, c.full_name
@@ -367,3 +368,4 @@ grant execute on function report_sos(uuid,double precision,double precision,text
   set_incident_status(uuid,text), force_map(uuid), dispatch_candidates(uuid), dispatch_person(uuid,uuid,text),
   broadcast_recipients(uuid[],text[]), send_broadcast(uuid[],text[],text),
   can_view_client_dashboard(uuid), client_projects(), client_dashboard(uuid,date,date) to authenticated;
+grant select on incidents, broadcasts, v_incidents to authenticated;

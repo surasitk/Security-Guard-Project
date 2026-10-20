@@ -8,6 +8,12 @@
 //
 // POST { notification_id } — เรียกจากแอปยามหลังเช็คเอาต์ก่อนเวลา (ส่งซ้ำไม่ได้: มี sent_at กันไว้)
 // POST { flush: true }     — ส่งทุกรายการที่ค้าง (ใช้ตอนเพิ่งตั้ง token หรือกับ cron ภายหลัง)
+//
+// ผู้รับ:
+//   payload.to_user_ids        → ส่งถึงรายชื่อนี้ (dispatch / broadcast)
+//   kind 'sos'                 → Owner/Admin + สายตรวจ/ผู้ช่วยสายตรวจที่ผูกกับโครงการ (ไม่มีโครงการ = สายตรวจทุกคน)
+//   อื่นๆ                       → Owner/Admin ของ Vendor
+// SOS แนบรูป (signed URL 7 วัน) และลิงก์ฟังเสียง
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -21,18 +27,97 @@ const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE
 const fmt = (ts: string) =>
   new Date(ts).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Bangkok" });
 
-function messageFor(n: { kind: string; payload: Record<string, unknown> }): string {
-  const p = n.payload as Record<string, string | number>;
+const SIGN_TTL = 7 * 24 * 3600;
+async function signed(path?: unknown): Promise<string | null> {
+  if (!path || typeof path !== "string") return null;
+  const { data } = await admin.storage.from("selfies").createSignedUrl(path, SIGN_TTL);
+  return data?.signedUrl ?? null;
+}
+const mapLink = (lat: unknown, lng: unknown) =>
+  lat != null && lng != null ? `https://maps.google.com/?q=${lat},${lng}` : null;
+
+type Msg = Record<string, unknown>;
+async function messagesFor(n: { kind: string; payload: Record<string, unknown> }): Promise<Msg[]> {
+  const p = n.payload as Record<string, string | number | null>;
+  const text = (t: string) => ({ type: "text", text: t.slice(0, 4900) });
   if (n.kind === "early_checkout") {
-    return [
+    return [text([
       "⚠️ ออกงานก่อนเวลา",
       `${p.user_name} (${p.employee_code})`,
       `โครงการ: ${p.property_name}`,
       `ออกงาน ${fmt(String(p.checked_out_at))} · กะจบ ${fmt(String(p.shift_end))} (ก่อนเวลา ${p.early_minutes} นาที)`,
       `เหตุผล: ${p.reason}`,
-    ].join("\n");
+    ].join("\n"))];
   }
-  return `แจ้งเตือน Guard OS: ${n.kind}`;
+  if (n.kind === "sos") {
+    const photo = await signed(p.photo_path);
+    const audio = await signed(p.audio_path);
+    const map = mapLink(p.lat, p.lng);
+    const out: Msg[] = [text([
+      "🚨 SOS แจ้งเหตุด่วน",
+      `${p.user_name} (${p.employee_code})${p.phone ? ` · โทร ${p.phone}` : ""}`,
+      `โครงการ: ${p.property_name || "ไม่ระบุ"}`,
+      p.category ? `ประเภท: ${p.category}` : "",
+      p.note ? `รายละเอียด: ${p.note}` : "",
+      `เวลา ${fmt(String(p.at))}`,
+      map ? `📍 พิกัด: ${map}` : "📍 ไม่ได้รับพิกัด",
+      audio ? `🎙️ ฟังเสียง: ${audio}` : "",
+    ].filter(Boolean).join("\n"))];
+    if (photo) out.push({ type: "image", originalContentUrl: photo, previewImageUrl: photo });
+    return out;
+  }
+  if (n.kind === "dispatch") {
+    const map = mapLink(p.lat, p.lng);
+    return [text([
+      "📣 คำสั่งเข้าประจำจุดด่วน",
+      `ถึง: ${p.to_name}`,
+      `โครงการ: ${p.property_name}`,
+      p.address ? `ที่อยู่: ${p.address}` : "",
+      p.note ? `หมายเหตุ: ${p.note}` : "",
+      map ? `📍 นำทาง: ${map}` : "",
+      `สั่งโดย ${p.by_name} · ${fmt(String(p.at))}`,
+      "ถึงแล้วกดเช็คอินในแอป Guard OS",
+    ].filter(Boolean).join("\n"))];
+  }
+  if (n.kind === "broadcast") {
+    const names = (n.payload.property_names as string[] | undefined) || [];
+    return [text([
+      "📢 ประกาศ",
+      String(p.message),
+      "",
+      `จาก ${p.sender_name}${names.length ? ` · ${names.slice(0, 5).join(", ")}${names.length > 5 ? ` +${names.length - 5}` : ""}` : ""}`,
+    ].join("\n"))];
+  }
+  return [text(`แจ้งเตือน Guard OS: ${n.kind}`)];
+}
+
+async function recipientsFor(n: Record<string, any>): Promise<string[]> {
+  const ids = n.payload?.to_user_ids as string[] | undefined;
+  let q;
+  if (Array.isArray(ids) && ids.length) {
+    q = admin.from("users").select("line_user_id").eq("tenant_id", n.tenant_id).in("id", ids);
+    const { data } = await q.eq("is_active", true).not("line_user_id", "is", null);
+    return [...new Set((data || []).map((u) => u.line_user_id as string))];
+  }
+  const { data: bosses } = await admin.from("users").select("line_user_id")
+    .eq("tenant_id", n.tenant_id).in("role", ["owner", "admin"]).eq("is_active", true).not("line_user_id", "is", null);
+  const out = (bosses || []).map((u) => u.line_user_id as string);
+  if (n.kind === "sos") {
+    let sup;
+    if (n.property_id) {
+      const { data: pm } = await admin.from("property_managers").select("user_id").eq("property_id", n.property_id);
+      const uids = (pm || []).map((r) => r.user_id);
+      sup = uids.length
+        ? (await admin.from("users").select("line_user_id").in("id", uids)
+          .in("role", ["supervisor", "assistant_supervisor"]).eq("is_active", true).not("line_user_id", "is", null)).data
+        : [];
+    } else {
+      sup = (await admin.from("users").select("line_user_id").eq("tenant_id", n.tenant_id)
+        .in("role", ["supervisor", "assistant_supervisor"]).eq("is_active", true).not("line_user_id", "is", null)).data;
+    }
+    for (const u of sup || []) out.push(u.line_user_id as string);
+  }
+  return [...new Set(out)];
 }
 
 async function sendOne(id: string): Promise<{ id: string; ok: boolean; error?: string; recipients?: number }> {
@@ -47,20 +132,18 @@ async function sendOne(id: string): Promise<{ id: string; ok: boolean; error?: s
   };
   if (!token) return await fail("missing_LINE_MESSAGING_TOKEN");
 
-  // ผู้รับ: Owner/Admin ของ Vendor ที่ผูก LINE แล้ว
-  const { data: users } = await admin
-    .from("users").select("line_user_id")
-    .eq("tenant_id", n.tenant_id).in("role", ["owner", "admin"]).eq("is_active", true)
-    .not("line_user_id", "is", null);
-  const to = [...new Set((users || []).map((u) => u.line_user_id as string))];
+  const to = await recipientsFor(n);
   if (!to.length) return await fail("no_recipients");
 
-  const res = await fetch("https://api.line.me/v2/bot/message/multicast", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ to, messages: [{ type: "text", text: messageFor(n) }] }),
-  });
-  if (!res.ok) return await fail(`line_${res.status}: ${(await res.text()).slice(0, 200)}`);
+  const messages = await messagesFor(n);
+  for (let i = 0; i < to.length; i += 500) {
+    const res = await fetch("https://api.line.me/v2/bot/message/multicast", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ to: to.slice(i, i + 500), messages }),
+    });
+    if (!res.ok) return await fail(`line_${res.status}: ${(await res.text()).slice(0, 200)}`);
+  }
   await admin.from("line_notifications").update({ sent_at: new Date().toISOString(), error: null }).eq("id", id);
   return { id, ok: true, recipients: to.length };
 }
