@@ -13,7 +13,7 @@ const STATUS = {
   checked_out: { t: 'เสร็จแล้ว', c: 'ink' },
   absent: { t: 'ขาดงาน', c: 'alert' },
 }
-const KIND = { adhoc: 'เช็คอินโครงการ', emergency: 'ฉุกเฉิน' }
+const KIND = { adhoc: 'เช็คอินโครงการ', emergency: 'ฉุกเฉิน', open: 'ตามช่วงกะ' }
 
 // วันที่ตามเวลาไทย (YYYY-MM-DD) — กะนับตามวันที่เริ่มกะ
 const bkk = (d) => new Date(new Date(d).getTime() + 7 * 3600 * 1000).toISOString().slice(0, 10)

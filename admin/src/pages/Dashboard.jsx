@@ -11,6 +11,7 @@ export default function Dashboard() {
   const [err, setErr] = useState('')
   const [stuck, setStuck] = useState([])
   const [reload, setReload] = useState(0)
+  const [coverage, setCoverage] = useState([])      // โครงการแบบไม่จัดกะ: ช่วงกะตอนนี้ ต้องมีกี่คน อยู่เวรกี่คน
 
   useEffect(() => {
     (async () => {
@@ -21,6 +22,7 @@ export default function Dashboard() {
           list(`attendance?select=check_in_at,check_out_at,late_minutes,early_leave_minutes,early_reason,flag_reason,in_distance_m,is_mock_flag,users(full_name),properties!inner(id,name,province,is_test)&properties.is_test=is.false&check_in_at=gte.${start}&order=check_in_at.desc&limit=30`),
         ])
         setShifts(s); setAtt(a)
+        setCoverage(await rpc('open_coverage').catch(() => []))
         const cutoff = new Date(Date.now() - 3600 * 1000).toISOString()
         setStuck(await list(`shift_assignments?select=id,starts_at,ends_at,kind,users!user_id(full_name,employee_code),properties(name)&status=eq.checked_in&ends_at=lt.${cutoff}&order=ends_at`).catch(() => []))
       } catch (e) { setErr(String(e.message || e)) }
@@ -109,7 +111,31 @@ export default function Dashboard() {
         <div className={`stat ${late ? 'warn' : ''}`}><div className="n">{late}</div><div className="l">เข้าสายวันนี้</div></div>
         <div className={`stat ${flagged ? 'warn' : ''}`}><div className="n">{flagged}</div><div className="l">รายการติดธงตรวจสอบ</div></div>
         <div className={`stat ${stuck.length ? 'alert' : ''}`}><div className="n">{stuck.length}</div><div className="l">ลืมเช็คเอาต์ รอปิดกะ</div></div>
+        {coverage.length > 0 && (
+          <div className={`stat ${coverage.some((c) => c.short) ? 'alert' : ''}`}><div className="n">{coverage.filter((c) => c.short).length}</div><div className="l">จุดที่คนไม่ครบตอนนี้</div></div>
+        )}
       </div>
+
+      {coverage.length > 0 && (
+        <>
+          <div className="section-h"><h2>โครงการแบบไม่จัดกะ · ช่วงกะตอนนี้</h2></div>
+          <table className="grid">
+            <thead><tr><th>โครงการ</th><th>ช่วงกะ</th><th>อยู่เวร / ต้องมี</th><th>สถานะ</th></tr></thead>
+            <tbody>
+              {coverage.map((c) => (
+                <tr key={`${c.property_id}-${c.slot_start}`}>
+                  <td>{c.property_name}</td>
+                  <td>{c.slot_name} · {fmtTime(c.slot_start)}–{fmtTime(c.slot_end)}</td>
+                  <td><b>{c.on_duty}</b> / {c.headcount} คน</td>
+                  <td>{c.short ? <span className="badge alert">ขาด {c.headcount - c.on_duty} คน</span>
+                    : c.on_duty >= c.headcount ? <span className="badge duty">ครบ</span>
+                    : <span className="badge warn">รอเข้างาน</span>}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
 
       {stuck.length > 0 && (
         <>
@@ -173,7 +199,7 @@ export default function Dashboard() {
   )
 }
 
-const KIND = { adhoc: 'เช็คอินโครงการ', emergency: 'ฉุกเฉิน' }
+const KIND = { adhoc: 'เช็คอินโครงการ', emergency: 'ฉุกเฉิน', open: 'ตามช่วงกะ' }
 const FLAG = {
   no_gps: 'ไม่มีพิกัด', mock_gps_suspected: 'สงสัย GPS ปลอม', kiosk_wrong_property: 'เครื่องผิดโครงการ',
   emergency: 'เข้างานฉุกเฉิน', early_checkout: 'ออกก่อนเวลา', closed_by_admin: 'ผู้ดูแลปิดกะ', auto_closed_admin: 'ปิดโดยระบบ',

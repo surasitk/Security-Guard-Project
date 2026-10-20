@@ -10,7 +10,7 @@ export default function Shifts() {
   const [upcoming, setUpcoming] = useState(null)
   const [msg, setMsg] = useState(null)
 
-  const [tForm, setTForm] = useState({ property_id: '', name: 'กะกลางวัน', start: '07:00', end: '19:00', cross: false, days: [0, 1, 2, 3, 4, 5, 6] })
+  const [tForm, setTForm] = useState({ property_id: '', name: 'กะกลางวัน', start: '07:00', end: '19:00', cross: false, days: [0, 1, 2, 3, 4, 5, 6], headcount: 1 })
   const [gForm, setGForm] = useState({ template_id: '', user_id: '', from: '', to: '' })
   const [properties, setProperties] = useState([])
   // จัดการกะที่กำลังจะถึง: กรอง + เลือกหลายแถว → ยกเลิก / เปลี่ยนคน
@@ -21,14 +21,14 @@ export default function Shifts() {
   const [busy, setBusy] = useState(false)
   const [editId, setEditId] = useState(null)        // แม่แบบที่กำลังแก้ไข
   const [applyFuture, setApplyFuture] = useState(true)
-  const EMPTY_T = { property_id: '', name: 'กะกลางวัน', start: '07:00', end: '19:00', cross: false, days: [0, 1, 2, 3, 4, 5, 6] }
+  const EMPTY_T = { property_id: '', name: 'กะกลางวัน', start: '07:00', end: '19:00', cross: false, days: [0, 1, 2, 3, 4, 5, 6], headcount: 1 }
 
   const load = async () => {
     try {
       const [t, g, p, u] = await Promise.all([
-        list('shift_templates?select=*,properties(name,is_test)&is_active=is.true&order=name'),
+        list('shift_templates?select=*,properties(name,is_test,shift_mode)&is_active=is.true&order=name'),
         list('users?select=id,full_name,employee_code&role=in.(guard,shift_leader)&is_active=is.true&order=full_name'),
-        list('properties?select=id,name,is_test&is_active=is.true&order=name'),
+        list('properties?select=id,name,is_test,shift_mode&is_active=is.true&order=name'),
         list(`shift_assignments?select=id,starts_at,ends_at,status,is_holiday_work,user_id,property_id,users!user_id(full_name),properties(name)&starts_at=gte.${new Date().toISOString()}&status=neq.cancelled&order=starts_at&limit=500`),
       ])
       setTemplates(t); setGuards(g); setProperties(p); setUpcoming(u); setSel(new Set())
@@ -46,7 +46,7 @@ export default function Shifts() {
     setTForm({
       property_id: t.property_id, name: t.name,
       start: String(t.start_time).slice(0, 5), end: String(t.end_time).slice(0, 5),
-      cross: !!t.crosses_midnight, days: t.days_of_week || [],
+      cross: !!t.crosses_midnight, days: t.days_of_week || [], headcount: t.headcount || 1,
     })
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -61,7 +61,7 @@ export default function Shifts() {
     try {
       await update('shift_templates', `id=eq.${editId}`, {
         name: tForm.name, start_time: tForm.start, end_time: tForm.end,
-        crosses_midnight: tForm.cross, days_of_week: tForm.days,
+        crosses_midnight: tForm.cross, days_of_week: tForm.days, headcount: Number(tForm.headcount) || 1,
       })
       let moved = 0, failed = 0
       const timeChanged = before && (String(before.start_time).slice(0, 5) !== tForm.start
@@ -105,6 +105,7 @@ export default function Shifts() {
         end_time: tForm.end,
         crosses_midnight: tForm.cross,
         days_of_week: tForm.days,
+        headcount: Number(tForm.headcount) || 1,
       })
       setMsg({ t: 'ok', m: `สร้างแม่แบบ "${tForm.name}" แล้ว` })
       load()
@@ -189,6 +190,9 @@ export default function Shifts() {
               <option value="0">ไม่ข้าม</option><option value="1">ข้าม (กะดึก)</option>
             </select>
           </div>
+          <div className="field"><label>จำนวนคนที่ต้องมี</label>
+            <input type="number" min="1" max="50" value={tForm.headcount} onChange={(e) => setTForm({ ...tForm, headcount: e.target.value })} />
+          </div>
           <div className="field"><label>วันที่มีกะ</label>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {DOW.map((d, i) => (
@@ -213,13 +217,14 @@ export default function Shifts() {
 
       {templates.length > 0 && (
         <table className="grid" style={{ marginTop: 14 }}>
-          <thead><tr><th>โครงการ</th><th>ชื่อกะ</th><th>เวลา</th><th>วันที่มีกะ</th><th></th></tr></thead>
+          <thead><tr><th>โครงการ</th><th>ชื่อกะ</th><th>เวลา</th><th>คน</th><th>วันที่มีกะ</th><th></th></tr></thead>
           <tbody>
             {templates.map((t) => (
               <tr key={t.id}>
-                <td>{t.properties?.name}</td>
+                <td>{t.properties?.name}{t.properties?.shift_mode === 'open' && <span className="badge duty" style={{ marginLeft: 8 }}>ไม่จัดกะ</span>}</td>
                 <td>{t.name}{t.crosses_midnight ? ' · ข้ามคืน' : ''}</td>
                 <td>{String(t.start_time).slice(0, 5)}–{String(t.end_time).slice(0, 5)}</td>
+                <td>{t.headcount || 1}</td>
                 <td>{(t.days_of_week || []).length === 7 ? 'ทุกวัน' : (t.days_of_week || []).map((d) => DOW[d]).join(' ')}</td>
                 <td style={{ whiteSpace: 'nowrap' }}>
                   <button className="badge" style={{ cursor: 'pointer', fontFamily: 'var(--font)', background: 'none', marginRight: 6 }}
@@ -237,13 +242,17 @@ export default function Shifts() {
         </table>
       )}
 
+      {templates.some((t) => t.properties?.shift_mode === 'open') && (
+        <p className="hint" style={{ marginTop: 10 }}>โครงการที่ขึ้นป้าย <b>ไม่จัดกะ</b>: แม่แบบกะคือ "ช่วงกะ" ที่ยามกดเข้างานเองได้ และจำนวนคนใช้เตือนในหน้าภาพรวมเมื่อคนไม่ครบ ไม่ต้องจ่ายกะ</p>
+      )}
+
       <div className="section-h"><h2>2) จ่ายกะให้พนักงาน</h2></div>
       <form className="card" onSubmit={generate}>
         <div className="form-grid">
           <div className="field"><label>แม่แบบกะ *</label>
             <select value={gForm.template_id} onChange={(e) => setGForm({ ...gForm, template_id: e.target.value, user_id: '' })} required>
               <option value="">— เลือก —</option>
-              {templates.map((t) => <option key={t.id} value={t.id}>{t.properties?.is_test ? '🧪 ' : ''}{t.properties?.name} · {t.name} ({String(t.start_time).slice(0, 5)}-{String(t.end_time).slice(0, 5)})</option>)}
+              {templates.filter((t) => t.properties?.shift_mode !== 'open').map((t) => <option key={t.id} value={t.id}>{t.properties?.is_test ? '🧪 ' : ''}{t.properties?.name} · {t.name} ({String(t.start_time).slice(0, 5)}-{String(t.end_time).slice(0, 5)})</option>)}
             </select>
           </div>
           <div className="field"><label>พนักงาน *</label>
