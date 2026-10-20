@@ -8,7 +8,7 @@
 }
 .side .brand { color: #fff; font-size: 16px; padding: 0 10px; }
 .side .brand small { font-weight: 400; color: #8e959c; font-size: 12.5px; margin-left: 2px; }
-.nav { display: flex; flex-direction: column; gap: 2px; margin-top: 28px; }
+.nav { display: flex; flex-direction: column; gap: 2px; margin-top: 22px; }
 .nav button {
   display: flex; align-items: center; gap: 12px; width: 100%;
   padding: 10px 12px; border: 0; border-radius: var(--r-sm); background: none;
@@ -228,3 +228,5 @@ textarea.input { width: 100%; font: 15px/1.6 var(--font); padding: 10px 12px; bo
 .fm-note { font: 14px var(--font); padding: 9px 12px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--surface); color: var(--ink); min-height: 40px; }
 .fm-note:focus { outline: none; border-color: var(--ink); }
 .fm-person .btn { white-space: nowrap; flex: none; }
+.nav > div:first-child .group { padding-top: 0; }
+.nav .group { letter-spacing: .02em; }

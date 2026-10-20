@@ -29,19 +29,20 @@ const I = {
 }
 const Icon = ({ k }) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{I[k]}</svg>
 
+// เรียงตามหมวด: ปฏิบัติการ → วางแผนและตั้งค่า → รายงาน → ผู้ดูแลระบบ
 const BASE_TABS = [
-  { key: 'dashboard', label: 'ภาพรวมวันนี้', icon: 'dash', desc: 'ใครอยู่เวร ใครยังไม่เข้า และสิ่งที่ต้องจัดการวันนี้', el: Dashboard },
-  { key: 'monitor', label: 'มอนิเตอร์', icon: 'eye', desc: 'เหตุการณ์เข้า-ออกงาน 7 วันล่าสุด พร้อมรูปและพิกัด', el: Monitor },
-  { key: 'shifts', label: 'ตารางกะ', icon: 'cal', desc: 'สร้างแม่แบบกะ จ่ายกะ และจัดการกะที่กำลังจะถึง', el: Shifts },
-  { key: 'people', label: 'ผู้ใช้และสิทธิ์', icon: 'users', desc: 'ข้อมูลผู้ใช้ บทบาท โครงการที่ได้รับมอบหมาย และวันหยุด', el: People },
-  { key: 'properties', label: 'โครงการ', icon: 'site', desc: 'ที่ตั้ง พิกัด และรัศมีเช็คอินของแต่ละโครงการ', el: Properties },
-  { key: 'checkpoints', label: 'จุดตรวจ (QR)', icon: 'qr', desc: 'จุดเดินตรวจและ QR สำหรับติดหน้างาน', el: Checkpoints },
-  { key: 'forcemap', label: 'แผนที่กำลังพล', icon: 'map', desc: 'ใครเช็กอินอยู่ไซต์ไหนตอนนี้ ไซต์ที่คนขาด และส่งตัวสแปร์ที่อยู่ใกล้ที่สุดไปแทน · เหตุแจ้ง SOS', el: ForceMap },
-  { key: 'broadcast', label: 'ประกาศกลุ่ม', icon: 'megaphone', desc: 'ส่งข้อความถึงทุกคนในโครงการหรือจังหวัดที่เลือก ผ่าน LINE OA', el: Broadcast, noLeader: true },
-  { key: 'client', label: 'แดชบอร์ดลูกค้า', icon: 'chart', desc: 'SLA การเข้ากะ ความครอบคลุมการตรวจตรา เหตุที่แจ้ง และ heat map จุดตรวจ รายโครงการ', el: ClientDashboard },
-  { key: 'reports', label: 'รายงาน', icon: 'report', desc: 'รายงานเวลาเข้า-ออกงาน สาย และ OT ตามโครงการ ช่วงวันที่ และรายชื่อ — Export เป็น Excel', el: Reports },
+  { group: 'ปฏิบัติการ', key: 'dashboard', label: 'ภาพรวมวันนี้', icon: 'dash', desc: 'ใครอยู่เวร ใครยังไม่เข้า และสิ่งที่ต้องจัดการวันนี้', el: Dashboard },
+  { group: 'ปฏิบัติการ', key: 'forcemap', label: 'แผนที่กำลังพล', icon: 'map', desc: 'ใครเช็กอินอยู่ไซต์ไหนตอนนี้ ไซต์ที่คนขาด และส่งตัวสแปร์ที่อยู่ใกล้ที่สุดไปแทน · เหตุแจ้ง SOS', el: ForceMap },
+  { group: 'ปฏิบัติการ', key: 'monitor', label: 'มอนิเตอร์', icon: 'eye', desc: 'เหตุการณ์เข้า-ออกงาน 7 วันล่าสุด พร้อมรูปและพิกัด', el: Monitor },
+  { group: 'ปฏิบัติการ', key: 'broadcast', label: 'ประกาศกลุ่ม', icon: 'megaphone', desc: 'ส่งข้อความถึงทุกคนในโครงการหรือจังหวัดที่เลือก ผ่าน LINE OA', el: Broadcast, noLeader: true },
+  { group: 'วางแผนและตั้งค่า', key: 'shifts', label: 'ตารางกะ', icon: 'cal', desc: 'สร้างแม่แบบกะ จ่ายกะ และจัดการกะที่กำลังจะถึง', el: Shifts },
+  { group: 'วางแผนและตั้งค่า', key: 'properties', label: 'โครงการ', icon: 'site', desc: 'ที่ตั้ง พิกัด และรัศมีเช็คอินของแต่ละโครงการ', el: Properties },
+  { group: 'วางแผนและตั้งค่า', key: 'checkpoints', label: 'จุดตรวจ (QR)', icon: 'qr', desc: 'จุดเดินตรวจและ QR สำหรับติดหน้างาน', el: Checkpoints },
+  { group: 'วางแผนและตั้งค่า', key: 'people', label: 'ผู้ใช้และสิทธิ์', icon: 'users', desc: 'ข้อมูลผู้ใช้ บทบาท โครงการที่ได้รับมอบหมาย และวันหยุด', el: People },
+  { group: 'รายงาน', key: 'reports', label: 'รายงาน', icon: 'report', desc: 'รายงานเวลาเข้า-ออกงาน สาย และ OT ตามโครงการ ช่วงวันที่ และรายชื่อ — Export เป็น Excel', el: Reports },
+  { group: 'รายงาน', key: 'client', label: 'แดชบอร์ดลูกค้า', icon: 'chart', desc: 'SLA การเข้ากะ ความครอบคลุมการตรวจตรา เหตุที่แจ้ง และ heat map จุดตรวจ รายโครงการ', el: ClientDashboard },
 ]
-const VENDOR_TAB = { key: 'vendors', label: 'บริษัทในระบบ', icon: 'org', desc: 'บริษัท รปภ. ที่ใช้ Guard OS (เฉพาะ Super Admin)', el: Vendors }
+const VENDOR_TAB = { group: 'ผู้ดูแลระบบ', key: 'vendors', label: 'บริษัทในระบบ', icon: 'org', desc: 'บริษัท รปภ. ที่ใช้ Guard OS (เฉพาะ Super Admin)', el: Vendors }
 const ROLE_TH = { owner: 'เจ้าของ', admin: 'แอดมิน', supervisor: 'สายตรวจ', shift_leader: 'หัวหน้ากะ', client: 'ลูกค้า' }
 
 export default function App() {
@@ -98,10 +99,13 @@ export default function App() {
       <aside className="side">
         <p className="brand">Guard OS <small>หลังบ้าน</small></p>
         <nav className="nav" aria-label="เมนูหลัก">
-          {TABS.map((t) => (
-            <button key={t.key} className={tab === t.key ? 'active' : ''} aria-current={tab === t.key ? 'page' : undefined} onClick={() => setTab(t.key)}>
-              <Icon k={t.icon} />{t.label}
-            </button>
+          {TABS.map((t, i) => (
+            <div key={t.key} style={{ display: 'contents' }}>
+              {TABS.length > 1 && t.group && t.group !== TABS[i - 1]?.group && <div className="group">{t.group}</div>}
+              <button className={tab === t.key ? 'active' : ''} aria-current={tab === t.key ? 'page' : undefined} onClick={() => setTab(t.key)}>
+                <Icon k={t.icon} />{t.label}
+              </button>
+            </div>
           ))}
         </nav>
         {isPlatform && vendors.length > 0 && (
