@@ -90,7 +90,7 @@ export default function App() {
           <div className="vendor-switch">
             <label htmlFor="vsw">กำลังจัดการ Vendor</label>
             <select id="vsw" value={vendor?.id || ''} onChange={onVendor} disabled={switching}>
-              {vendors.map((v) => <option key={v.id} value={v.id}>{v.name}{v.id === user.home_tenant_id ? ' (บริษัทของฉัน)' : ''}</option>)}
+              {vendors.map((v) => <option key={v.id} value={v.id}>{v.is_test ? '🧪 ' : ''}{v.name}{v.id === user.home_tenant_id ? ' (บริษัทของฉัน)' : ''}</option>)}
             </select>
           </div>
         )}

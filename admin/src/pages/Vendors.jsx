@@ -83,7 +83,7 @@ export default function Vendors() {
               </tr>
             ) : (
               <tr key={v.id} style={{ opacity: v.is_active ? 1 : 0.5 }}>
-                <td>{v.name}</td>
+                <td>{v.name}{v.is_test && <span className="badge warn" style={{ marginLeft: 8 }}>ทดสอบ · เห็นเฉพาะ Super Admin</span>}</td>
                 <td><span className={`badge ${v.plan === 'pro' ? 'solid' : ''}`}>{v.plan}</span></td>
                 <td>{v.is_active ? <span className="muted">ใช้งาน</span> : <span className="badge">ปิด</span>}</td>
                 <td>{v.properties_count}</td><td>{v.users_count}</td><td>{v.line_linked_count}</td><td>{fmtDate(v.created_at)}</td>
