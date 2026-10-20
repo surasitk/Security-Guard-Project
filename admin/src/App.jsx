@@ -12,6 +12,8 @@ import ForceMap from './pages/ForceMap.jsx'
 import Broadcast from './pages/Broadcast.jsx'
 import ClientDashboard from './pages/ClientDashboard.jsx'
 import { rpc } from './lib/api'
+import logoWhite from './assets/horguard-white.png'
+import logoNavy from './assets/horguard-navy.png'
 
 // ไอคอนเส้น 18px (วาดเอง — ไม่พึ่งไลบรารี)
 const I = {
@@ -42,7 +44,7 @@ const BASE_TABS = [
   { group: 'รายงาน', key: 'reports', label: 'รายงาน', icon: 'report', desc: 'รายงานเวลาเข้า-ออกงาน สาย และ OT ตามโครงการ ช่วงวันที่ และรายชื่อ — Export เป็น Excel', el: Reports },
   { group: 'รายงาน', key: 'client', label: 'แดชบอร์ดลูกค้า', icon: 'chart', desc: 'SLA การเข้ากะ ความครอบคลุมการตรวจตรา เหตุที่แจ้ง และ heat map จุดตรวจ รายโครงการ', el: ClientDashboard },
 ]
-const VENDOR_TAB = { group: 'ผู้ดูแลระบบ', key: 'vendors', label: 'บริษัทในระบบ', icon: 'org', desc: 'บริษัท รปภ. ที่ใช้ Guard OS (เฉพาะ Super Admin)', el: Vendors }
+const VENDOR_TAB = { group: 'ผู้ดูแลระบบ', key: 'vendors', label: 'บริษัทในระบบ', icon: 'org', desc: 'บริษัท รปภ. ที่ใช้ Horguard (เฉพาะ Super Admin)', el: Vendors }
 const ROLE_TH = { owner: 'เจ้าของ', admin: 'แอดมิน', supervisor: 'สายตรวจ', shift_leader: 'หัวหน้ากะ', client: 'ลูกค้า' }
 
 export default function App() {
@@ -97,7 +99,7 @@ export default function App() {
   return (
     <div className="shell">
       <aside className="side">
-        <p className="brand">Guard OS <small>หลังบ้าน</small></p>
+        <div className="brand-logo"><img src={logoWhite} alt="Horguard" /><span>Horguard Force</span></div>
         <nav className="nav" aria-label="เมนูหลัก">
           {TABS.map((t, i) => (
             <div key={t.key} style={{ display: 'contents' }}>
@@ -137,7 +139,7 @@ export default function App() {
 function Center({ msg }) {
   return (
     <div className="splash">
-      <div><p className="brand">Guard OS</p><p>{msg}</p></div>
+      <div><div className="brand-logo navy"><img src={logoNavy} alt="Horguard" /><span>Horguard Force</span></div><p>{msg}</p></div>
     </div>
   )
 }

@@ -9,6 +9,7 @@ import {
   getUser, rpc, list, getPosition, compressImage, uploadSelfie, deviceFingerprint, withTimeout, notifyLine,
 } from '../lib/api'
 import ShiftCalendar from '../components/ShiftCalendar.jsx'
+import Brand from '../components/Brand.jsx'
 
 const ERROR_TH = {
   not_your_assignment: 'กะนี้ไม่ใช่ของคุณ',
@@ -184,7 +185,7 @@ export default function Home() {
     <div className="page">
       <div className="hello">
         <div>
-          <p className="brand">Guard OS</p>
+          <Brand />
           <h1>สวัสดี {user?.full_name}</h1>
           <p className="sub">รหัสพนักงาน {user?.employee_code}</p>
         </div>

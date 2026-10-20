@@ -3,6 +3,7 @@
 // แนบรูป/เสียง/ประเภท/ข้อความได้ก่อนกด แต่ไม่บังคับ — เหตุด่วนกดปุ่มเดียวก็ส่งได้
 import { useEffect, useRef, useState } from 'react'
 import { getUser, rpc, getPosition, compressImage, uploadMedia, withTimeout, notifyLine } from '../lib/api'
+import Brand from '../components/Brand.jsx'
 
 const CATS = ['บุกรุก', 'ไฟไหม้', 'ทะเลาะวิวาท', 'บาดเจ็บ/ป่วย', 'ทรัพย์สินเสียหาย', 'อื่นๆ']
 const MAX_SEC = 15
@@ -133,7 +134,7 @@ export default function Incident() {
   if (done) {
     return (
       <div className="page">
-        <p className="brand">GUARD OS</p>
+        <Brand />
         <div className="sos-done">
           <div className="sos-check">✓</div>
           <h1>ส่งแจ้งเหตุแล้ว</h1>
@@ -150,7 +151,7 @@ export default function Incident() {
   const sending = !!busy
   return (
     <div className="page">
-      <p className="brand">GUARD OS</p>
+      <Brand />
       <h1>แจ้งเหตุ</h1>
       <p className="sub">{user?.full_name} · {user?.employee_code}</p>
 

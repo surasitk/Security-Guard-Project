@@ -96,7 +96,7 @@ export default function Reports() {
     try {
       const { default: ExcelJS } = await import('exceljs')
       const wb = new ExcelJS.Workbook()
-      wb.creator = 'Guard OS'
+      wb.creator = 'Horguard Force'
       const used = new Set()
       const thin = { style: 'thin', color: { argb: 'FF000000' } }
       const box = { top: thin, left: thin, bottom: thin, right: thin }

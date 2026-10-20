@@ -246,3 +246,10 @@ textarea.input { min-height: 88px; margin-bottom: 12px; resize: vertical; line-h
 .sos-media .chip { font-size: 13px; padding: 6px 10px; }
 .sos-done { text-align: center; padding: 26px 0 18px; }
 .sos-check { width: 72px; height: 72px; border-radius: 50%; background: var(--duty-bg); color: var(--duty); font-size: 36px; font-weight: 700; display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; }
+
+/* ── โลโก้ Horguard Patrol ── */
+.brand-logo { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.brand-logo img { display: block; height: 22px; width: auto; }
+.brand-logo span { font-size: 9.5px; font-weight: 500; letter-spacing: .28em; text-transform: uppercase; color: var(--ink-2); padding-left: 1px; }
+.center .brand-logo { align-items: center; }
+.center .brand-logo img { height: 30px; }

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import liff from '@line/liff'
 import { getUser, rpc, getPosition, deviceFingerprint, withTimeout, readParams } from '../lib/api'
+import Brand from '../components/Brand.jsx'
 
 const ERR_TH = {
   checkpoint_not_found: 'ไม่พบจุดตรวจนี้ หรือถูกปิดใช้งาน — ตรวจสอบ QR อีกครั้ง',
@@ -83,7 +84,7 @@ export default function Scan() {
 
   return (
     <div className="page">
-      <p className="brand">GUARD OS</p>
+      <Brand />
       <h1>สแกนจุดตรวจ</h1>
       <p className="sub">{user?.full_name} · {user?.employee_code}</p>
 
