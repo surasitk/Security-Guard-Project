@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { initAuth, getUser, getVendor, switchVendor } from './lib/api'
+import { initAuth, getUser, getVendor, switchVendor, tenantId } from './lib/api'
 import Dashboard from './pages/Dashboard.jsx'
 import Monitor from './pages/Monitor.jsx'
 import People from './pages/People.jsx'
@@ -7,6 +7,7 @@ import Properties from './pages/Properties.jsx'
 import Checkpoints from './pages/Checkpoints.jsx'
 import Shifts from './pages/Shifts.jsx'
 import Vendors from './pages/Vendors.jsx'
+import Reports from './pages/Reports.jsx'
 import { rpc } from './lib/api'
 
 // ไอคอนเส้น 18px (วาดเอง — ไม่พึ่งไลบรารี)
@@ -18,6 +19,7 @@ const I = {
   site: <><path d="M4 21V8l8-5 8 5v13" /><path d="M9 21v-6h6v6M4 21h16" /></>,
   qr: <><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3" /></>,
   org: <><path d="M3 21h18M5 21V7l7-4 7 4v14" /><path d="M9 10h.01M15 10h.01M9 14h.01M15 14h.01" /></>,
+  report: <><path d="M7 3h7l5 5v13H7z" /><path d="M14 3v5h5M10 13h6M10 17h6M10 9h2" /></>,
 }
 const Icon = ({ k }) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{I[k]}</svg>
 
@@ -28,6 +30,7 @@ const BASE_TABS = [
   { key: 'people', label: 'ผู้ใช้และสิทธิ์', icon: 'users', desc: 'ข้อมูลผู้ใช้ บทบาท โครงการที่ได้รับมอบหมาย และวันหยุด', el: People },
   { key: 'properties', label: 'โครงการ', icon: 'site', desc: 'ที่ตั้ง พิกัด และรัศมีเช็คอินของแต่ละโครงการ', el: Properties },
   { key: 'checkpoints', label: 'จุดตรวจ (QR)', icon: 'qr', desc: 'จุดเดินตรวจและ QR สำหรับติดหน้างาน', el: Checkpoints },
+  { key: 'reports', label: 'รายงาน', icon: 'report', desc: 'รายงานเวลาเข้า-ออกงาน สาย และ OT ตามโครงการ ช่วงวันที่ และรายชื่อ — Export เป็น Excel', el: Reports },
 ]
 const VENDOR_TAB = { key: 'vendors', label: 'บริษัทในระบบ', icon: 'org', desc: 'บริษัท รปภ. ที่ใช้ Guard OS (เฉพาะ Super Admin)', el: Vendors }
 const ROLE_TH = { owner: 'เจ้าของ', admin: 'แอดมิน', supervisor: 'สายตรวจ', shift_leader: 'หัวหน้ากะ' }
@@ -65,8 +68,10 @@ export default function App() {
   const user = getUser()
 
   const current = TABS.find((t) => t.key === tab) || TABS[0]
-  const vendor = getVendor()
-  const acting = isPlatform && vendor && user.home_tenant_id && vendor.id !== user.home_tenant_id
+  // Vendor ที่ใช้งานจริง = tenant ใน token (ไม่พึ่งค่าที่ฟังก์ชันส่งกลับ ป้องกันช่องเลือกแสดงไม่ตรงกับข้อมูล)
+  const activeId = tenantId()
+  const vendor = vendors.find((v) => v.id === activeId) || getVendor()
+  const acting = isPlatform && activeId && user.home_tenant_id && activeId !== user.home_tenant_id
   async function onVendor(e) {
     setSwitching(true)
     try {
@@ -89,7 +94,7 @@ export default function App() {
         {isPlatform && vendors.length > 0 && (
           <div className="vendor-switch">
             <label htmlFor="vsw">กำลังจัดการ Vendor</label>
-            <select id="vsw" value={vendor?.id || ''} onChange={onVendor} disabled={switching}>
+            <select id="vsw" value={activeId || ''} onChange={onVendor} disabled={switching}>
               {vendors.map((v) => <option key={v.id} value={v.id}>{v.is_test ? '🧪 ' : ''}{v.name}{v.id === user.home_tenant_id ? ' (บริษัทของฉัน)' : ''}</option>)}
             </select>
           </div>
@@ -104,7 +109,7 @@ export default function App() {
           <div className="page-head">
             <div><h1>{current.label}</h1><p>{current.desc}</p></div>
           </div>
-          {acting && <div className="notice info" style={{ marginTop: 0 }}>คุณกำลังจัดการข้อมูลของ <b>{vendor.name}</b> ในฐานะ Super Admin — ทุกการแก้ไขบันทึกในชื่อคุณ</div>}
+          {acting && <div className="notice info" style={{ marginTop: 0 }}>คุณกำลังจัดการข้อมูลของ <b>{vendor?.name || "Vendor นี้"}</b> ในฐานะ Super Admin — ทุกการแก้ไขบันทึกในชื่อคุณ</div>}
           {switching ? <p className="muted">กำลังสลับ Vendor…</p> : <Active key={`${tab}-${ctx}`} isPlatform={isPlatform} vendors={vendors} />}
         </div>
       </main>
