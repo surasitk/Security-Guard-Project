@@ -152,3 +152,6 @@ table.grid td.muted, table.grid td.wrap { white-space: normal; min-width: 180px;
 .report-table td.warn { color: var(--warn); font-weight: 600; }
 .report-sum { max-width: 420px; }
 .report-sum td:first-child { color: var(--ink-2); width: 45%; }
+.report-table td.num, .report-people td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.report-people { max-width: 560px; margin-top: 12px; }
+.report-people tr.total td { font-weight: 600; border-top: 2px solid var(--ink); }
