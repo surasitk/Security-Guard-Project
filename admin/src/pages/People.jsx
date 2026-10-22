@@ -1,17 +1,22 @@
-// ผู้ใช้และสิทธิ์ — สร้าง/แก้ผู้ใช้: Vendor · บทบาท · โครงการที่ดูแล · Super Admin
+// ผู้ใช้และสิทธิ์ (โปรไฟล์ผู้ใช้) — ข้อมูลทั่วไป · บทบาท · โครงการที่ได้รับมอบหมาย · วันหยุดประจำสัปดาห์ · Super Admin
 // ยามลงทะเบียน LINE เองภายหลังด้วยรหัสพนักงาน+เบอร์ — บทบาทกำหนดจากหน้านี้เท่านั้น
 import { useEffect, useMemo, useState } from 'react'
-import { list, rpc, tenantId, getUser, getVendor } from '../lib/api'
+import { list, rpc, tenantId, getUser } from '../lib/api'
 
 const ROLES = [
-  ['guard', 'ยาม', 'ใช้แอปใน LINE เข้า-ออกงานและสแกนจุดตรวจ ไม่เข้าหลังบ้าน'],
-  ['shift_leader', 'หัวหน้ากะ', 'เข้าหลังบ้านได้ เห็นเฉพาะโครงการที่ผูกไว้'],
-  ['supervisor', 'สายตรวจ/ผจก.โซน', 'เข้าหลังบ้านได้ เห็นเฉพาะโครงการที่ผูกไว้'],
+  ['guard', 'ยาม', 'เข้า-ออกงานตามกะ และเข้างานฉุกเฉินได้ในโครงการที่มีชื่อ (ไม่เกิน 5 โครงการ) · ไม่เข้าหลังบ้าน'],
+  ['shift_leader', 'หัวหน้ากะ', 'เหมือนยาม และเข้าหลังบ้านได้เฉพาะโครงการที่ผูกไว้ (ไม่เกิน 10)'],
+  ['trainer', 'ครูฝึก', 'เช็คอิน/เอาต์ได้ทุกโครงการที่ผูกไว้แม้ไม่มีกะ (ไม่เกิน 10) · ไม่เข้าหลังบ้าน'],
+  ['assistant_supervisor', 'ผู้ช่วยสายตรวจ', 'เช็คอิน/เอาต์ได้ทุกโครงการที่ผูกไว้แม้ไม่มีกะ (ไม่เกิน 10) · ไม่เข้าหลังบ้าน'],
+  ['spare', 'ตัวสแปร์', 'เช็คอิน/เอาต์ได้ทุกโครงการที่ผูกไว้แม้ไม่มีกะ (ไม่เกิน 10) · ไม่เข้าหลังบ้าน'],
+  ['supervisor', 'สายตรวจ/ผจก.โซน', 'เช็คอิน/เอาต์ได้ทุกโครงการที่ผูกไว้แม้ไม่มีกะ (ไม่เกิน 10) · เข้าหลังบ้านเห็นเฉพาะโครงการที่ผูกไว้'],
   ['admin', 'ธุรการ/แอดมิน', 'จัดการได้ทุกโครงการของ Vendor นี้'],
   ['owner', 'เจ้าของ', 'สิทธิ์สูงสุดของ Vendor นี้ เห็นและจัดการทุกโครงการ'],
-  ['client', 'ลูกค้า', 'เห็นเฉพาะโครงการที่ผูกไว้ (พอร์ทัลลูกค้าเปิดใน Sprint 4)'],
+  ['client', 'ลูกค้า', 'เข้าหลังบ้านได้เฉพาะเมนู "แดชบอร์ดลูกค้า" ของโครงการที่ผูกไว้'],
 ]
-const SCOPED = ['supervisor', 'shift_leader', 'client']
+const LIMIT = { guard: 5, shift_leader: 10, trainer: 10, assistant_supervisor: 10, spare: 10, supervisor: 10, client: 10 }
+const SCOPED = Object.keys(LIMIT)
+const DAY_SHORT = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส']
 const DAYS = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัส', 'ศุกร์', 'เสาร์']
 const ERR = {
   forbidden: 'ไม่มีสิทธิ์จัดการ Vendor นี้',
@@ -24,9 +29,10 @@ const ERR = {
   property_not_in_vendor: 'โครงการที่เลือกไม่ใช่ของ Vendor นี้',
   invalid_role: 'บทบาทไม่ถูกต้อง',
   not_found: 'ไม่พบผู้ใช้',
+  project_limit_exceeded: 'ผูกโครงการเกินจำนวนที่บทบาทนี้กำหนด',
 }
 const roleLabel = (r) => (ROLES.find(([v]) => v === r) || [r, r])[1]
-const EMPTY = { id: null, tenant_id: '', employee_code: '', full_name: '', phone: '', role: 'guard', daily_wage: '', weekly_day_off: '', property_ids: [], platform_admin: false }
+const EMPTY = { id: null, tenant_id: '', employee_code: '', full_name: '', phone: '', role: 'guard', daily_wage: '', days_off: [], property_ids: [], platform_admin: false }
 
 export default function People({ isPlatform = false, vendors = [] }) {
   const [rows, setRows] = useState(null)
@@ -65,7 +71,7 @@ export default function People({ isPlatform = false, vendors = [] }) {
     const a = access[u.id] || {}
     setForm({
       id: u.id, tenant_id: u.tenant_id, employee_code: u.employee_code || '', full_name: u.full_name || '',
-      phone: u.phone || '', role: u.role, daily_wage: u.daily_wage ?? '', weekly_day_off: u.weekly_day_off ?? '',
+      phone: u.phone || '', role: u.role, daily_wage: u.daily_wage ?? '', days_off: u.weekly_days_off || (u.weekly_day_off != null ? [u.weekly_day_off] : []),
       property_ids: a.property_ids || [], platform_admin: !!a.is_platform_admin,
     })
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -82,7 +88,7 @@ export default function People({ isPlatform = false, vendors = [] }) {
         p_phone: form.phone,
         p_role: form.role,
         p_daily_wage: form.daily_wage === '' ? null : Number(form.daily_wage),
-        p_weekly_day_off: form.weekly_day_off === '' ? null : Number(form.weekly_day_off),
+        p_weekly_days_off: form.days_off,
         p_property_ids: SCOPED.includes(form.role) ? form.property_ids : [],
         p_platform_admin: isPlatform ? form.platform_admin : null,
       })
@@ -105,7 +111,13 @@ export default function People({ isPlatform = false, vendors = [] }) {
   }
 
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value })
-  const toggleProp = (id) => setForm({ ...form, property_ids: form.property_ids.includes(id) ? form.property_ids.filter((x) => x !== id) : [...form.property_ids, id] })
+  const limit = form ? (LIMIT[form.role] || 0) : 0
+  const toggleProp = (id) => {
+    if (form.property_ids.includes(id)) return setForm({ ...form, property_ids: form.property_ids.filter((x) => x !== id) })
+    if (form.property_ids.length >= limit) return
+    setForm({ ...form, property_ids: [...form.property_ids, id] })
+  }
+  const toggleDay = (d) => setForm({ ...form, days_off: form.days_off.includes(d) ? form.days_off.filter((x) => x !== d) : [...form.days_off, d].sort() })
   const roleOptions = ROLES.filter(([v]) => v !== 'owner' || canOwner)
   const formProps = form ? (propsByVendor[form.tenant_id] || []) : []
   const roleDesc = form ? (ROLES.find(([v]) => v === form.role) || [])[2] : ''
@@ -125,48 +137,55 @@ export default function People({ isPlatform = false, vendors = [] }) {
                 <select value={form.tenant_id} onChange={(e) => setForm({ ...form, tenant_id: e.target.value, property_ids: [] })}>
                   {vendors.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
                 </select>
-              ) : <input value={vendors.find((v) => v.id === form.tenant_id)?.name || getVendor()?.name || 'บริษัทปัจจุบัน'} disabled />}
+              ) : <input value={vendors.find((v) => v.id === form.tenant_id)?.name || 'บริษัทปัจจุบัน'} disabled />}
             </div>
             <div className="field"><label>รหัสพนักงาน *</label><input value={form.employee_code} onChange={set('employee_code')} placeholder="SG-001" required /></div>
             <div className="field"><label>ชื่อ-สกุล *</label><input value={form.full_name} onChange={set('full_name')} required /></div>
             <div className="field"><label>เบอร์โทร</label><input value={form.phone} onChange={set('phone')} inputMode="tel" /></div>
-            <div className="field"><label>บทบาท *</label>
+            <div className="field"><label>ค่าแรง/วัน (บาท)</label><input value={form.daily_wage} onChange={set('daily_wage')} inputMode="numeric" /></div>
+            <div className="form-sep">บทบาทและสิทธิ์</div>
+            <div className="field wide"><label>บทบาท *</label>
               <select value={form.role} onChange={set('role')}>{roleOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
               <p className="hint">{roleDesc}</p>
             </div>
-            <div className="field"><label>ค่าแรง/วัน (บาท)</label><input value={form.daily_wage} onChange={set('daily_wage')} inputMode="numeric" /></div>
-            <div className="field"><label>วันหยุดประจำสัปดาห์</label>
-              <select value={form.weekly_day_off} onChange={set('weekly_day_off')}>
-                <option value="">ไม่กำหนด</option>{DAYS.map((d, i) => <option key={i} value={i}>{d}</option>)}
-              </select>
+            <div className="form-sep">วันหยุดประจำสัปดาห์</div>
+            <div className="field wide"><label>เลือกได้หลายวัน</label>
+              <div className="prop-checks">
+                {DAYS.map((d, i) => (
+                  <label key={i} className={form.days_off.includes(i) ? 'on' : ''}>
+                    <input type="checkbox" checked={form.days_off.includes(i)} onChange={() => toggleDay(i)} />{d}
+                  </label>
+                ))}
+              </div>
+              <p className="hint">กะที่ตรงวันหยุดจะติดธง OT วันหยุด (2.5x) ตอนจ่ายกะ</p>
             </div>
+            <div className="form-sep">โครงการและสิทธิ์พิเศษ</div>
+            {SCOPED.includes(form.role) && (
+              <div className="field wide">
+                <label>โครงการที่ได้รับมอบหมาย ({form.property_ids.length}/{limit})</label>
+                {formProps.length ? (
+                  <div className="prop-checks">
+                    {formProps.map((p) => (
+                      <label key={p.id} className={form.property_ids.includes(p.id) ? 'on' : ''} style={!form.property_ids.includes(p.id) && form.property_ids.length >= limit ? { opacity: 0.45 } : undefined}>
+                        <input type="checkbox" checked={form.property_ids.includes(p.id)} disabled={!form.property_ids.includes(p.id) && form.property_ids.length >= limit} onChange={() => toggleProp(p.id)} />
+                        {p.name}
+                      </label>
+                    ))}
+                  </div>
+                ) : <p className="hint">Vendor นี้ยังไม่มีโครงการ — สร้างในแท็บโครงการก่อน</p>}
+                {!form.property_ids.length && formProps.length > 0 && <p className="hint">ยังไม่ได้เลือก — ผู้ใช้จะไม่เห็นโครงการใดเลย</p>}
+              </div>
+            )}
+
+            {isPlatform && (
+              <label className="consent" style={{ display: 'flex', gap: 10, alignItems: 'flex-start', gridColumn: '1 / -1' }}>
+                <input type="checkbox" checked={form.platform_admin} onChange={(e) => setForm({ ...form, platform_admin: e.target.checked })} style={{ marginTop: 4 }} disabled={form.id === me.id} />
+                <span><b>Super Admin</b> — เห็นและสลับดูได้ทุก Vendor สร้าง Vendor ใหม่ และตั้ง Super Admin คนอื่นได้ ควรให้เฉพาะทีมเจ้าของแพลตฟอร์ม</span>
+              </label>
+            )}
           </div>
 
-          {SCOPED.includes(form.role) && (
-            <div className="field" style={{ marginTop: 16 }}>
-              <label>โครงการที่ดูแล ({form.property_ids.length})</label>
-              {formProps.length ? (
-                <div className="prop-checks">
-                  {formProps.map((p) => (
-                    <label key={p.id} className={form.property_ids.includes(p.id) ? 'on' : ''}>
-                      <input type="checkbox" checked={form.property_ids.includes(p.id)} onChange={() => toggleProp(p.id)} />
-                      {p.name}
-                    </label>
-                  ))}
-                </div>
-              ) : <p className="hint">Vendor นี้ยังไม่มีโครงการ — สร้างในแท็บโครงการก่อน</p>}
-              {!form.property_ids.length && formProps.length > 0 && <p className="hint">ยังไม่ได้เลือก — ผู้ใช้จะไม่เห็นโครงการใดเลย</p>}
-            </div>
-          )}
-
-          {isPlatform && (
-            <label className="consent" style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginTop: 16 }}>
-              <input type="checkbox" checked={form.platform_admin} onChange={(e) => setForm({ ...form, platform_admin: e.target.checked })} style={{ marginTop: 4 }} disabled={form.id === me.id} />
-              <span><b>Super Admin</b> — เห็นและสลับดูได้ทุก Vendor สร้าง Vendor ใหม่ และตั้ง Super Admin คนอื่นได้ ควรให้เฉพาะทีมเจ้าของแพลตฟอร์ม</span>
-            </label>
-          )}
-
-          <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
+          <div style={{ display: 'flex', gap: 8, marginTop: 22 }}>
             <button className="btn inline" type="submit" disabled={busy}>{busy ? 'กำลังบันทึก…' : (form.id ? 'บันทึกการแก้ไข' : 'เพิ่มผู้ใช้')}</button>
             <button className="btn inline ghost" type="button" onClick={() => setForm(null)}>ยกเลิก</button>
           </div>
@@ -177,7 +196,7 @@ export default function People({ isPlatform = false, vendors = [] }) {
       <div className="section-h"><h2>ผู้ใช้ทั้งหมด {rows ? `(${rows.length})` : ''}</h2></div>
       {!rows ? <p className="muted">กำลังโหลด…</p> : (
         <table className="grid">
-          <thead><tr><th>รหัส</th><th>ชื่อ</th><th>บทบาท</th><th>โครงการที่ดูแล</th><th>เบอร์</th><th>LINE</th><th></th></tr></thead>
+          <thead><tr><th>รหัส</th><th>ชื่อ</th><th>บทบาท</th><th>โครงการ</th><th>วันหยุด</th><th>เบอร์</th><th>LINE</th><th></th></tr></thead>
           <tbody>
             {rows.map((u) => {
               const a = access[u.id] || {}
@@ -194,6 +213,7 @@ export default function People({ isPlatform = false, vendors = [] }) {
                     {scoped ? ((a.property_ids || []).map((id) => propName[id]).filter(Boolean).join(', ') || 'ยังไม่ผูก')
                       : (['owner', 'admin'].includes(u.role) ? 'ทุกโครงการ' : '—')}
                   </td>
+                  <td>{(u.weekly_days_off || []).length ? u.weekly_days_off.map((d) => DAY_SHORT[d]).join(' ') : '—'}</td>
                   <td>{u.phone || '—'}</td>
                   <td>{u.line_user_id ? <span className="badge solid">ผูกแล้ว</span> : <span className="badge">ยังไม่ผูก</span>}</td>
                   <td style={{ whiteSpace: 'nowrap' }}>

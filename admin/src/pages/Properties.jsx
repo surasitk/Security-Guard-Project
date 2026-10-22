@@ -1,7 +1,7 @@
 // โครงการ/ไซต์ — CRUD มาตรฐาน: list มีปุ่มแก้ไข/ปิดใช้ · กด "เพิ่ม" หรือ "แก้ไข" → ฟอร์มเต็มจอ (ซ่อน list)
 // ที่อยู่ dropdown จังหวัด→อำเภอ→ตำบล + รหัสไปรษณีย์อัตโนมัติ · แผนที่ปักหมุด/ค้นหา · เขียนพิกัดผ่าน RPC (เสถียร)
 import { useEffect, useMemo, useState } from 'react'
-import { list, rpc, tenantId, scopeQ } from '../lib/api'
+import { list, rpc, tenantId } from '../lib/api'
 import { loadThaiAddress } from '../lib/thaiAddress'
 import MapPicker from '../components/MapPicker.jsx'
 
@@ -10,7 +10,7 @@ const EMPTY = {
   address: '', lat: null, lng: null, radius: '150', rate: '',
 }
 
-export default function Properties({ scope = '', onContextChange }) {
+export default function Properties() {
   const [rows, setRows] = useState(null)
   const [addr, setAddr] = useState(null)
   const [vendors, setVendors] = useState([])
@@ -21,7 +21,7 @@ export default function Properties({ scope = '', onContextChange }) {
   const [msg, setMsg] = useState(null)
   const [busy, setBusy] = useState(false)
 
-  const load = () => list(`v_properties?select=*&is_active=is.true&order=created_at.desc${scopeQ(scope, 'id')}`).then(setRows).catch((e) => setMsg({ t: 'err', m: String(e.message) }))
+  const load = () => list('v_properties?select=*&is_active=is.true&order=created_at.desc').then(setRows).catch((e) => setMsg({ t: 'err', m: String(e.message) }))
   useEffect(() => {
     load()
     loadThaiAddress().then(setAddr).catch(() => setMsg({ t: 'err', m: 'โหลดข้อมูลที่อยู่ไม่สำเร็จ' }))
@@ -61,7 +61,23 @@ export default function Properties({ scope = '', onContextChange }) {
     })
     setMode('edit'); setMsg(null)
   }
-  function backToList() { setMode('list'); setMsg(null); load(); onContextChange?.() }
+  // โหมดกะ: 'scheduled' = ผู้ดูแลจ่ายกะให้ · 'open' = ยามที่ผูกกับโครงการกดเข้างานเองตามช่วงกะ (แม่แบบกะ)
+  async function toggleMode(row) {
+    const next = row.shift_mode === 'open' ? 'scheduled' : 'open'
+    const text = next === 'open'
+      ? `เปลี่ยน "${row.name}" เป็นแบบไม่จัดกะ?\n\nยามที่ผูกกับโครงการจะกดเข้างานเองได้ตามช่วงกะ (แม่แบบกะในหน้าตารางกะ) ควงต่อได้ถึง 24 ชม.\nอย่าลืมตั้งช่วงกะและจำนวนคนที่ต้องมีในหน้าตารางกะ`
+      : `เปลี่ยน "${row.name}" กลับเป็นแบบจัดกะล่วงหน้า?\n\nยามจะเข้างานได้เฉพาะกะที่ผู้ดูแลจ่ายให้`
+    if (!window.confirm(text)) return
+    setBusy(true); setMsg(null)
+    try {
+      const o = await rpc('set_property_shift_mode', { p_id: row.id, p_mode: next })
+      if (!o.ok) throw new Error(o.error)
+      setMsg({ t: 'ok', m: next === 'open' ? `"${row.name}" เป็นแบบไม่จัดกะแล้ว — ตั้งช่วงกะและจำนวนคนในหน้าตารางกะ` : `"${row.name}" กลับเป็นแบบจัดกะล่วงหน้าแล้ว` })
+      load()
+    } catch (e2) { setMsg({ t: 'err', m: String(e2.message) }) } finally { setBusy(false) }
+  }
+
+  function backToList() { setMode('list'); setMsg(null); load() }
 
   async function submit(e) {
     e.preventDefault(); setMsg(null); setBusy(true)
@@ -83,7 +99,7 @@ export default function Properties({ scope = '', onContextChange }) {
 
   async function disable(row) {
     if (!window.confirm(`ปิดใช้งานโครงการ "${row.name}"? (กะที่ผูกไว้ยังอยู่ แต่โครงการจะไม่แสดงในรายการ)`)) return
-    try { const o = await rpc('set_property_active', { p_id: row.id, p_active: false }); if (!o.ok) throw new Error(o.error); load(); onContextChange?.() }
+    try { const o = await rpc('set_property_active', { p_id: row.id, p_active: false }); if (!o.ok) throw new Error(o.error); load() }
     catch (e) { setMsg({ t: 'err', m: String(e.message) }) }
   }
 
@@ -152,17 +168,23 @@ export default function Properties({ scope = '', onContextChange }) {
       {msg && <div className={`notice ${msg.t === 'err' ? 'err' : ''}`}>{msg.m}</div>}
       {!rows ? <p className="muted">กำลังโหลด…</p> : rows.length === 0 ? <p className="muted">ยังไม่มีโครงการ — กด "เพิ่มโครงการ"</p> : (
         <table className="grid">
-          <thead><tr><th>รหัส</th><th>ชื่อ</th><th>ที่ตั้ง</th><th>พิกัด</th><th>รัศมี</th><th>อัตรา/ยาม/วัน</th><th></th></tr></thead>
+          <thead><tr><th>รหัส</th><th>ชื่อ</th><th>ที่ตั้ง</th><th>พิกัด</th><th>รัศมี</th><th>รูปแบบกะ</th><th>อัตรา/ยาม/วัน</th><th></th></tr></thead>
           <tbody>
             {rows.map((p) => (
               <tr key={p.id}>
                 <td>{p.code}</td>
-                <td>{p.name}</td>
+                <td>{p.name}{p.is_test && <span className="badge warn" style={{ marginLeft: 8 }}>ทดสอบ · ไม่นับในรายงาน</span>}</td>
                 <td>{[p.subdistrict, p.district, p.province, p.postcode].filter(Boolean).join(' · ') || '—'}</td>
                 <td>{p.lat != null
                   ? <a href={`https://maps.google.com/?q=${p.lat},${p.lng}`} target="_blank" rel="noreferrer" style={{ color: 'var(--ink)' }}>แผนที่</a>
                   : <span className="badge">ยังไม่ตั้ง</span>}</td>
                 <td>{p.geofence_radius_m} ม.</td>
+                <td>
+                  <button type="button" className={`badge ${p.shift_mode === 'open' ? 'duty' : ''}`} onClick={() => toggleMode(p)} disabled={busy}
+                    title="กดเพื่อสลับรูปแบบกะ">
+                    {p.shift_mode === 'open' ? 'ไม่จัดกะ · เข้าตามช่วงกะ' : 'จัดกะล่วงหน้า'}
+                  </button>
+                </td>
                 <td>{p.billing_rate_per_guard_day ? Number(p.billing_rate_per_guard_day).toLocaleString() : '—'}</td>
                 <td style={{ whiteSpace: 'nowrap' }}>
                   <button className="badge" style={{ cursor: 'pointer', fontFamily: 'var(--font)', background: 'none', marginRight: 6 }} onClick={() => openEdit(p)}>แก้ไข</button>

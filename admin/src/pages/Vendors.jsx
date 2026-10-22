@@ -21,7 +21,7 @@ export default function Vendors() {
         p_owner_name: form.owner_name.trim(), p_owner_code: form.owner_code.trim(), p_owner_phone: form.owner_phone.trim(),
       })
       if (out.ok) {
-        setMsg({ t: 'ok', m: `สร้าง ${form.company} แล้ว — ส่งลิงก์ https://liff.line.me/2010926067-2cuN81fZ ให้ owner ลงทะเบียนด้วยรหัส ${form.owner_code} + เบอร์ ${form.owner_phone}` })
+        setMsg({ t: 'ok', m: `สร้าง ${form.company} แล้ว — ส่งลิงก์ https://liff.line.me/${import.meta.env.VITE_PATROL_LIFF_ID || '2010926067-2cuN81fZ'} ให้ owner ลงทะเบียนด้วยรหัส ${form.owner_code} + เบอร์ ${form.owner_phone}` })
         setForm({ company: '', plan: 'basic', owner_name: '', owner_code: 'ADM-001', owner_phone: '' })
         load()
       } else setMsg({ t: 'err', m: out.error })
@@ -83,7 +83,7 @@ export default function Vendors() {
               </tr>
             ) : (
               <tr key={v.id} style={{ opacity: v.is_active ? 1 : 0.5 }}>
-                <td>{v.name}</td>
+                <td>{v.name}{v.is_test && <span className="badge warn" style={{ marginLeft: 8 }}>ทดสอบ · เห็นเฉพาะ Super Admin</span>}</td>
                 <td><span className={`badge ${v.plan === 'pro' ? 'solid' : ''}`}>{v.plan}</span></td>
                 <td>{v.is_active ? <span className="muted">ใช้งาน</span> : <span className="badge">ปิด</span>}</td>
                 <td>{v.properties_count}</td><td>{v.users_count}</td><td>{v.line_linked_count}</td><td>{fmtDate(v.created_at)}</td>

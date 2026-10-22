@@ -4,6 +4,8 @@ import Register from './pages/Register.jsx'
 import Home from './pages/Home.jsx'
 import Scan from './pages/Scan.jsx'
 import Soon from './pages/Soon.jsx'
+import Incident from './pages/Incident.jsx'
+import Brand from './components/Brand.jsx'
 
 // อ่านหน้าเป้าหมายจาก ?page= (rich menu ยิงคนละลิงก์)
 function targetPage() {
@@ -33,7 +35,7 @@ export default function App() {
     return (
       <div className="page center">
         <div className="spacer" />
-        <p className="brand">GUARD OS</p>
+        <Brand />
         <p className="muted">กำลังเชื่อมต่อ…</p>
       </div>
     )
@@ -41,7 +43,7 @@ export default function App() {
   if (state === 'error') {
     return (
       <div className="page">
-        <p className="brand">GUARD OS</p>
+        <Brand />
         <div className="notice err">เชื่อมต่อไม่สำเร็จ — {errMsg}<br />ลองปิดแล้วเปิดใหม่ หรือติดต่อหัวหน้ากะ</div>
       </div>
     )
@@ -49,7 +51,7 @@ export default function App() {
   if (state === 'register') return <Register onDone={() => setState('ready')} />
 
   if (page === 'scan') return <Scan />
-  if (page === 'incident') return <Soon title="แจ้งเหตุ" note="ระบบแจ้งเหตุ/บันทึกเหตุการณ์กำลังพัฒนา" />
+  if (page === 'incident') return <Incident />
   if (page === 'leave') return <Soon title="ขอลา" note="ระบบยื่นใบลา/อนุมัติกำลังพัฒนา" />
   return <Home />
 }

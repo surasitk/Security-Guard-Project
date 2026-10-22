@@ -1,5 +1,5 @@
 // Horguard — Edge Function: purge-selfies
-// ลบรูป selfie ที่หมดระยะเก็บ (เรียกโดย pg_cron ทุกคืน · ดู migration 16)
+// ลบรูป selfie ที่หมดระยะเก็บ (เรียกโดย pg_cron ทุกคืน · ดู migration 26)
 //
 // ยืนยันผู้เรียก: header `Authorization: Bearer <cron_secret>` → เทียบกับ Vault ผ่าน RPC verify_cron_secret
 // (ไม่ต้องตั้ง secret ใน Edge Function เพิ่ม)
@@ -27,7 +27,7 @@ function json(body: unknown, status = 200) {
 }
 
 async function alertLine(text: string) {
-  // ส่งเข้า LINE ผ่านฟังก์ชันใน DB (migration 17) — ถ้ายังไม่ได้รัน migration 17 ก็ข้ามเงียบๆ
+  // ส่งเข้า LINE ผ่านฟังก์ชันใน DB (migration 27) — ถ้ายังไม่ได้รัน migration 27 ก็ข้ามเงียบๆ
   try {
     await admin.rpc("ops_send_line", { p_key: "purge-selfies-error", p_text: text });
   } catch (_) { /* ignore */ }

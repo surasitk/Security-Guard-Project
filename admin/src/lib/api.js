@@ -8,26 +8,14 @@ const FN_URL = `${SUPABASE_URL}/functions/v1/auth-line`
 let accessToken = null
 let currentUser = null
 let currentVendor = null
-
-const ACT_KEY = 'guardos_act_tenant'   // Vendor ที่ Super Admin เลือกไว้ (จำไว้ข้ามการรีเฟรช)
-const SCOPE_KEY = 'guardos_scope'      // โครงการที่เลือกในแถบด้านบน ('' = ทุกโครงการ)
-
+const ACT_KEY = 'guardos_act_tenant'   // Vendor ที่ Super Admin เลือกไว้ (จำข้ามการรีเฟรช)
 function store(k, v) { try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k) } catch { /* ignore */ } }
 function recall(k) { try { return localStorage.getItem(k) || '' } catch { return '' } }
+export function getVendor() { return currentVendor }
+/** Super Admin สลับ Vendor → ขอ token ใหม่ของ Vendor นั้น (สิทธิ์เจ้าของ) */
+export async function switchVendor(id) { store(ACT_KEY, id); return initAuth() }
 
 export function getUser() { return currentUser }
-export function getVendor() { return currentVendor }
-export function getScope() { return recall(SCOPE_KEY) }
-export function setScope(id) { store(SCOPE_KEY, id) }
-/** ตัวกรอง PostgREST ตามโครงการที่เลือก */
-export function scopeQ(scope, col = 'property_id') { return scope ? `&${col}=eq.${scope}` : '' }
-
-/** Super Admin สลับ Vendor → ขอ token ใหม่ของ Vendor นั้น */
-export async function switchVendor(id) {
-  store(ACT_KEY, id)
-  store(SCOPE_KEY, '')
-  return initAuth()
-}
 export function tenantId() {
   return JSON.parse(atob(accessToken.split('.')[1])).app_metadata.tenant_id
 }
@@ -55,9 +43,9 @@ export async function initAuth() {
     body: JSON.stringify({ mode: 'login', id_token: liff.getIDToken(), act_tenant_id: recall(ACT_KEY) || undefined }),
   })
   const out = await res.json()
-  // Vendor ที่จำไว้ใช้ไม่ได้แล้ว (ไม่ใช่ Super Admin / ถูกลบ) → กลับไปบริษัทตัวเอง
+  // Vendor ที่จำไว้ใช้ไม่ได้แล้ว → กลับบริษัทตัวเอง
   if (!out.ok && ['forbidden_switch_vendor', 'vendor_not_found'].includes(out.error) && recall(ACT_KEY)) {
-    store(ACT_KEY, ''); store(SCOPE_KEY, '')
+    store(ACT_KEY, '')
     return initAuth()
   }
   if (!out.ok) {
@@ -120,6 +108,14 @@ export async function rpc(fn, args = {}) {
   const body = await res.json().catch(() => null)
   if (!res.ok) throw new Error(body?.message || `rpc ${fn} → ${res.status}`)
   return body
+}
+
+/** เรียก Edge Function (ใช้ token ของผู้ใช้) */
+export async function callFn(name, body) {
+  const res = await authed(`/functions/v1/${name}`, { method: 'POST', body: JSON.stringify(body) })
+  const out = await res.json().catch(() => null)
+  if (!res.ok) throw new Error(out?.error || `${name} → ${res.status}`)
+  return out
 }
 
 /** สร้างลิงก์ชั่วคราวสำหรับดูรูปใน Storage (หมดอายุ 10 นาที) */

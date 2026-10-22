@@ -1,6 +1,6 @@
 # เชื่อม Privacy Notice เข้า Horguard Patrol (LIFF)
 
-ฐานข้อมูลพร้อมแล้ว (migration 18 รันบน production 22 ต.ค. 2569) · หน้าจออยู่ใน `src/pages/PrivacyNotice.jsx`
+ฐานข้อมูลพร้อมแล้ว (migration 28 — เดิมเลข 18 — รันบน production 22 ต.ค. 2569) · หน้าจออยู่ใน `src/pages/PrivacyNotice.jsx`
 
 > ⚠️ ซอร์ส `liff/src` ใน repo นี้เก่ากว่าแอปที่ใช้งานจริง (r26 build จากซอร์สที่ไม่ได้ commit)
 > ให้แก้ตามขั้นตอนด้านล่างในซอร์สล่าสุด แล้ว build → `docs/app`

@@ -155,6 +155,20 @@ export async function uploadSelfie(blob) {
   return name
 }
 
+/** อัปโหลดรูป/เสียงแจ้งเหตุ → bucket selfies/<tenant>/incidents/<date>/… (สิทธิ์ตามโฟลเดอร์ tenant) */
+export async function uploadMedia(blob, ext, contentType) {
+  const tenantPath = await tenantFolder()
+  const date = new Date().toISOString().slice(0, 10)
+  const name = `${tenantPath}/incidents/${date}/${crypto.randomUUID()}.${ext}`
+  const res = await authedFetch(`/storage/v1/object/selfies/${name}`, {
+    method: 'POST',
+    headers: { 'Content-Type': contentType || 'application/octet-stream' },
+    body: blob,
+  })
+  if (!res.ok) throw new Error('media_upload_failed')
+  return name
+}
+
 async function tenantFolder() {
   // tenant_id อยู่ใน JWT payload (base64) — ใช้ระบุ path อัปโหลดตาม storage policy
   const payload = JSON.parse(atob(accessToken.split('.')[1]))
@@ -178,4 +192,14 @@ export async function deviceFingerprint() {
   const data = [navigator.userAgent, screen.width, screen.height, navigator.language].join('|')
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(data))
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 32)
+}
+
+/** แจ้ง Owner/Admin ทาง LINE OA (คิวจาก check_out ก่อนเวลา) — ยิงแล้วไม่ต้องรอผล */
+export async function notifyLine(notificationId) {
+  try {
+    await authedFetch('/functions/v1/notify-line', {
+      method: 'POST',
+      body: JSON.stringify({ notification_id: notificationId }),
+    })
+  } catch { /* คิวยังอยู่ในฐานข้อมูล ส่งซ้ำภายหลังได้ */ }
 }

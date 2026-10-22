@@ -100,7 +100,7 @@ insert into tenant_holidays (tenant_id, holiday_date, name) values
    select vault.create_secret('<LINE channel access token>', 'line_channel_token');
    select vault.create_secret('<Uxxxx>,<Uyyyy>', 'ops_line_user_ids');
    ```
-3. รัน migration `20260801000016_selfie_retention.sql` และ `20260801000017_ops_line_alerts.sql`
+3. รัน migration `20260801000026_selfie_retention.sql` และ `20260801000027_ops_line_alerts.sql`
 4. ตั้งโควตาให้ตรงแพ็กเกจ (ค่าเริ่มต้น = Pro):
    ```sql
    update app_settings set value = '500'  where key = 'ops_db_quota_mb';       -- Free plan

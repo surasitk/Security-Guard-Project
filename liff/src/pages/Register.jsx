@@ -1,6 +1,7 @@
 // F1 — ลงทะเบียนผูกบัญชี LINE (ครั้งเดียวต่อ user) + PDPA consent
 import { useState } from 'react'
 import { register } from '../lib/api'
+import Brand from '../components/Brand.jsx'
 
 const CONSENT_VERSION = import.meta.env.VITE_CONSENT_VERSION || '2026-08-01'
 
@@ -35,7 +36,7 @@ export default function Register({ onDone }) {
 
   return (
     <div className="page">
-      <p className="brand">GUARD OS</p>
+      <Brand />
       <h1>ลงทะเบียน</h1>
       <p className="sub">ผูกบัญชี LINE กับข้อมูลพนักงาน ทำครั้งเดียว</p>
 
