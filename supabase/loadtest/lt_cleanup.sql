@@ -1,4 +1,5 @@
 -- LOADTEST 600 — ลบข้อมูลทดสอบทั้งหมด (เฉพาะบริษัท LOADTEST-600)
+set statement_timeout = '10min';  -- ลบ ~170k แถวใช้เวลาเกิน 2 นาที (patrol_scans ไม่มี index ที่ assignment_id/user_id)
 do $$
 declare v_t uuid := (select id from tenants where name = 'LOADTEST-600 (ลบได้)');
 begin
