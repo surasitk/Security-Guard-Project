@@ -1,0 +1,73 @@
+# Horguard — backup ฐานข้อมูลรายวัน (เข้ารหัส AES-256 ก่อนเก็บ เพราะ repo นี้เป็น public)
+#
+# GitHub → Settings → Secrets and variables → Actions → New repository secret
+#   SUPABASE_DB_URL     Session pooler connection string (Supabase → Connect → Session pooler, port 5432)
+#                       ใช้ pooler เพราะ direct connection ของ Supabase เป็น IPv6 ซึ่ง GitHub runner ต่อไม่ได้
+#   BACKUP_PASSPHRASE   รหัสสำหรับเข้ารหัสไฟล์ backup (สุ่มยาวๆ และเก็บไว้ในที่ปลอดภัย — หายแล้วเปิดไฟล์ไม่ได้)
+#   LINE_CHANNEL_TOKEN  (ไม่บังคับ) Channel access token ของ LINE OA ไว้แจ้งเตือนเมื่อ backup ล้มเหลว
+#   OPS_LINE_USER_IDS   (ไม่บังคับ) LINE user ID ผู้รับแจ้งเตือน คั่นด้วย comma
+#
+# กู้คืน: ดาวน์โหลดไฟล์จากหน้า Actions แล้วใช้ scripts/restore-backup.sh
+
+name: Daily DB backup
+
+on:
+  schedule:
+    - cron: "0 20 * * *"   # 20:00 UTC = 03:00 เวลาไทย
+  workflow_dispatch:        # กด Run workflow เองได้
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    container: postgres:17   # pg_dump 17 dump ได้ทั้ง Postgres 15 และ 17
+    timeout-minutes: 30
+    steps:
+      - name: Dump and encrypt
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          if [ -z "$DB_URL" ] || [ -z "$PASSPHRASE" ]; then
+            echo "::error::ยังไม่ได้ตั้ง secret SUPABASE_DB_URL หรือ BACKUP_PASSPHRASE"; exit 1
+          fi
+          apt-get update -qq && apt-get install -y -qq gnupg >/dev/null
+          STAMP=$(TZ=Asia/Bangkok date +%Y-%m-%d_%H%M)
+          FILE="horguard-db-${STAMP}.dump"
+          pg_dump "$DB_URL" --format=custom --no-owner --no-privileges --schema=public --file="$FILE"
+          SIZE=$(du -h "$FILE" | cut -f1)
+          gpg --batch --yes --pinentry-mode loopback --passphrase "$PASSPHRASE" \
+              --symmetric --cipher-algo AES256 --output "$FILE.gpg" "$FILE"
+          rm -f "$FILE"
+          echo "BACKUP_FILE=$FILE.gpg" >> "$GITHUB_ENV"
+          echo "Backup ${FILE}.gpg (${SIZE} ก่อนเข้ารหัส)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload encrypted backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.BACKUP_FILE }}
+          path: ${{ env.BACKUP_FILE }}
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Alert LINE on failure
+        if: failure()
+        env:
+          LINE_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
+          LINE_IDS: ${{ secrets.OPS_LINE_USER_IDS }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          [ -z "$LINE_TOKEN" ] && exit 0
+          apt-get install -y -qq curl >/dev/null 2>&1 || true
+          for ID in $(echo "$LINE_IDS" | tr ',' ' '); do
+            curl -s -X POST https://api.line.me/v2/bot/message/push \
+              -H "Authorization: Bearer $LINE_TOKEN" -H "Content-Type: application/json" \
+              -d "{\"to\":\"$ID\",\"messages\":[{\"type\":\"text\",\"text\":\"🔴 Horguard: backup ฐานข้อมูลรายวันล้มเหลว\\n$RUN_URL\"}]}" > /dev/null
+          done
