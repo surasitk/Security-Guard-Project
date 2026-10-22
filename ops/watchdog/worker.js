@@ -48,7 +48,7 @@ async function pushLine(env, text) {
   await Promise.all(ids.map((to) =>
     fetch("https://api.line.me/v2/bot/message/push", {
       method: "POST",
-      headers: { Authorization: `Bearer ${env.LINE_CHANNEL_TOKEN}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${(env.LINE_CHANNEL_TOKEN || "").trim()}`, "Content-Type": "application/json" },
       body: JSON.stringify({ to, messages: [{ type: "text", text: text.slice(0, 4900) }] }),
     })));
 }

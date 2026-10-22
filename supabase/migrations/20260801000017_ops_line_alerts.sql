@@ -66,8 +66,9 @@ begin
     end if;
   end if;
 
-  select decrypted_secret into v_token from vault.decrypted_secrets where name = 'line_channel_token';
-  select decrypted_secret into v_ids   from vault.decrypted_secrets where name = 'ops_line_user_ids';
+  -- btrim: กันกรณีคัดลอก token มาพร้อมขึ้นบรรทัดใหม่ (ทำให้ header Authorization เพี้ยน)
+  select btrim(decrypted_secret, E' \t\r\n') into v_token from vault.decrypted_secrets where name = 'line_channel_token';
+  select btrim(decrypted_secret, E' \t\r\n') into v_ids   from vault.decrypted_secrets where name = 'ops_line_user_ids';
   if v_token is null or v_ids is null then
     raise warning 'ops_send_line: ยังไม่ได้ตั้ง Vault secrets line_channel_token / ops_line_user_ids';
     return false;

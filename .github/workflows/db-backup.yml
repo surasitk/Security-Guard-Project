@@ -64,6 +64,7 @@ jobs:
           LINE_IDS: ${{ secrets.OPS_LINE_USER_IDS }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
+          LINE_TOKEN=$(printf %s "$LINE_TOKEN" | tr -d '[:space:]')
           [ -z "$LINE_TOKEN" ] && exit 0
           apt-get install -y -qq curl >/dev/null 2>&1 || true
           for ID in $(echo "$LINE_IDS" | tr ',' ' '); do
