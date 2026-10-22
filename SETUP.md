@@ -82,3 +82,62 @@ insert into tenant_holidays (tenant_id, holiday_date, name) values
 2. สร้าง shift_template แล้วเรียก `select generate_assignments('<TEMPLATE_ID>','<USER_ID>','2026-08-01','2026-08-31');`
 3. ยาม add เพื่อน @299nskem → เปิด LIFF → ลงทะเบียน (รหัสพนักงาน + เบอร์) → ติ๊ก consent
 4. ถึงเวลากะ → กดเข้างาน → ถ่าย selfie → ระบบตรวจ geofence ฝั่ง server → บันทึกเวลา server
+
+## 7) ลบรูปเก่า · แจ้งเตือนเข้า LINE · backup รายวัน (Ops)
+
+### 7.1 เตรียม LINE (ผู้รับแจ้งเตือน)
+1. LINE Developers → channel Messaging API ของ OA → **Messaging API** → ออก **Channel access token (long-lived)**
+2. แท็บ **Basic settings** → คัดลอก **Your user ID** (ขึ้นต้นด้วย `U...`) — ต้องเป็น user ID ของ provider เดียวกับ OA
+3. เพิ่ม OA เป็นเพื่อนใน LINE ของคนที่จะรับแจ้งเตือน (ไม่เป็นเพื่อน = push ไม่ถึง)
+4. ข้อความแจ้งเตือนนับโควตา push ของ OA (แพ็กเกจฟรี 300 ข้อความ/เดือน) — ระบบกันสแปมไว้แล้ว ปกติใช้ไม่กี่ข้อความ
+
+### 7.2 Supabase
+1. Dashboard → Database → Extensions → เปิด **pg_cron** และ **pg_net**
+2. SQL Editor → ตั้งค่าลับใน Vault (รันครั้งเดียว · เปลี่ยนค่าในวงเล็บ):
+   ```sql
+   select vault.create_secret('https://ybghyacwfdlezanewvgn.supabase.co', 'project_url');
+   select vault.create_secret('<สุ่มยาวๆ เช่น จาก openssl rand -hex 32>', 'cron_secret');
+   select vault.create_secret('<LINE channel access token>', 'line_channel_token');
+   select vault.create_secret('<Uxxxx>,<Uyyyy>', 'ops_line_user_ids');
+   ```
+3. รัน migration `20260801000026_selfie_retention.sql` และ `20260801000027_ops_line_alerts.sql`
+4. ตั้งโควตาให้ตรงแพ็กเกจ (ค่าเริ่มต้น = Pro):
+   ```sql
+   update app_settings set value = '500'  where key = 'ops_db_quota_mb';       -- Free plan
+   update app_settings set value = '1024' where key = 'ops_storage_quota_mb';  -- Free plan
+   ```
+5. Deploy Edge Function ลบรูป:
+   ```bash
+   supabase functions deploy purge-selfies --no-verify-jwt --project-ref ybghyacwfdlezanewvgn
+   ```
+6. ทดสอบ:
+   ```sql
+   select ops_send_line(null, '🧪 ทดสอบแจ้งเตือน Horguard');   -- ต้องได้ข้อความใน LINE
+   select * from selfie_purge_candidates(20);                  -- ดูว่ารูปไหนจะถูกลบ
+   select ops_health_check();                                   -- ดูตัวเลขปัจจุบัน
+   ```
+   ทดสอบ function แบบไม่ลบจริง: `curl -X POST <project_url>/functions/v1/purge-selfies -H "Authorization: Bearer <cron_secret>" -d '{"dry_run":true}'`
+
+ระยะเก็บรูปแก้ได้ทันทีโดยไม่ต้อง deploy:
+```sql
+update app_settings set value = '60'  where key = 'selfie_retention_days';          -- รูปทั่วไป
+update app_settings set value = '365' where key = 'selfie_flagged_retention_days';  -- รูปของรายการติดธง
+select * from selfie_purge_runs order by run_at desc limit 10;                     -- ประวัติการลบ
+```
+
+### 7.3 Backup รายวัน (GitHub Actions)
+GitHub repo → Settings → Secrets and variables → Actions → ตั้ง `SUPABASE_DB_URL` (Session pooler, port 5432), `BACKUP_PASSPHRASE`, และ (ไม่บังคับ) `LINE_CHANNEL_TOKEN`, `OPS_LINE_USER_IDS`
+- รันทุกวัน 03:00 เวลาไทย · ไฟล์เข้ารหัส AES-256 เก็บ 30 วันในหน้า Actions · กด **Run workflow** เพื่อทดสอบได้
+- กู้คืน: `./scripts/restore-backup.sh <ไฟล์>.dump.gpg [DB_URL]`
+- backup นี้ครอบคลุมตารางใน schema `public` (ข้อมูลทั้งหมดของแอป) ไม่รวมไฟล์รูปใน Storage
+
+### 7.4 Watchdog ภายนอก (Cloudflare Worker)
+โค้ดอยู่ที่ `ops/watchdog/` — เช็ก horguard.com, force, patrol, ฐานข้อมูล และ auth-line ทุก 5 นาที
+แจ้ง LINE เมื่อพังติดกัน 2 รอบ เตือนซ้ำทุก 3 ชม. และแจ้งเมื่อกลับมาปกติ
+```bash
+cd ops/watchdog
+npx wrangler kv namespace create STATE        # เอา id ใส่ wrangler.toml
+npx wrangler secret put LINE_CHANNEL_TOKEN
+npx wrangler secret put OPS_LINE_USER_IDS
+npx wrangler deploy
+```

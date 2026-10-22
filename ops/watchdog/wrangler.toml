@@ -1,0 +1,19 @@
+name = "horguard-watchdog"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+
+[triggers]
+crons = ["*/5 * * * *"]
+
+[vars]
+SUPABASE_URL = "https://ybghyacwfdlezanewvgn.supabase.co"
+SUPABASE_ANON_KEY = "sb_publishable_3N3Kmklfadf7myfIXuEoIw_3rZnqzcQ"
+
+# สร้างด้วย: npx wrangler kv namespace create STATE แล้วเอา id มาใส่
+[[kv_namespaces]]
+binding = "STATE"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+
+# Secrets (ไม่เก็บในไฟล์นี้):
+#   npx wrangler secret put LINE_CHANNEL_TOKEN
+#   npx wrangler secret put OPS_LINE_USER_IDS
