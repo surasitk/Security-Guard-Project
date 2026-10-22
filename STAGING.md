@@ -4,11 +4,11 @@
 
 | | Staging | Prod |
 |---|---|---|
-| Supabase | `horguard-staging` | `ybghyacwfdlezanewvgn` (Security Guard Project) |
+| Supabase | `afioawogscxustkibior` (horguard-staging, ap-south-1) | `ybghyacwfdlezanewvgn` (Security Guard Project) |
 | หลังบ้าน | `/Security-Guard-Project/staging/admin/` | `/Security-Guard-Project/admin/` |
 | แอป LINE | `/Security-Guard-Project/staging/app/` | `/Security-Guard-Project/app/` |
-| LIFF | LIFF staging 2 ตัว (LINE Login channel 2010926067 เดิม) | `2010926067-B1ybp5Oq` (admin), `2010926067-2cuN81fZ` (app) |
-| LINE OA | Horguard Staging (provider Guard OS) | @299nskem |
+| LIFF | `2010926067-YmuvsWZY` (admin), `2010926067-96maOSbM` (app) | `2010926067-B1ybp5Oq` (admin), `2010926067-2cuN81fZ` (app) |
+| LINE OA | ใช้ OA เดิม (@299nskem) — ส่งเฉพาะผู้ใช้ที่ลงทะเบียนใน staging | @299nskem |
 | ข้อมูล | เดโมล้วน (`supabase/seed/staging_seed.sql`) | ข้อมูลจริง |
 
 ## ขั้นตอนปล่อยงาน
