@@ -1,7 +1,8 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-export default defineConfig({
+// prod → /Security-Guard-Project/admin/ · staging (vite build --mode staging) → /Security-Guard-Project/staging/admin/
+export default defineConfig(({ mode }) => ({
   plugins: [react()],
-  base: '/Security-Guard-Project/admin/',
-})
+  base: mode === 'staging' ? '/Security-Guard-Project/staging/admin/' : '/Security-Guard-Project/admin/',
+}))

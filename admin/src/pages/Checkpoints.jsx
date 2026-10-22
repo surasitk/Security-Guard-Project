@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import QRCode from 'qrcode'
 import { list, rpc, fmtDate } from '../lib/api'
 
-const LIFF_ID = '2010926067-2cuN81fZ'
+const LIFF_ID = import.meta.env.VITE_PATROL_LIFF_ID || '2010926067-2cuN81fZ'
 const scanUrl = (code) => `https://liff.line.me/${LIFF_ID}?page=scan&code=${code}`
 
 export default function Checkpoints() {

@@ -21,7 +21,7 @@ export default function Vendors() {
         p_owner_name: form.owner_name.trim(), p_owner_code: form.owner_code.trim(), p_owner_phone: form.owner_phone.trim(),
       })
       if (out.ok) {
-        setMsg({ t: 'ok', m: `สร้าง ${form.company} แล้ว — ส่งลิงก์ https://liff.line.me/2010926067-2cuN81fZ ให้ owner ลงทะเบียนด้วยรหัส ${form.owner_code} + เบอร์ ${form.owner_phone}` })
+        setMsg({ t: 'ok', m: `สร้าง ${form.company} แล้ว — ส่งลิงก์ https://liff.line.me/${import.meta.env.VITE_PATROL_LIFF_ID || '2010926067-2cuN81fZ'} ให้ owner ลงทะเบียนด้วยรหัส ${form.owner_code} + เบอร์ ${form.owner_phone}` })
         setForm({ company: '', plan: 'basic', owner_name: '', owner_code: 'ADM-001', owner_phone: '' })
         load()
       } else setMsg({ t: 'err', m: out.error })
