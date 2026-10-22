@@ -1,11 +1,11 @@
 // Horguard — Edge Function: purge-selfies
 // ลบรูป selfie ที่หมดระยะเก็บ (เรียกโดย pg_cron ทุกคืน · ดู migration 16)
 //
-// Secrets ที่ต้องตั้ง (supabase secrets set):
-//   CRON_SECRET — ค่าเดียวกับ Vault secret `cron_secret` (สุ่มยาวๆ) ใช้ยืนยันว่าเป็น pg_cron เรียกจริง
+// ยืนยันผู้เรียก: header `Authorization: Bearer <cron_secret>` → เทียบกับ Vault ผ่าน RPC verify_cron_secret
+// (ไม่ต้องตั้ง secret ใน Edge Function เพิ่ม)
 //
 // Deploy:  supabase functions deploy purge-selfies --no-verify-jwt --project-ref ybghyacwfdlezanewvgn
-//          (--no-verify-jwt เพราะเราตรวจ CRON_SECRET เอง ไม่ได้ใช้ JWT ของผู้ใช้)
+//          หรือ Dashboard → Edge Functions → Deploy new function → Via Editor (ปิด Verify JWT)
 //
 // ทดสอบแบบไม่ลบจริง: POST body {"dry_run": true} → คืนรายชื่อไฟล์ที่จะถูกลบ
 
@@ -34,9 +34,12 @@ async function alertLine(text: string) {
 }
 
 Deno.serve(async (req) => {
-  const secret = Deno.env.get("CRON_SECRET");
   const auth = req.headers.get("Authorization") ?? "";
-  if (!secret || auth !== `Bearer ${secret}`) {
+  const given = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+  const { data: valid } = given
+    ? await admin.rpc("verify_cron_secret", { p_secret: given })
+    : { data: false };
+  if (valid !== true) {
     return json({ ok: false, error: "unauthorized" }, 401);
   }
 

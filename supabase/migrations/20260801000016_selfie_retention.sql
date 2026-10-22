@@ -12,7 +12,7 @@
 --   selfie_flagged_retention_days  = 365  รูปของรายการที่ติดธงผิดปกติ (mock GPS / flag_reason) เก็บไว้เป็นหลักฐาน
 --
 -- ก่อนรันไฟล์นี้: Dashboard → Database → Extensions เปิด pg_cron และ pg_net
--- หลังรันไฟล์นี้: ทำตาม SETUP.md หัวข้อ "ลบรูปเก่าอัตโนมัติ" (ตั้ง Vault secrets + deploy function)
+-- หลังรันไฟล์นี้: ทำตาม SETUP.md หัวข้อ 7 (ตั้ง Vault secrets + deploy function purge-selfies)
 
 create extension if not exists pg_cron;
 create extension if not exists pg_net with schema extensions;
@@ -115,6 +115,15 @@ begin
   return v_refs;
 end;
 $$;
+
+-- ตรวจว่า caller ถือ cron_secret ตัวจริงไหม (เทียบใน DB — รหัสไม่ออกจาก Vault)
+create or replace function verify_cron_secret(p_secret text)
+returns boolean
+language sql stable security definer set search_path = public as $$
+  select coalesce(p_secret = (select decrypted_secret from vault.decrypted_secrets where name = 'cron_secret'), false);
+$$;
+revoke all on function verify_cron_secret(text) from public, anon, authenticated;
+grant execute on function verify_cron_secret(text) to service_role;
 
 -- เรียกได้เฉพาะ service role (Edge Function) — ยาม/แอดมินเรียกไม่ได้
 revoke all on function selfie_purge_candidates(int)      from public, anon, authenticated;

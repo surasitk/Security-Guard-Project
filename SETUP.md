@@ -108,7 +108,6 @@ insert into tenant_holidays (tenant_id, holiday_date, name) values
    ```
 5. Deploy Edge Function ลบรูป:
    ```bash
-   supabase secrets set CRON_SECRET=<ค่าเดียวกับ cron_secret ข้างบน> --project-ref ybghyacwfdlezanewvgn
    supabase functions deploy purge-selfies --no-verify-jwt --project-ref ybghyacwfdlezanewvgn
    ```
 6. ทดสอบ:
