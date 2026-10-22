@@ -239,3 +239,68 @@ textarea.input { width: 100%; font: 15px/1.6 var(--font); padding: 10px 12px; bo
 .brand-logo.navy span { color: var(--mute); }
 .splash .brand-logo { margin-bottom: 4px; }
 @media (max-width: 880px) { .side .brand-logo { padding: 0 4px; } .side .brand-logo img { width: 132px; } }
+
+/* ── ตารางกะ: แท็บ ตัวกรอง ตาราง ── */
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin: 0 0 18px; overflow-x: auto; scrollbar-width: none; }
+.tabs button { font: 500 14.5px var(--font); color: var(--ink-2); background: none; border: 0; border-bottom: 2px solid transparent; padding: 10px 14px 11px; cursor: pointer; white-space: nowrap; margin-bottom: -1px; }
+.tabs button:hover { color: var(--ink); }
+.tabs button.on { color: var(--ink); font-weight: 600; border-bottom-color: var(--ink); }
+.sh-filters { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+.sh-filters .field { margin: 0; min-width: 150px; flex: 0 1 170px; }
+.sh-filters .field.grow { flex: 1 1 240px; }
+.sh-filters .field.narrow { flex: 0 1 140px; min-width: 120px; }
+.sh-actions { display: flex; gap: 12px; align-items: center; margin-left: auto; }
+.sh-count { margin: 14px 0 8px; font-size: 13px; }
+.sh-form { margin-top: 14px; }
+.sh-form-h { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px; }
+.sh-form-h h3 { font-size: 16px; }
+.sh-check { display: flex; gap: 8px; align-items: center; margin-top: 12px; font-size: 14px; }
+.dow-pick { display: flex; gap: 6px; flex-wrap: wrap; }
+.dow-pick button { font: 500 13px var(--font); min-width: 38px; height: 34px; border-radius: 99px; border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); cursor: pointer; }
+.dow-pick button.on { background: var(--ink); border-color: var(--ink); color: #fff; }
+.sh-table tr.sh-group td { background: var(--paper); border-top: 1px solid var(--line); font-size: 14px; padding-top: 10px; padding-bottom: 10px; }
+.sh-table td.sh-name { padding-left: 28px; font-weight: 500; }
+.badge.sh-day { background: #fbf3df; color: #8a5a00; border-color: transparent; }
+.badge.sh-night { background: #e7e9f5; color: #36407a; border-color: transparent; }
+td.num-t { font-variant-numeric: tabular-nums; white-space: nowrap; }
+td.row-act { white-space: nowrap; text-align: right; }
+td.row-act .badge { cursor: pointer; font-family: var(--font); background: none; margin-left: 6px; }
+table.grid tr.sel td { background: var(--paper); }
+.sh-bulk { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; padding: 12px 16px; margin-top: 12px; }
+.sh-swap { min-height: 36px; padding: 6px 10px; font: 14px var(--font); border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--surface); max-width: 260px; }
+
+/* ── นำเข้า Excel ── */
+.imp-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+.imp-step { display: flex; gap: 14px; padding: 20px 22px; }
+.imp-step h3 { font-size: 16px; margin-bottom: 4px; }
+.imp-step p { margin-bottom: 12px; font-size: 13.5px; line-height: 1.6; }
+.imp-n { flex: none; width: 30px; height: 30px; border-radius: 50%; background: var(--ink); color: #fff; font-weight: 700; display: grid; place-items: center; }
+.imp-editor { margin-top: 10px; }
+.imp-sub { font-size: 15px; margin: 18px 0 8px; }
+.imp-grid td { vertical-align: top; padding: 6px 8px; }
+.imp-grid input, .imp-grid select { font: 13.5px var(--font); padding: 6px 8px; min-height: 34px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); width: 100%; min-width: 96px; }
+.imp-grid tr.bad td { background: #fdf5f4; }
+.imp-err { color: var(--alert); font-size: 12.5px; line-height: 1.5; }
+.imp-warn { color: var(--warn); font-size: 12.5px; line-height: 1.5; }
+.imp-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 14px 0; }
+.imp-issues { max-height: 42vh; overflow: auto; border: 1px solid var(--line); border-radius: var(--r-lg); }
+.imp-issues table.grid { border: 0; }
+.imp-confirm { margin: 10px 0 12px 20px; line-height: 1.9; }
+.modal-back { position: fixed; inset: 0; background: rgba(26, 29, 33, .45); display: grid; place-items: center; z-index: 1000; padding: 20px; }
+.modal { background: var(--surface); border-radius: var(--r-lg); width: min(520px, 100%); max-height: 90vh; overflow: auto; padding: 22px 24px; box-shadow: 0 24px 60px -20px rgba(0,0,0,.4); }
+.modal.wide { width: min(920px, 100%); }
+.modal-h { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+.modal-h h2 { font-size: 19px; }
+.modal-foot { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
+.modal-foot .grow { flex: 1; }
+@media (max-width: 700px) { .imp-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.sh-filters .field.range { flex: 0 1 250px; min-width: 230px; }
+.sh-filters .field.range.wide-r { flex: 0 1 330px; min-width: 300px; }
+.time-range { display: flex; align-items: center; gap: 6px; }
+.time-range input { flex: 1; min-width: 0; }
+.time-range span { color: var(--mute); }
+.imp-grid input, .imp-grid select { min-width: 0; }
+.imp-grid select { width: 170px; }
+.imp-grid td:nth-last-child(2) { min-width: 220px; max-width: 300px; white-space: normal; }
+.imp-grid input[type=time] { width: 110px; }
+.imp-grid input[type=date] { width: 150px; }
