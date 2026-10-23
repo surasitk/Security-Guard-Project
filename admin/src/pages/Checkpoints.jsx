@@ -1,4 +1,4 @@
-// จุดตรวจ (QR) — สร้างจุดตรวจผูกกับโครงการ · สร้าง QR ให้พิมพ์ติดหน้างาน · ยามสแกนแล้วบันทึกเวลา
+// จุดตรวจ (QR) — สร้างจุดตรวจผูกกับโครงการ · สร้าง QR ให้พิมพ์ติดหน้างาน · รปภ.สแกนแล้วบันทึกเวลา
 // ตารางเรียงได้ทุกคอลัมน์ (ค่าเริ่มต้น โครงการ → จุดตรวจ ก–ฮ, A–Z) · ค้นหาขั้นสูง · พิมพ์ QR ทั้งหมดที่กรองไว้ในครั้งเดียว
 import { useEffect, useMemo, useState } from 'react'
 import QRCode from 'qrcode'
@@ -128,7 +128,7 @@ export default function Checkpoints() {
             </div>
             <button className="btn inline" type="submit" disabled={busy || !propId}>{busy ? 'กำลังสร้าง…' : 'สร้างจุดตรวจ + QR'}</button>
           </div>
-          <p className="muted" style={{ marginTop: 10 }}>สร้างแล้วกด "QR" ในตาราง เพื่อดู/พิมพ์ QR ไปติดหน้างาน — ยามเปิดเมนู "สแกนจุด" ใน LINE แล้วสแกน (ต้องเข้างานที่โครงการนั้นก่อน)</p>
+          <p className="muted" style={{ marginTop: 10 }}>สร้างแล้วกด "QR" ในตาราง เพื่อดู/พิมพ์ QR ไปติดหน้างาน — รปภ.เปิดเมนู "สแกนจุด" ใน LINE แล้วสแกน (ต้องเข้างานที่โครงการนั้นก่อน)</p>
         </form>
       )}
       {msg && <div className={`notice ${msg.t === 'err' ? 'err' : ''}`}>{msg.m}</div>}

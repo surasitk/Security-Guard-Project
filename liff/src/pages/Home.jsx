@@ -1,7 +1,7 @@
 // F3 — เข้างาน / ออกงาน
 // · กะปกติ: เช็คอินได้ก่อนเวลา 45 นาที · เช็คเอาต์ได้ถึง 1 ชม. หลังจบกะ · ออกก่อนเวลาต้องใส่เหตุผล (แจ้ง Admin ทาง LINE)
 // · สายตรวจ/ผู้ช่วยสายตรวจ: เช็คอินได้แม้ไม่มีกะ → เลือกโครงการที่ได้รับมอบหมาย → ยืนยัน
-// · ยาม/หัวหน้ากะ: เข้างานฉุกเฉิน (แทนคน) ในโครงการที่มีชื่อ
+// · รปภ./หัวหน้ากะ: เข้างานฉุกเฉิน (แทนคน) ในโครงการที่มีชื่อ
 // · ต้องเช็คเอาต์ก่อน ถึงเช็คอินใหม่ได้
 // ขั้นตอนบันทึก: ถ่ายรูป → อัปโหลด → ขอ GPS (ไม่ได้ = บันทึกแบบไม่มีพิกัด+ติดธง) → RPC
 import { useEffect, useRef, useState } from 'react'
@@ -36,7 +36,7 @@ const FIELD_ROLES = ['supervisor', 'assistant_supervisor', 'trainer', 'spare']  
 const fmtTime = (ts) => new Date(ts).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
 const fmtDay = (ts) => new Date(ts).toLocaleDateString('th-TH', { weekday: 'short', day: 'numeric', month: 'short' })
 const KIND_LABEL = { adhoc: 'เช็คอินโครงการ', emergency: 'เข้างานฉุกเฉิน', open: 'ตามช่วงกะ' }
-const ROLE_TH = { guard: 'ยาม', shift_leader: 'หัวหน้ากะ', supervisor: 'สายตรวจ', assistant_supervisor: 'ผู้ช่วยสายตรวจ', trainer: 'ครูฝึก', spare: 'ตัวสแปร์', admin: 'แอดมิน', owner: 'เจ้าของ', client: 'ลูกค้า' }
+const ROLE_TH = { guard: 'รปภ.', shift_leader: 'หัวหน้ากะ', supervisor: 'สายตรวจ', assistant_supervisor: 'ผู้ช่วยสายตรวจ', trainer: 'ครูฝึก', spare: 'ตัวสแปร์', admin: 'แอดมิน', owner: 'เจ้าของ', client: 'ลูกค้า' }
 
 export default function Home() {
   const user = getUser()
@@ -288,7 +288,7 @@ export default function Home() {
                   <button className="btn ghost" onClick={() => startFlow('adhoc', schedProjects)} disabled={busy}>
                     {isPlatform ? 'เข้างานทดสอบ (โครงการ Test)' : 'เข้างานฉุกเฉิน (แทนคน)'}
                   </button>
-                  <p className="muted" style={{ marginTop: 6 }}>{isPlatform ? 'Super Admin ลองเข้า-ออกงานแบบยามได้ในโครงการทดสอบ — ข้อมูลไม่ปนกับลูกค้าและไม่นับในรายงาน' : 'ใช้เมื่อหัวหน้าเรียกให้มาแทนคนที่ขาด ในโครงการที่คุณมีชื่อ'}</p>
+                  <p className="muted" style={{ marginTop: 6 }}>{isPlatform ? 'Super Admin ลองเข้า-ออกงานแบบรปภ.ได้ในโครงการทดสอบ — ข้อมูลไม่ปนกับลูกค้าและไม่นับในรายงาน' : 'ใช้เมื่อหัวหน้าเรียกให้มาแทนคนที่ขาด ในโครงการที่คุณมีชื่อ'}</p>
                 </>
               )}
             </>

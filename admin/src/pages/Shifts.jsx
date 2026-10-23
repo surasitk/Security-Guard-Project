@@ -326,7 +326,7 @@ function UpcomingTab({ upcoming, guards, reload, setMsg }) {
 
   async function cancelSelected() {
     const ids = [...sel]
-    if (!window.confirm(`ยกเลิก ${ids.length} กะที่เลือก? (กะจะหายจากตารางและแอปยาม แต่ยังเก็บประวัติไว้)`)) return
+    if (!window.confirm(`ยกเลิก ${ids.length} กะที่เลือก? (กะจะหายจากตารางและแอปรปภ. แต่ยังเก็บประวัติไว้)`)) return
     setBusy(true); setMsg(null)
     try { await update('shift_assignments', `id=in.(${ids.join(',')})&status=eq.scheduled`, { status: 'cancelled' }); setMsg({ t: 'ok', m: `ยกเลิกแล้ว ${ids.length} กะ` }); setSel(new Set()); reload() }
     catch (e) { setMsg({ t: 'err', m: errTh(e) }) } finally { setBusy(false) }
