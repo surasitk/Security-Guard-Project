@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { list, signedUrl, fmtTime, fmtDate, errTh } from '../lib/api'
 import FilterChips from '../components/FilterChips.jsx'
-import { ACTION_TH, ROLE_TH, flagList, th } from '../lib/labels'
+import { ACTION_TH, ROLE_TH, GPS_STATUS_TH, GPS_STATUS_TONE, flagList, th } from '../lib/labels'
 
 const DAYS_BACK = 7
 
@@ -104,7 +104,13 @@ export default function Monitor() {
                 <td>
                   {e.type === 'in' && e.row.late_minutes > 0 && <span className="muted">สาย {e.row.late_minutes} น. </span>}
                   {e.type === 'out' && e.row.early_leave_minutes > 0 && <span className="muted">ออกก่อน {e.row.early_leave_minutes} น. </span>}
-                  {flagList(e.row.flag_reason, e.row.is_mock_flag).map((fl) => <span key={fl.code} className={`badge ${fl.tone}`} style={{ marginRight: 4 }}>{fl.label}</span>)}
+                  {flagList(e.row.flag_reason, e.row.is_mock_flag).filter((fl) => !fl.code.startsWith('gps_suspect')).map((fl) => <span key={fl.code} className={`badge ${fl.tone}`} style={{ marginRight: 4 }}>{fl.label}</span>)}
+                  {(() => {   // ธงพิกัดน่าสงสัย แยกตามเหตุการณ์ (เข้า/ออก) + ผลการตรวจของเจ้าหน้าที่
+                    const st = e.type === 'in' ? e.row.gps_in_status : e.row.gps_out_status
+                    if (!st) return null
+                    const why = (e.type === 'in' ? e.row.gps_in_reasons : e.row.gps_out_reasons) || []
+                    return <span className={`badge ${st === 'normal' ? '' : 'alert'}`} title={why.join('\n')} style={{ marginRight: 4 }}>⚠ สงสัยพิกัดปลอม{st !== 'pending' ? ` · ${th(GPS_STATUS_TH, st)}` : ''}</span>
+                  })()}
                 </td>
               </tr>
             ))}

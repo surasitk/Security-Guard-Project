@@ -192,16 +192,39 @@ async function tenantFolder() {
   return payload.app_metadata.tenant_id
 }
 
-export function getPosition() {
+const plainPos = (pos) => ({
+  latitude: pos.coords.latitude, longitude: pos.coords.longitude, accuracy: pos.coords.accuracy,
+  altitude: pos.coords.altitude, altitudeAccuracy: pos.coords.altitudeAccuracy,
+  speed: pos.coords.speed, heading: pos.coords.heading, timestamp: pos.timestamp,
+})
+
+export function getPosition(opts) {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) { reject(new Error('no_geolocation')); return }
     // enableHighAccuracy:false → ใช้ wifi/เสาสัญญาณ เร็วและได้ในอาคาร (ไม่รอ GPS ดาวเทียม)
     navigator.geolocation.getCurrentPosition(
-      (pos) => resolve(pos.coords),
+      (pos) => resolve(plainPos(pos)),
       (err) => reject(err),
-      { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 },
+      opts || { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 },
     )
   })
+}
+
+/**
+ * หลักฐานพิกัด (ตรวจ Fake GPS ฝั่ง server): ค่าที่ใช้ลงเวลา + อ่านใหม่อีก 2 ครั้งห่างกัน ~1.5 วิ
+ * ทำหลังลงเวลาสำเร็จแล้ว ไม่รอผล — ล้มเหลวก็ไม่กระทบการเข้า/ออกงาน
+ */
+export async function sendGpsEvidence(phase, first) {
+  try {
+    const toS = (c) => ({ lat: c.latitude, lng: c.longitude, acc: c.accuracy, alt: c.altitude, alt_acc: c.altitudeAccuracy,
+                          speed: c.speed, heading: c.heading, ts: c.timestamp ?? Date.now() })
+    const samples = first ? [toS(first)] : []
+    for (let i = 0; i < 2; i++) {
+      await new Promise((r) => setTimeout(r, 1500))
+      try { samples.push(toS(await getPosition({ enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }))) } catch { /* ข้าม */ }
+    }
+    if (samples.length) await rpc('submit_gps_evidence', { p_phase: phase, p_samples: samples })
+  } catch { /* ไม่กระทบผู้ใช้ */ }
 }
 
 /** device fingerprint แบบเบา (Sprint 1) — canvas + UA + screen */

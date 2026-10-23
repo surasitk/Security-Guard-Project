@@ -11,6 +11,7 @@ import Reports from './pages/Reports.jsx'
 import ForceMap from './pages/ForceMap.jsx'
 import Broadcast from './pages/Broadcast.jsx'
 import ClientDashboard from './pages/ClientDashboard.jsx'
+import GpsReport from './pages/GpsReport.jsx'
 import { rpc } from './lib/api'
 import logoWhite from './assets/horguard-white.png'
 import logoNavy from './assets/horguard-navy.png'
@@ -27,6 +28,7 @@ const I = {
   map: <><path d="M9 4 3 6.5v13.5l6-2.5 6 2.5 6-2.5V4l-6 2.5z" /><path d="M9 4v13.5M15 6.5V20" /></>,
   megaphone: <><path d="M3 10v4h3l7 4V6L6 10z" /><path d="M17 9a4 4 0 0 1 0 6M19.5 6.5a7.5 7.5 0 0 1 0 11" /></>,
   chart: <><path d="M4 20V4M4 20h16" /><path d="M8 16v-4M12 16V8M16 16v-6" /></>,
+  pin: <><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z" /><path d="M12 7.5v3.5M12 13.6v.01" /></>,
   report: <><path d="M7 3h7l5 5v13H7z" /><path d="M14 3v5h5M10 13h6M10 17h6M10 9h2" /></>,
 }
 const Icon = ({ k }) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{I[k]}</svg>
@@ -42,12 +44,13 @@ const BASE_TABS = [
   { group: 'วางแผนและตั้งค่า', key: 'checkpoints', label: 'จุดตรวจ (QR)', icon: 'qr', desc: 'จุดเดินตรวจและ QR สำหรับติดหน้างาน', el: Checkpoints },
   { group: 'วางแผนและตั้งค่า', key: 'people', label: 'ผู้ใช้และสิทธิ์', icon: 'users', desc: 'ข้อมูลผู้ใช้ บทบาท โครงการที่ได้รับมอบหมาย และวันหยุด', el: People },
   { group: 'รายงาน', key: 'reports', label: 'รายงาน', icon: 'report', desc: 'รายงานเวลาเข้า-ออกงาน สาย และ OT ตามโครงการ ช่วงวันที่ และรายชื่อ — Export เป็น Excel', el: Reports },
+  { group: 'รายงาน', key: 'gpsreport', label: 'พิกัดน่าสงสัย', icon: 'pin', desc: 'การเข้า-ออกงานที่ระบบสงสัยว่าใช้พิกัดปลอม (Fake GPS) พร้อมเหตุผล รูป และพิกัด — ตรวจแล้วบันทึกผล ปกติ / ยืนยันผิดปกติ · Export Excel', el: GpsReport, noLeader: true },
   { group: 'รายงาน', key: 'client', label: 'แดชบอร์ดลูกค้า', icon: 'chart', desc: 'SLA การเข้ากะ ความครอบคลุมการตรวจตรา เหตุที่แจ้ง และ heat map จุดตรวจ รายโครงการ', el: ClientDashboard },
 ]
 const VENDOR_TAB = { group: 'ผู้ดูแลระบบ', key: 'vendors', label: 'Tenant ในระบบ', icon: 'org', desc: 'Tenant = บริษัท รปภ. ที่ใช้ Horguard (เฉพาะ Super Admin)', el: Vendors }
 const ROLE_TH = { owner: 'เจ้าของ', admin: 'แอดมิน', zone_manager: 'ผู้จัดการโซน', supervisor: 'สายตรวจ', shift_leader: 'หัวหน้ากะ', client: 'ลูกค้า' }
 // ผู้จัดการโซน: ดูได้อย่างเดียว เฉพาะเมนูเหล่านี้ (ไม่เห็นค่าแรง/เงิน)
-const ZONE_TABS = ['dashboard', 'forcemap', 'shifts', 'checkpoints', 'reports']
+const ZONE_TABS = ['dashboard', 'forcemap', 'shifts', 'checkpoints', 'reports', 'gpsreport']
 
 export default function App() {
   const [state, setState] = useState('loading')
