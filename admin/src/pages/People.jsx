@@ -8,15 +8,16 @@ import { useSort, byName, ResultLine } from '../lib/sortTable.jsx'
 const ROLES = [
   ['guard', 'รปภ.', 'เข้า-ออกงานตามกะ และเข้างานฉุกเฉินได้ในโครงการที่มีชื่อ (ไม่เกิน 5 โครงการ) · ไม่เข้าหลังบ้าน'],
   ['shift_leader', 'หัวหน้ากะ', 'เหมือนรปภ. และเข้าหลังบ้านได้เฉพาะโครงการที่ผูกไว้ (ไม่เกิน 10)'],
-  ['trainer', 'ครูฝึก', 'เช็คอิน/เอาต์ได้ทุกโครงการที่ผูกไว้แม้ไม่มีกะ (ไม่เกิน 10) · ไม่เข้าหลังบ้าน'],
+  ['trainer', 'ครูฝึก', 'ซัพพอร์ตผู้จัดการโซนเมื่อลาหรือติดงาน · เช็คอิน/เอาต์ได้ทุกโครงการที่ผูกไว้แม้ไม่มีกะ (ไม่เกิน 10) · ดูแผนที่กำลังพลใน LINE ได้เฉพาะโครงการที่ผูก · ไม่เข้า Horguard Force'],
   ['assistant_supervisor', 'ผู้ช่วยสายตรวจ', 'เช็คอิน/เอาต์ได้ทุกโครงการที่ผูกไว้แม้ไม่มีกะ (ไม่เกิน 10) · ไม่เข้าหลังบ้าน'],
   ['spare', 'ตัวสแปร์', 'เช็คอิน/เอาต์ได้ทุกโครงการที่ผูกไว้แม้ไม่มีกะ (ไม่เกิน 10) · ไม่เข้าหลังบ้าน'],
-  ['supervisor', 'สายตรวจ/ผจก.โซน', 'เช็คอิน/เอาต์ได้ทุกโครงการที่ผูกไว้แม้ไม่มีกะ (ไม่เกิน 10) · เข้าหลังบ้านเห็นเฉพาะโครงการที่ผูกไว้'],
+  ['supervisor', 'สายตรวจ', 'เช็คอิน/เอาต์ได้ทุกโครงการที่ผูกไว้แม้ไม่มีกะ (ไม่เกิน 10) · ใช้งานผ่าน LINE อย่างเดียว ไม่เข้า Horguard Force'],
+  ['zone_manager', 'ผู้จัดการโซน', 'ดูแลโครงการในโซนที่ได้รับมอบหมายไม่ให้ รปภ.ขาดจุด · ออกคำสั่งและวางแผนให้ผู้ช่วยสายตรวจและตัวสแปร์ · รองจากเจ้าของ · เข้า Horguard Force ดูได้อย่างเดียว (ภาพรวม แผนที่ ตารางกะ จุดตรวจ รายงาน) ไม่เห็นค่าแรง/เงิน · ผูกได้ไม่เกิน 50 โครงการ ถ้าไม่ผูกเลยเห็นทุกโครงการ · ดูแผนที่กำลังพลใน LINE ได้'],
   ['admin', 'ธุรการ/แอดมิน', 'จัดการได้ทุกโครงการของ Tenant นี้'],
   ['owner', 'เจ้าของ', 'สิทธิ์สูงสุดของ Tenant นี้ เห็นและจัดการทุกโครงการ'],
   ['client', 'ลูกค้า', 'เข้าหลังบ้านได้เฉพาะเมนู "แดชบอร์ดลูกค้า" ของโครงการที่ผูกไว้'],
 ]
-const LIMIT = { guard: 5, shift_leader: 10, trainer: 10, assistant_supervisor: 10, spare: 10, supervisor: 10, client: 10 }
+const LIMIT = { zone_manager: 50, guard: 5, shift_leader: 10, trainer: 10, assistant_supervisor: 10, spare: 10, supervisor: 10, client: 10 }
 const SCOPED = Object.keys(LIMIT)
 const DAY_SHORT = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส']
 const DAYS = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัส', 'ศุกร์', 'เสาร์']
@@ -34,7 +35,7 @@ const ERR = {
   not_found: 'ไม่พบผู้ใช้',
   project_limit_exceeded: 'ผูกโครงการเกินจำนวนที่บทบาทนี้กำหนด',
 }
-const ROLE_ORDER = ['owner', 'admin', 'supervisor', 'assistant_supervisor', 'trainer', 'shift_leader', 'spare', 'guard', 'client']
+const ROLE_ORDER = ['owner', 'zone_manager', 'admin', 'supervisor', 'assistant_supervisor', 'trainer', 'shift_leader', 'spare', 'guard', 'client']
 const roleRank = (r) => { const i = ROLE_ORDER.indexOf(r); return i < 0 ? 99 : i }
 const roleLabel = (r) => (ROLES.find(([v]) => v === r) || [r, r])[1]
 const EMPTY = { id: null, tenant_id: '', employee_code: '', full_name: '', phone: '', role: 'guard', daily_wage: '', days_off: [], property_ids: [], platform_admin: false }

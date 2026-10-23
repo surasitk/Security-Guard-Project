@@ -45,7 +45,9 @@ const BASE_TABS = [
   { group: 'รายงาน', key: 'client', label: 'แดชบอร์ดลูกค้า', icon: 'chart', desc: 'SLA การเข้ากะ ความครอบคลุมการตรวจตรา เหตุที่แจ้ง และ heat map จุดตรวจ รายโครงการ', el: ClientDashboard },
 ]
 const VENDOR_TAB = { group: 'ผู้ดูแลระบบ', key: 'vendors', label: 'Tenant ในระบบ', icon: 'org', desc: 'Tenant = บริษัท รปภ. ที่ใช้ Horguard (เฉพาะ Super Admin)', el: Vendors }
-const ROLE_TH = { owner: 'เจ้าของ', admin: 'แอดมิน', supervisor: 'สายตรวจ', shift_leader: 'หัวหน้ากะ', client: 'ลูกค้า' }
+const ROLE_TH = { owner: 'เจ้าของ', admin: 'แอดมิน', zone_manager: 'ผู้จัดการโซน', supervisor: 'สายตรวจ', shift_leader: 'หัวหน้ากะ', client: 'ลูกค้า' }
+// ผู้จัดการโซน: ดูได้อย่างเดียว เฉพาะเมนูเหล่านี้ (ไม่เห็นค่าแรง/เงิน)
+const ZONE_TABS = ['dashboard', 'forcemap', 'shifts', 'checkpoints', 'reports']
 
 export default function App() {
   const [state, setState] = useState('loading')
@@ -55,6 +57,7 @@ export default function App() {
   const [vendors, setVendors] = useState([])
   const [ctx, setCtx] = useState(0)          // เปลี่ยนเมื่อสลับ Tenant → หน้าโหลดข้อมูลใหม่
   const [switching, setSwitching] = useState(false)
+  const [menu, setMenu] = useState(false)       // เมนูเลื่อน (iPad แนวตั้ง / มือถือ)
 
   useEffect(() => {
     (async () => {
@@ -64,7 +67,7 @@ export default function App() {
         if (out.error === 'not_registered') { setState('unregistered'); return }
         if (out.error === 'account_disabled') { setState('disabled'); return }
         if (out.error) { setErr(errTh(out.error)); setState('error'); return }
-        if (!['owner', 'admin', 'supervisor', 'shift_leader', 'client'].includes(out.user.role)) { setState('forbidden'); return }
+        if (!['owner', 'admin', 'zone_manager', 'shift_leader', 'client'].includes(out.user.effective_role || out.user.role)) { setState('forbidden'); return }
         setState('ready')
         if (out.user.role === 'client') { setTab('client'); return }
         rpc('is_platform_admin').then((pa) => { setIsPlatform(pa); if (pa) rpc('list_vendors').then(setVendors).catch(() => {}) }).catch(() => {})
@@ -75,14 +78,16 @@ export default function App() {
   if (state === 'loading') return <Center msg="กำลังเชื่อมต่อ…" />
   if (state === 'unregistered') return <Center msg="บัญชี LINE นี้ยังไม่ได้ลงทะเบียนในระบบ — ให้ผู้ดูแลเพิ่มคุณเป็นพนักงานก่อน แล้วลงทะเบียนผ่านแอปใน LINE" />
   if (state === 'disabled') return <Center msg="บัญชีนี้ถูกปิดใช้งานแล้ว และออกจากระบบทุกอุปกรณ์ — ติดต่อแอดมินของบริษัทหากต้องการใช้งานอีกครั้ง" />
-  if (state === 'forbidden') return <Center msg="บัญชีของคุณไม่มีสิทธิ์เข้าหลังบ้าน (ต้องเป็นเจ้าของ แอดมิน สายตรวจ หัวหน้ากะ หรือลูกค้า)" />
+  if (state === 'forbidden') return <Center msg="บัญชีของคุณไม่มีสิทธิ์เข้า Horguard Force (สำหรับเจ้าของ แอดมิน ผู้จัดการโซน หัวหน้ากะ และลูกค้า) — ใช้งานผ่านเมนูใน LINE ได้ตามปกติ" />
   if (state === 'error') return <Center msg={`เชื่อมต่อไม่สำเร็จ — ${err}`} />
 
   const user = getUser()
   const role = user.effective_role || user.role
   // ลูกค้าเห็นเฉพาะแดชบอร์ดลูกค้า (เมนูอื่นค่อยเปิดภายหลัง)
   const staffTabs = BASE_TABS.filter((t) => !(t.noLeader && role === 'shift_leader'))
-  const TABS = role === 'client' ? BASE_TABS.filter((t) => t.key === 'client') : isPlatform ? [...staffTabs, VENDOR_TAB] : staffTabs
+  const TABS = role === 'client' ? BASE_TABS.filter((t) => t.key === 'client')
+    : role === 'zone_manager' ? BASE_TABS.filter((t) => ZONE_TABS.includes(t.key))
+    : isPlatform ? [...staffTabs, VENDOR_TAB] : staffTabs
   const Active = (TABS.find((t) => t.key === tab) || TABS[0]).el
 
   const current = TABS.find((t) => t.key === tab) || TABS[0]
@@ -100,13 +105,21 @@ export default function App() {
   }
   return (
     <div className="shell">
-      <aside className="side">
+      <header className="topbar">
+        <button className="burger" aria-label="เปิดเมนู" aria-expanded={menu} onClick={() => setMenu(true)}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
+        </button>
+        <img src={logoWhite} alt="Horguard" />
+        <span className="tb-title">{current.label}</span>
+      </header>
+      <div className={`side-backdrop ${menu ? 'open' : ''}`} onClick={() => setMenu(false)} />
+      <aside className={`side ${menu ? 'open' : ''}`}>
         <div className="brand-logo"><img src={logoWhite} alt="Horguard" /><span>Horguard Force</span></div>
         <nav className="nav" aria-label="เมนูหลัก">
           {TABS.map((t, i) => (
             <div key={t.key} style={{ display: 'contents' }}>
               {TABS.length > 1 && t.group && t.group !== TABS[i - 1]?.group && <div className="group">{t.group}</div>}
-              <button className={tab === t.key ? 'active' : ''} aria-current={tab === t.key ? 'page' : undefined} onClick={() => setTab(t.key)}>
+              <button className={tab === t.key ? 'active' : ''} aria-current={tab === t.key ? 'page' : undefined} onClick={() => { setTab(t.key); setMenu(false); window.scrollTo(0, 0) }}>
                 <Icon k={t.icon} />{t.label}
               </button>
             </div>
@@ -130,6 +143,7 @@ export default function App() {
           <div className="page-head">
             <div><h1>{current.label}</h1><p>{current.desc}</p></div>
           </div>
+          {role === 'zone_manager' && <div className="notice info" style={{ marginTop: 0 }}>สิทธิ์ผู้จัดการโซน: ดูข้อมูลได้อย่างเดียว · เห็นเฉพาะโครงการที่ได้รับมอบหมาย (ถ้าไม่ได้ผูกโครงการ เห็นทุกโครงการ)</div>}
           {acting && <div className="notice info" style={{ marginTop: 0 }}>คุณกำลังจัดการข้อมูลของ <b>{vendor?.name || "Tenant นี้"}</b> ในฐานะ Super Admin — ทุกการแก้ไขบันทึกในชื่อคุณ</div>}
           {switching ? <p className="muted">กำลังสลับ Tenant…</p> : <Active key={`${tab}-${ctx}`} isPlatform={isPlatform} vendors={vendors} />}
         </div>

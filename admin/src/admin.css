@@ -30,16 +30,41 @@
 .page-head h1 { margin: 0; font-size: 28px; }
 .page-head p { color: var(--mute); font-size: 14px; margin-top: 2px; }
 
-/* มือถือ/แท็บเล็ต: เมนูกลายเป็นแถบบน เลื่อนแนวนอน */
-@media (max-width: 880px) {
-  .shell { grid-template-columns: minmax(0, 1fr); }
-  .side { position: sticky; z-index: 10; height: auto; min-width: 0; padding: 12px 12px 0; }
-  .side .brand { padding: 0 4px; }
-  .nav { flex-direction: row; overflow-x: auto; margin: 10px -12px 0; padding: 0 8px 10px; scrollbar-width: none; }
-  .nav button { width: auto; white-space: nowrap; padding: 8px 12px; font-size: 14px; }
-  .nav .group, .me { display: none; }
-  .main { padding: 20px 16px 48px; }
-  .page-head h1 { font-size: 23px; }
+/* แท็บเล็ตแนวตั้ง (iPad) / มือถือ: แถบบน + ปุ่ม ☰ เปิดเมนูแบบเลื่อนออกจากซ้าย */
+.topbar { display: none; }
+.side-backdrop { display: none; }
+@media (max-width: 1023px) {
+  .shell { display: block; }
+  .topbar {
+    display: flex; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 30;
+    height: 56px; padding: 0 12px calc(0px) 8px; padding-top: env(safe-area-inset-top);
+    background: var(--ink); color: #fff;
+  }
+  .topbar .burger { width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: var(--r-sm); background: none; color: #fff; cursor: pointer; }
+  .topbar .burger:active { background: rgba(255,255,255,.1); }
+  .topbar .burger svg { width: 22px; height: 22px; }
+  .topbar img { height: 18px; width: auto; }
+  .topbar .tb-title { margin-left: auto; font-size: 14px; color: #c9ced3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45vw; }
+  .side {
+    position: fixed; z-index: 50; top: 0; left: 0; bottom: 0; width: min(300px, 84vw); height: 100dvh;
+    overflow-y: auto; transform: translateX(-102%); transition: transform .22s ease; box-shadow: 8px 0 24px rgba(0,0,0,.25);
+    padding-top: calc(22px + env(safe-area-inset-top));
+  }
+  .side.open { transform: none; }
+  .side-backdrop.open { display: block; position: fixed; inset: 0; z-index: 40; background: rgba(15, 18, 21, .45); }
+  .nav button { min-height: 46px; }
+  .main { padding: 20px 20px 48px; }
+  .page-head h1 { font-size: 24px; }
+}
+@media (max-width: 600px) {
+  .main { padding: 16px 14px 44px; }
+  .page-head h1 { font-size: 22px; }
+}
+/* จอสัมผัส: ปุ่ม/ช่องกรอกสูงพอให้นิ้วกดง่าย */
+@media (pointer: coarse) {
+  .nav button { min-height: 46px; }
+  .badge[role="button"], button.badge, .link-btn { min-height: 34px; }
+  table.grid th.sortable button { min-height: 44px; }
 }
 
 /* ── ตัวเลข / กระดานเวร ── */
@@ -73,7 +98,7 @@ table.grid tr:last-child td { border-bottom: none; }
 table.grid tbody tr:hover td { background: #fafbfa; }
 table.grid input[type=checkbox] { width: 17px; height: 17px; accent-color: var(--ink); }
 .table-wrap { overflow-x: auto; border-radius: var(--r-lg); }
-@media (max-width: 880px) { table.grid { display: block; overflow-x: auto; width: auto; max-width: 100%; } table.grid td, table.grid th { white-space: nowrap; } .stat-row { grid-template-columns: repeat(3, minmax(0, 1fr)); } .board { padding: 18px; } .board-top .big { font-size: 34px; } }
+@media (max-width: 880px) { table.grid { display: block; overflow-x: auto; width: auto; max-width: 100%; } table.grid td, table.grid th { white-space: nowrap; } .board { padding: 18px; } .board-top .big { font-size: 34px; } }
 
 /* ── ป้าย ── */
 .badge { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 500; padding: 3px 10px; border: 1px solid var(--line); border-radius: 99px; color: var(--ink-2); background: var(--surface); white-space: nowrap; font-family: var(--font); line-height: 1.5; }
@@ -330,3 +355,8 @@ table.grid.dense th { padding: 10px 12px; }
 @media (max-width: 880px) { .table-wrap > table.grid { display: table; width: 100%; } }
 table.grid.dense th.sortable { padding: 0; }
 td.row-act .badge.solid { background: var(--ink); color: #fff; border-color: var(--ink); }
+
+@media (max-width: 600px) { .stat-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 880px) { .side .brand-logo { padding: 0 10px; } .side .brand-logo img { width: 168px; } }
+/* แท็บเล็ต: แผนที่กำลังพลสูงขึ้นในแนวตั้ง */
+@media (min-width: 700px) and (max-width: 1000px) { .fm-map { height: 52vh; } }

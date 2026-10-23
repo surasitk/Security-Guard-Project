@@ -3,6 +3,7 @@
 // ข้อมูลมาจาก RPC report_attendance (สิทธิ์ตัดสินที่ฐานข้อมูล: หัวหน้ากะ/สายตรวจเห็นเฉพาะโครงการที่ผูกไว้)
 import { useEffect, useMemo, useState } from 'react'
 import { list, rpc, errTh } from '../lib/api'
+import { seeMoney } from '../lib/perm'
 
 const bkkDate = (d = new Date()) => new Date(d.getTime() + 7 * 3600 * 1000).toISOString().slice(0, 10)
 const firstOfMonth = () => `${bkkDate().slice(0, 8)}01`
@@ -51,9 +52,10 @@ const summaryLines = (s) => [
   ['OT', `${s.otCount} ครั้ง · รวม ${s.otMin} นาที`],
   ['ทำงานวันหยุด', `${s.holiday} กะ`],
   ['จำนวนเงินรวม', `${money(s.amount)} บาท`],
-]
+].filter(([k]) => seeMoney() || k !== 'จำนวนเงินรวม')
 
 export default function Reports() {
+  const M = seeMoney()
   const [props, setProps] = useState([])
   const [people, setPeople] = useState([])
   const [f, setF] = useState({ property: '', from: firstOfMonth(), to: bkkDate(), user: '' })
@@ -106,14 +108,14 @@ export default function Reports() {
         for (let i = 2; used.has(sheetName); i++) sheetName = `${sheetName.slice(0, 27)} (${i})`
         used.add(sheetName)
         const ws = wb.addWorksheet(sheetName, { pageSetup: { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0 } })
-        ws.columns = [{ width: 13 }, { width: 30 }, { width: 15 }, { width: 15 }, { width: 13 }, { width: 13 }, { width: 16 }]
+        ws.columns = [{ width: 13 }, { width: 30 }, { width: 15 }, { width: 15 }, { width: 13 }, { width: 13 }, { width: 16 }].slice(0, M ? 7 : 6)
 
-        ws.mergeCells('A1:G1')
+        ws.mergeCells(M ? 'A1:G1' : 'A1:F1')
         ws.getCell('A1').value = `โครงการ ${g.name}   (${period})`
         ws.getCell('A1').font = { ...font, bold: true }
         ws.getCell('A1').alignment = { horizontal: 'center', vertical: 'middle' }
         ws.getCell('A1').border = box
-        const head = ws.addRow(['วันที่', 'ชื่อ-สกุล', 'เวลาเข้างาน', 'เวลาออกงาน', 'สาย(นาที)', 'OT(นาที)', 'จำนวนเงิน(บาท)'])
+        const head = ws.addRow(['วันที่', 'ชื่อ-สกุล', 'เวลาเข้างาน', 'เวลาออกงาน', 'สาย(นาที)', 'OT(นาที)', 'จำนวนเงิน(บาท)'].slice(0, M ? 7 : 6))
         head.eachCell((c) => { c.font = { ...font, bold: true }; c.alignment = { horizontal: 'center' }; c.border = box })
 
         for (const r of g.rows) {
@@ -123,8 +125,8 @@ export default function Reports() {
             absent ? 'ขาดงาน' : fmtT(r.check_in_at), absent ? '' : outLabel(r),
             absent ? '' : r.late_minutes, absent ? '' : r.ot_minutes,
             Number(r.amount || 0),
-          ])
-          row.getCell(7).numFmt = '#,##0.00'
+          ].slice(0, M ? 7 : 6))
+          if (M) row.getCell(7).numFmt = '#,##0.00'
           row.eachCell({ includeEmpty: true }, (c, col) => {
             c.font = absent && col === 3 ? { ...font, color: { argb: 'FFB83A30' } } : font
             c.border = box
@@ -145,19 +147,19 @@ export default function Reports() {
 
         ws.addRow([])
         const pTitle = ws.addRow(['สรุปรายคน'])
-        ws.mergeCells(`A${pTitle.number}:D${pTitle.number}`)
+        ws.mergeCells(`A${pTitle.number}:${M ? 'D' : 'C'}${pTitle.number}`)
         pTitle.getCell(1).font = { ...font, bold: true }
         pTitle.getCell(1).alignment = { horizontal: 'center' }
-        const pHead = ws.addRow(['ลำดับ', 'ชื่อ-สกุล', 'จำนวนงาน', 'จำนวนเงิน(บาท)'])
+        const pHead = ws.addRow(['ลำดับ', 'ชื่อ-สกุล', 'จำนวนงาน', 'จำนวนเงิน(บาท)'].slice(0, M ? 4 : 3))
         pHead.eachCell((c) => { c.font = { ...font, bold: true }; c.alignment = { horizontal: 'center' }; c.border = box })
         const pp = perPerson(g.rows)
         pp.forEach((p, i) => {
-          const r = ws.addRow([i + 1, p.name, p.jobs, p.amount])
-          r.getCell(4).numFmt = '#,##0.00'
+          const r = ws.addRow([i + 1, p.name, p.jobs, p.amount].slice(0, M ? 4 : 3))
+          if (M) r.getCell(4).numFmt = '#,##0.00'
           r.eachCell((c, col) => { c.font = font; c.border = box; c.alignment = { horizontal: col === 2 ? 'left' : col === 4 ? 'right' : 'center' } })
         })
-        const tot = ws.addRow(['', 'รวม', pp.reduce((s, p) => s + p.jobs, 0), pp.reduce((s, p) => s + p.amount, 0)])
-        tot.getCell(4).numFmt = '#,##0.00'
+        const tot = ws.addRow(['', 'รวม', pp.reduce((s, p) => s + p.jobs, 0), pp.reduce((s, p) => s + p.amount, 0)].slice(0, M ? 4 : 3))
+        if (M) tot.getCell(4).numFmt = '#,##0.00'
         tot.eachCell({ includeEmpty: true }, (c, col) => { c.font = { ...font, bold: true }; c.border = box; c.alignment = { horizontal: col === 4 ? 'right' : 'center' } })
       }
       if (!groups.length) wb.addWorksheet('ไม่มีข้อมูล').addRow(['ไม่มีข้อมูลในช่วงที่เลือก'])
@@ -198,7 +200,7 @@ export default function Reports() {
             <button className="btn inline ghost" type="button" onClick={exportXlsx} disabled={busy || !rows || !rows.length}>Export Excel</button>
           </div>
         </div>
-        <p className="hint">สูงสุด 93 วันต่อครั้ง · OT = เวลาออกงานที่เกินเวลาจบกะ · กะที่ผ่านไปแล้วแต่ไม่มีการเข้างานนับเป็นขาดงาน · จำนวนเงิน = ค่าแรง/วันที่ตั้งไว้ในหน้าพนักงาน × กะที่เข้างาน</p>
+        <p className="hint">สูงสุด 93 วันต่อครั้ง · OT = เวลาออกงานที่เกินเวลาจบกะ · กะที่ผ่านไปแล้วแต่ไม่มีการเข้างานนับเป็นขาดงาน{M ? ' · จำนวนเงิน = ค่าแรง/วันที่ตั้งไว้ในหน้าพนักงาน × กะที่เข้างาน' : ''}</p>
       </form>
 
       {msg && <div className={`notice ${msg.t === 'err' ? 'err' : ''}`}>{msg.m}</div>}
@@ -211,8 +213,8 @@ export default function Reports() {
           <section key={g.name} className="report">
             <table className="grid report-table">
               <thead>
-                <tr><th colSpan={7} className="report-title">โครงการ {g.name} <span>({period})</span></th></tr>
-                <tr><th>วันที่</th><th>ชื่อ-สกุล</th><th>เวลาเข้างาน</th><th>เวลาออกงาน</th><th>สาย(นาที)</th><th>OT(นาที)</th><th>จำนวนเงิน(บาท)</th></tr>
+                <tr><th colSpan={M ? 7 : 6} className="report-title">โครงการ {g.name} <span>({period})</span></th></tr>
+                <tr><th>วันที่</th><th>ชื่อ-สกุล</th><th>เวลาเข้างาน</th><th>เวลาออกงาน</th><th>สาย(นาที)</th><th>OT(นาที)</th>{M && <th>จำนวนเงิน(บาท)</th>}</tr>
               </thead>
               <tbody>
                 {g.rows.map((r, i) => {
@@ -225,7 +227,7 @@ export default function Reports() {
                       <td>{absent ? '' : (outLabel(r) || <span className="muted">ยังไม่ออก</span>)}</td>
                       <td className={r.late_minutes > 0 ? 'warn' : ''}>{absent ? '' : r.late_minutes}</td>
                       <td>{absent ? '' : r.ot_minutes}</td>
-                      <td className="num">{money(r.amount)}</td>
+                      {M && <td className="num">{money(r.amount)}</td>}
                     </tr>
                   )
                 })}
@@ -240,19 +242,19 @@ export default function Reports() {
               return (
                 <table className="grid report-people">
                   <thead>
-                    <tr><th colSpan={4}>สรุปรายคน</th></tr>
-                    <tr><th>ลำดับ</th><th>ชื่อ-สกุล</th><th>จำนวนงาน</th><th>จำนวนเงิน(บาท)</th></tr>
+                    <tr><th colSpan={M ? 4 : 3}>สรุปรายคน</th></tr>
+                    <tr><th>ลำดับ</th><th>ชื่อ-สกุล</th><th>จำนวนงาน</th>{M && <th>จำนวนเงิน(บาท)</th>}</tr>
                   </thead>
                   <tbody>
                     {pp.map((p, i) => (
                       <tr key={p.name + i}>
                         <td>{i + 1}</td>
-                        <td className="name">{p.name}{p.noWage && <span className="badge warn" style={{ marginLeft: 6 }}>ยังไม่ตั้งค่าแรง</span>}</td>
+                        <td className="name">{p.name}{M && p.noWage && <span className="badge warn" style={{ marginLeft: 6 }}>ยังไม่ตั้งค่าแรง</span>}</td>
                         <td>{p.jobs}</td>
-                        <td className="num">{money(p.amount)}</td>
+                        {M && <td className="num">{money(p.amount)}</td>}
                       </tr>
                     ))}
-                    <tr className="total"><td></td><td className="name">รวม</td><td>{pp.reduce((a, p) => a + p.jobs, 0)}</td><td className="num">{money(pp.reduce((a, p) => a + p.amount, 0))}</td></tr>
+                    <tr className="total"><td></td><td className="name">รวม</td><td>{pp.reduce((a, p) => a + p.jobs, 0)}</td>{M && <td className="num">{money(pp.reduce((a, p) => a + p.amount, 0))}</td>}</tr>
                   </tbody>
                 </table>
               )

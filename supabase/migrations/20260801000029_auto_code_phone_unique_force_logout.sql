@@ -80,7 +80,7 @@ declare
   v_con text;
 begin
   if not can_manage_tenant(p_tenant_id) then return jsonb_build_object('ok', false, 'error', 'forbidden'); end if;
-  if p_role not in ('owner','admin','supervisor','assistant_supervisor','trainer','spare','shift_leader','guard','client') then
+  if p_role not in ('owner','admin','zone_manager','supervisor','assistant_supervisor','trainer','spare','shift_leader','guard','client') then
     return jsonb_build_object('ok', false, 'error', 'invalid_role');
   end if;
   if p_role = 'owner' and not (auth_user_role() = 'owner' or is_platform_admin()) then

@@ -1,16 +1,18 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { initLiff, silentLogin, readParams, errTh } from './lib/api'
 import Register from './pages/Register.jsx'
 import Home from './pages/Home.jsx'
 import Scan from './pages/Scan.jsx'
-import Soon from './pages/Soon.jsx'
 import Incident from './pages/Incident.jsx'
+const ForceMap = lazy(() => import('./pages/ForceMap.jsx'))   // โหลดแผนที่เฉพาะคนที่เปิดเมนูนี้
 import Brand from './components/Brand.jsx'
 
 // อ่านหน้าเป้าหมายจาก ?page= (rich menu ยิงคนละลิงก์)
 function targetPage() {
   const p = readParams().get('page')
-  return ['scan', 'incident', 'leave'].includes(p) ? p : 'home'
+  // 'leave' (ปุ่ม "แจ้งลา" เดิมใน rich menu) เปลี่ยนเป็นแผนที่กำลังพล — เปลี่ยนแค่รูป rich menu ก็ใช้ได้
+  if (p === 'leave' || p === 'map') return 'map'
+  return ['scan', 'incident'].includes(p) ? p : 'home'
 }
 
 export default function App() {
@@ -52,6 +54,6 @@ export default function App() {
 
   if (page === 'scan') return <Scan />
   if (page === 'incident') return <Incident />
-  if (page === 'leave') return <Soon title="ขอลา" note="ระบบยื่นใบลา/อนุมัติกำลังพัฒนา" />
+  if (page === 'map') return <Suspense fallback={<div className="page center"><div className="spacer" /><Brand /><p className="muted">กำลังโหลดแผนที่…</p></div>}><ForceMap /></Suspense>
   return <Home />
 }

@@ -3,6 +3,7 @@
 // · ค้นหาขั้นสูง: ข้อความ · จังหวัด · รูปแบบกะ · ช่วงกะ · เวลาเข้า (แม่แบบ) / พนักงาน · วันที่ · สถานะ (กะที่กำลังจะถึง)
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { list, insert, update, rpc, tenantId, fmtTime, fmtDate, getUser, errTh } from '../lib/api'
+import { canEdit, seeMoney } from '../lib/perm'
 import { buildTemplateFile, readWorkbook, toPayload, TPL_COLS, ASG_COLS } from '../lib/shiftImport'
 import { STATUS_TH as STATUS_ALL, th } from '../lib/labels'
 
@@ -49,10 +50,10 @@ export default function Shifts() {
 
   const tabs = [
     ['templates', `แม่แบบกะ (${templates.length})`],
-    ['assign', 'จ่ายกะ'],
+    canEdit() && ['assign', 'จ่ายกะ'],
     ['upcoming', `กะที่กำลังจะถึง${upcoming ? ` (${upcoming.length})` : ''}`],
-    ['import', 'นำเข้าจาก Excel'],
-  ]
+    canEdit() && ['import', 'นำเข้าจาก Excel'],
+  ].filter(Boolean)
 
   return (
     <div>
@@ -174,7 +175,7 @@ function TemplatesTab({ templates, properties, reload, setMsg }) {
         </div>
         <div className="sh-actions">
           {active && <button className="link-btn" onClick={() => setF({ q: '', province: '', mode: '', period: '', from: '', to: '' })}>ล้างตัวกรอง</button>}
-          <button className="btn inline" onClick={startNew}>+ เพิ่มแม่แบบกะ</button>
+          {canEdit() && <button className="btn inline" onClick={startNew}>+ เพิ่มแม่แบบกะ</button>}
         </div>
       </div>
 
@@ -218,7 +219,7 @@ function TemplatesTab({ templates, properties, reload, setMsg }) {
       {groups.length === 0 ? <p className="muted">ไม่พบแม่แบบกะ{active ? 'ตามตัวกรอง' : ' — กด "+ เพิ่มแม่แบบกะ" หรือนำเข้าจาก Excel'}</p> : (
         <div className="table-wrap">
           <table className="grid sh-table">
-            <thead><tr><th>ชื่อกะ</th><th>ช่วง</th><th>เวลาเข้า – ออก</th><th>คน</th><th>วันที่มีกะ</th><th></th></tr></thead>
+            <thead><tr><th>ชื่อกะ</th><th>ช่วง</th><th>เวลาเข้า – ออก</th><th>คน</th><th>วันที่มีกะ</th>{canEdit() && <th></th>}</tr></thead>
             <tbody>
               {groups.map((g) => [
                 <tr key={`g-${g.p.code}`} className="sh-group">
@@ -236,10 +237,10 @@ function TemplatesTab({ templates, properties, reload, setMsg }) {
                     <td className="num-t">{hm(t.start_time)} – {hm(t.end_time)}{t.crosses_midnight ? <small className="muted"> (+1)</small> : ''}</td>
                     <td>{t.headcount || 1}</td>
                     <td>{daysLabel(t.days_of_week)}</td>
-                    <td className="row-act">
+                    {canEdit() && <td className="row-act">
                       <button className="badge" onClick={() => startEdit(t)}>แก้ไข</button>
                       <button className="badge" onClick={() => deactivate(t)}>ปิดใช้</button>
-                    </td>
+                    </td>}
                   </tr>
                 )),
               ])}
@@ -357,7 +358,7 @@ function UpcomingTab({ upcoming, guards, reload, setMsg }) {
         {active && <div className="sh-actions"><button className="link-btn" onClick={() => { setF({ q: '', user: '', prop: '', from: '', to: '', period: '', status: '' }); setSel(new Set()) }}>ล้างตัวกรอง</button></div>}
       </div>
 
-      {sel.size > 0 && (
+      {canEdit() && sel.size > 0 && (
         <div className="card sh-bulk">
           <strong>เลือก {sel.size} กะ</strong>
           <button className="btn inline sm" onClick={cancelSelected} disabled={busy}>ยกเลิกกะที่เลือก</button>
@@ -376,13 +377,13 @@ function UpcomingTab({ upcoming, guards, reload, setMsg }) {
         <div className="table-wrap">
           <table className="grid">
             <thead><tr>
-              <th style={{ width: 36 }}><input type="checkbox" checked={allOn} onChange={() => setSel(allOn ? new Set() : new Set(selectable.map((s) => s.id)))} title="เลือกทั้งหมดที่แสดง" /></th>
+              {canEdit() && <th style={{ width: 36 }}><input type="checkbox" checked={allOn} onChange={() => setSel(allOn ? new Set() : new Set(selectable.map((s) => s.id)))} title="เลือกทั้งหมดที่แสดง" /></th>}
               <th>วันที่</th><th>เวลาเข้า – ออก</th><th>ช่วง</th><th>โครงการ</th><th>พนักงาน</th><th>สถานะ</th>
             </tr></thead>
             <tbody>
               {shown.map((s) => (
                 <tr key={s.id} className={sel.has(s.id) ? 'sel' : ''}>
-                  <td><input type="checkbox" checked={sel.has(s.id)} disabled={s.status !== 'scheduled'} onChange={() => toggle(s.id)} /></td>
+                  {canEdit() && <td><input type="checkbox" checked={sel.has(s.id)} disabled={s.status !== 'scheduled'} onChange={() => toggle(s.id)} /></td>}
                   <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(s.starts_at)}{s.is_holiday_work && <span className="badge warn" style={{ marginLeft: 6 }}>วันหยุด</span>}</td>
                   <td className="num-t">{fmtTime(s.starts_at)} – {fmtTime(s.ends_at)}</td>
                   <td>{isNight(bkkHM(s.starts_at)) ? <span className="badge sh-night">กลางคืน</span> : <span className="badge sh-day">กลางวัน</span>}</td>

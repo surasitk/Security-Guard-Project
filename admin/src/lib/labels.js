@@ -23,7 +23,7 @@ export const FLAG_TONE = { emergency: 'warn', early_checkout: 'warn', closed_by_
 export const KIND_TH = { scheduled: 'ตามตารางกะ', adhoc: 'เช็คอินโครงการ (ไม่มีกะ)', emergency: 'เข้างานฉุกเฉิน', open: 'ตามช่วงกะ' }
 
 export const ROLE_TH = {
-  owner: 'เจ้าของ', admin: 'ธุรการ/แอดมิน', supervisor: 'สายตรวจ', assistant_supervisor: 'ผู้ช่วยสายตรวจ',
+  owner: 'เจ้าของ', admin: 'ธุรการ/แอดมิน', zone_manager: 'ผู้จัดการโซน', supervisor: 'สายตรวจ', assistant_supervisor: 'ผู้ช่วยสายตรวจ',
   trainer: 'ครูฝึก', spare: 'ตัวสแปร์', shift_leader: 'หัวหน้ากะ', guard: 'รปภ.', client: 'ลูกค้า',
 }
 

@@ -36,7 +36,7 @@ const FIELD_ROLES = ['supervisor', 'assistant_supervisor', 'trainer', 'spare']  
 const fmtTime = (ts) => new Date(ts).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
 const fmtDay = (ts) => new Date(ts).toLocaleDateString('th-TH', { weekday: 'short', day: 'numeric', month: 'short' })
 const KIND_LABEL = { adhoc: 'เช็คอินโครงการ', emergency: 'เข้างานฉุกเฉิน', open: 'ตามช่วงกะ' }
-const ROLE_TH = { guard: 'รปภ.', shift_leader: 'หัวหน้ากะ', supervisor: 'สายตรวจ', assistant_supervisor: 'ผู้ช่วยสายตรวจ', trainer: 'ครูฝึก', spare: 'ตัวสแปร์', admin: 'แอดมิน', owner: 'เจ้าของ', client: 'ลูกค้า' }
+const ROLE_TH = { guard: 'รปภ.', shift_leader: 'หัวหน้ากะ', zone_manager: 'ผู้จัดการโซน', supervisor: 'สายตรวจ', assistant_supervisor: 'ผู้ช่วยสายตรวจ', trainer: 'ครูฝึก', spare: 'ตัวสแปร์', admin: 'แอดมิน', owner: 'เจ้าของ', client: 'ลูกค้า' }
 
 export default function Home() {
   const user = getUser()
