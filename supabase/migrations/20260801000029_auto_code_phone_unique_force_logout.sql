@@ -284,5 +284,16 @@ begin
 end $$;
 grant execute on function check_request() to anon, authenticated;
 
+-- ── 4. คำว่า "ยาม" → "รปภ." ในข้อความที่ฟังก์ชันส่งกลับให้ผู้ใช้ (เช่น ผลตรวจนำเข้า Excel) ──
+do $$
+declare r record; d text;
+begin
+  for r in select p.oid from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+           where n.nspname = 'public' and p.prokind = 'f' and p.prosrc like '%ยาม%' loop
+    d := pg_get_functiondef(r.oid);
+    execute replace(d, 'ยาม', 'รปภ.');
+  end loop;
+end $$;
+
 alter role authenticator set pgrst.db_pre_request = 'public.check_request';
 notify pgrst, 'reload config';
