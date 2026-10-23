@@ -78,8 +78,23 @@ async function authed(path, options = {}, retried = false) {
       ...(options.headers || {}),
     },
   })
-  if (res.status === 401 && !retried) { await initAuth(); return authed(path, options, true) }
+  if (res.status === 401) {
+    const b = await res.clone().json().catch(() => null)
+    if (b?.code === 'account_disabled') return kickOut()
+    if (!retried) {
+      const out = await initAuth()
+      if (out?.error === 'account_disabled') return kickOut()
+      return authed(path, options, true)
+    }
+  }
   return res
+}
+
+/** ผู้ใช้ถูกปิดใช้งาน → ทิ้ง token แล้วโหลดหน้าใหม่ (จะเจอหน้าจอ "บัญชีถูกปิดใช้งาน") */
+function kickOut() {
+  accessToken = ''; currentUser = null
+  window.location.reload()
+  return new Promise(() => {})
 }
 
 export async function list(pathWithQuery) {

@@ -2,6 +2,7 @@
 // ค้นหาขั้นสูง (ชื่อ · จังหวัด · โครงการ · สถานะ) ใช้กับตัวเลขสรุปและทุกตาราง · ทุกตารางกดหัวคอลัมน์เพื่อเรียง (ไทย ก–ฮ ก่อน A–Z)
 import { useEffect, useMemo, useState } from 'react'
 import { list, rpc, todayRangeBkk, fmtTime, errTh } from '../lib/api'
+import { canEdit, seeMoney } from '../lib/perm'
 import { useSort, byName, ResultLine } from '../lib/sortTable.jsx'
 import { STATUS_TH, STATUS_TONE, KIND_TH, flagList, th } from '../lib/labels'
 const STATUS_RANK = { overdue: 0, absent: 1, scheduled: 2, checked_in: 3, checked_out: 4 }
@@ -180,14 +181,14 @@ export default function Dashboard() {
           <div className="section-h"><h2>ลืมเช็คเอาต์ (เกิน 1 ชม. หลังจบกะ) · {stuckF.length}</h2></div>
           <div className="table-wrap">
             <table className="grid">
-              <thead><tr>{stuckSort.th('who', 'พนักงาน')}{stuckSort.th('prop', 'โครงการ')}{stuckSort.th('time', 'กะ')}<th></th></tr></thead>
+              <thead><tr>{stuckSort.th('who', 'พนักงาน')}{stuckSort.th('prop', 'โครงการ')}{stuckSort.th('time', 'กะ')}{canEdit() && <th></th>}</tr></thead>
               <tbody>
                 {stuckSort.sorted.map((x) => (
                   <tr key={x.id}>
                     <td>{x.users?.full_name} <span className="muted">({x.users?.employee_code})</span></td>
                     <td>{x.properties?.name}{x.kind !== 'scheduled' ? <span className="badge" style={{ marginLeft: 6 }}>{KIND[x.kind]}</span> : null}</td>
                     <td>{new Date(x.starts_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', timeZone: 'Asia/Bangkok' })} {fmtTime(x.starts_at)}–{fmtTime(x.ends_at)}</td>
-                    <td className="row-act"><button className="badge solid" style={{ border: 'none' }} onClick={() => closeShift(x)}>ปิดกะ</button></td>
+                    {canEdit() && <td className="row-act"><button className="badge solid" style={{ border: 'none' }} onClick={() => closeShift(x)}>ปิดกะ</button></td>}
                   </tr>
                 ))}
               </tbody>

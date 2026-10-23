@@ -109,13 +109,21 @@ async function recipientsFor(n: Record<string, any>): Promise<string[]> {
       const uids = (pm || []).map((r) => r.user_id);
       sup = uids.length
         ? (await admin.from("users").select("line_user_id").in("id", uids)
-          .in("role", ["supervisor", "assistant_supervisor"]).eq("is_active", true).not("line_user_id", "is", null)).data
+          .in("role", ["zone_manager", "supervisor", "assistant_supervisor", "trainer"]).eq("is_active", true).not("line_user_id", "is", null)).data
         : [];
     } else {
       sup = (await admin.from("users").select("line_user_id").eq("tenant_id", n.tenant_id)
-        .in("role", ["supervisor", "assistant_supervisor"]).eq("is_active", true).not("line_user_id", "is", null)).data;
+        .in("role", ["zone_manager", "supervisor", "assistant_supervisor", "trainer"]).eq("is_active", true).not("line_user_id", "is", null)).data;
     }
     for (const u of sup || []) out.push(u.line_user_id as string);
+    // ผจก.โซนที่ไม่ได้ผูกโครงการ = ดูแลทุกโครงการ → ได้แจ้งเตือน SOS ทุกโครงการ
+    const { data: zms } = await admin.from("users").select("id, line_user_id")
+      .eq("tenant_id", n.tenant_id).eq("role", "zone_manager").eq("is_active", true).not("line_user_id", "is", null);
+    if (zms?.length) {
+      const { data: zpm } = await admin.from("property_managers").select("user_id").in("user_id", zms.map((z) => z.id));
+      const assigned = new Set((zpm || []).map((r) => r.user_id));
+      for (const z of zms) if (!assigned.has(z.id)) out.push(z.line_user_id as string);
+    }
   }
   return [...new Set(out)];
 }

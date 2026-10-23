@@ -8,15 +8,16 @@ import { useSort, byName, ResultLine } from '../lib/sortTable.jsx'
 const ROLES = [
   ['guard', 'รปภ.', 'เข้า-ออกงานตามกะ และเข้างานฉุกเฉินได้ในโครงการที่มีชื่อ (ไม่เกิน 5 โครงการ) · ไม่เข้าหลังบ้าน'],
   ['shift_leader', 'หัวหน้ากะ', 'เหมือนรปภ. และเข้าหลังบ้านได้เฉพาะโครงการที่ผูกไว้ (ไม่เกิน 10)'],
-  ['trainer', 'ครูฝึก', 'เช็คอิน/เอาต์ได้ทุกโครงการที่ผูกไว้แม้ไม่มีกะ (ไม่เกิน 10) · ไม่เข้าหลังบ้าน'],
+  ['trainer', 'ครูฝึก', 'ซัพพอร์ตผู้จัดการโซนเมื่อลาหรือติดงาน · เช็คอิน/เอาต์ได้ทุกโครงการที่ผูกไว้แม้ไม่มีกะ (ไม่เกิน 10) · ดูแผนที่กำลังพลใน LINE ได้เฉพาะโครงการที่ผูก · ไม่เข้า Horguard Force'],
   ['assistant_supervisor', 'ผู้ช่วยสายตรวจ', 'เช็คอิน/เอาต์ได้ทุกโครงการที่ผูกไว้แม้ไม่มีกะ (ไม่เกิน 10) · ไม่เข้าหลังบ้าน'],
   ['spare', 'ตัวสแปร์', 'เช็คอิน/เอาต์ได้ทุกโครงการที่ผูกไว้แม้ไม่มีกะ (ไม่เกิน 10) · ไม่เข้าหลังบ้าน'],
-  ['supervisor', 'สายตรวจ/ผจก.โซน', 'เช็คอิน/เอาต์ได้ทุกโครงการที่ผูกไว้แม้ไม่มีกะ (ไม่เกิน 10) · เข้าหลังบ้านเห็นเฉพาะโครงการที่ผูกไว้'],
+  ['supervisor', 'สายตรวจ', 'เช็คอิน/เอาต์ได้ทุกโครงการที่ผูกไว้แม้ไม่มีกะ (ไม่เกิน 10) · ใช้งานผ่าน LINE อย่างเดียว ไม่เข้า Horguard Force'],
+  ['zone_manager', 'ผู้จัดการโซน', 'ดูแลโครงการในโซนที่ได้รับมอบหมายไม่ให้ รปภ.ขาดจุด · ออกคำสั่งและวางแผนให้ผู้ช่วยสายตรวจและตัวสแปร์ · รองจากเจ้าของ · เข้า Horguard Force ดูได้อย่างเดียว (ภาพรวม แผนที่ ตารางกะ จุดตรวจ รายงาน) ไม่เห็นค่าแรง/เงิน · ผูกได้ไม่เกิน 50 โครงการ ถ้าไม่ผูกเลยเห็นทุกโครงการ · ดูแผนที่กำลังพลใน LINE ได้'],
   ['admin', 'ธุรการ/แอดมิน', 'จัดการได้ทุกโครงการของ Tenant นี้'],
   ['owner', 'เจ้าของ', 'สิทธิ์สูงสุดของ Tenant นี้ เห็นและจัดการทุกโครงการ'],
   ['client', 'ลูกค้า', 'เข้าหลังบ้านได้เฉพาะเมนู "แดชบอร์ดลูกค้า" ของโครงการที่ผูกไว้'],
 ]
-const LIMIT = { guard: 5, shift_leader: 10, trainer: 10, assistant_supervisor: 10, spare: 10, supervisor: 10, client: 10 }
+const LIMIT = { zone_manager: 50, guard: 5, shift_leader: 10, trainer: 10, assistant_supervisor: 10, spare: 10, supervisor: 10, client: 10 }
 const SCOPED = Object.keys(LIMIT)
 const DAY_SHORT = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส']
 const DAYS = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัส', 'ศุกร์', 'เสาร์']
@@ -28,12 +29,13 @@ const ERR = {
   cannot_change_own_role: 'เปลี่ยนบทบาทของตัวเองไม่ได้',
   last_owner: 'Tenant ต้องมีเจ้าของอย่างน้อย 1 คน',
   duplicate_employee_code: 'รหัสพนักงานนี้มีอยู่แล้วใน Tenant นี้',
+  phone_in_use: 'หมายเลขนี้มีการใช้งานเรียบร้อยแล้ว',
   property_not_in_vendor: 'โครงการที่เลือกไม่ใช่ของ Tenant นี้',
   invalid_role: 'บทบาทไม่ถูกต้อง',
   not_found: 'ไม่พบผู้ใช้',
   project_limit_exceeded: 'ผูกโครงการเกินจำนวนที่บทบาทนี้กำหนด',
 }
-const ROLE_ORDER = ['owner', 'admin', 'supervisor', 'assistant_supervisor', 'trainer', 'shift_leader', 'spare', 'guard', 'client']
+const ROLE_ORDER = ['owner', 'zone_manager', 'admin', 'supervisor', 'assistant_supervisor', 'trainer', 'shift_leader', 'spare', 'guard', 'client']
 const roleRank = (r) => { const i = ROLE_ORDER.indexOf(r); return i < 0 ? 99 : i }
 const roleLabel = (r) => (ROLES.find(([v]) => v === r) || [r, r])[1]
 const EMPTY = { id: null, tenant_id: '', employee_code: '', full_name: '', phone: '', role: 'guard', daily_wage: '', days_off: [], property_ids: [], platform_admin: false }
@@ -102,14 +104,14 @@ export default function People({ isPlatform = false, vendors = [] }) {
       setMsg({
         t: 'ok',
         m: form.id ? `บันทึก ${form.full_name} แล้ว`
-          : `เพิ่ม ${form.full_name}${otherVendor ? ` ใน ${vName}` : ''} แล้ว — ให้ผู้ใช้เพิ่มเพื่อน OA แล้วลงทะเบียนด้วยรหัส ${form.employee_code} + เบอร์โทร${otherVendor ? ' (สลับ Tenant ด้านบนเพื่อดูในรายชื่อ)' : ''}`,
+          : `เพิ่ม ${form.full_name}${otherVendor ? ` ใน ${vName}` : ''} แล้ว — ให้ผู้ใช้เพิ่มเพื่อน OA แล้วลงทะเบียนด้วยรหัส ${out.employee_code} + เบอร์โทร${otherVendor ? ' (สลับ Tenant ด้านบนเพื่อดูในรายชื่อ)' : ''}`,
       })
       setForm(null); load()
     } catch (e2) { setMsg({ t: 'err', m: errTh(e2) }) } finally { setBusy(false) }
   }
 
   async function disableUser(u) {
-    if (!window.confirm(`ปิดใช้งาน "${u.full_name}"?`)) return
+    if (!window.confirm(`ปิดใช้งาน "${u.full_name}"?\n\nผู้ใช้นี้จะถูกออกจากระบบทุกอุปกรณ์ทันที และเข้าใช้งานไม่ได้อีกจนกว่าจะเปิดใช้ใหม่`)) return
     try { const o = await rpc('set_user_active', { p_id: u.id, p_active: false }); if (!o.ok) throw new Error(ERR[o.error] || errTh(o.error)); load() }
     catch (e) { setMsg({ t: 'err', m: errTh(e) }) }
   }
@@ -182,9 +184,13 @@ export default function People({ isPlatform = false, vendors = [] }) {
                 </select>
               ) : <input value={vendors.find((v) => v.id === form.tenant_id)?.name || 'บริษัทปัจจุบัน'} disabled />}
             </div>
-            <div className="field"><label>รหัสพนักงาน *</label><input value={form.employee_code} onChange={set('employee_code')} placeholder="SG-001" required /></div>
+            <div className="field"><label>รหัสพนักงาน</label>
+              {form.id && isPlatform
+                ? <input value={form.employee_code} onChange={set('employee_code')} />
+                : <input value={form.id ? form.employee_code : 'สร้างอัตโนมัติเมื่อบันทึก'} disabled />}
+            </div>
             <div className="field"><label>ชื่อ-สกุล *</label><input value={form.full_name} onChange={set('full_name')} required /></div>
-            <div className="field"><label>เบอร์โทร</label><input value={form.phone} onChange={set('phone')} inputMode="tel" /></div>
+            <div className="field"><label>เบอร์โทร *</label><input value={form.phone} onChange={set('phone')} inputMode="tel" placeholder="08x-xxx-xxxx" required title="ใช้ลงทะเบียน LINE · ห้ามซ้ำกับผู้ใช้ที่ยังใช้งานอยู่ในระบบ" /></div>
             <div className="field"><label>ค่าแรง/วัน (บาท)</label><input value={form.daily_wage} onChange={set('daily_wage')} inputMode="numeric" /></div>
             <div className="form-sep">บทบาทและสิทธิ์</div>
             <div className="field wide"><label>บทบาท *</label>

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import QRCode from 'qrcode'
 import { list, rpc, fmtDate, errTh } from '../lib/api'
+import { canEdit, seeMoney } from '../lib/perm'
 import { useSort, byName, ResultLine } from '../lib/sortTable.jsx'
 
 const LIFF_ID = import.meta.env.VITE_PATROL_LIFF_ID || '2010926067-2cuN81fZ'
@@ -111,7 +112,7 @@ export default function Checkpoints() {
     <div>
       <div className="section-h">
         <h2>จุดตรวจทั้งหมด {rows ? `(${rows.length})` : ''}</h2>
-        {!open && <button className="btn inline" onClick={() => { setOpen(true); setMsg(null) }}>+ เพิ่มจุดตรวจ</button>}
+        {canEdit() && !open && <button className="btn inline" onClick={() => { setOpen(true); setMsg(null) }}>+ เพิ่มจุดตรวจ</button>}
       </div>
       {open && (
         <form className="card sh-form" onSubmit={create} style={{ marginBottom: 16 }}>
@@ -186,7 +187,7 @@ export default function Checkpoints() {
                       <td>{fmtDate(c.created_at)}</td>
                       <td className="row-act">
                         <button className="badge solid" style={{ border: 'none' }} onClick={() => showQr(c)}>QR</button>
-                        <button className="badge" onClick={() => toggle(c)}>{c.is_active ? 'ปิดใช้' : 'เปิดใช้'}</button>
+                        {canEdit() && <button className="badge" onClick={() => toggle(c)}>{c.is_active ? 'ปิดใช้' : 'เปิดใช้'}</button>}
                       </td>
                     </tr>
                   ))}

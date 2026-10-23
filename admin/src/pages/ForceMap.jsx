@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { list, rpc, callFn, signedUrl, fmtTime, fmtDate, errTh } from '../lib/api'
+import { canEdit } from '../lib/perm'
 import { ROLE_TH, KIND_TH, INCIDENT_TH, INCIDENT_TONE, th } from '../lib/labels'
 
 const km = (m) => (m == null ? '—' : m < 1000 ? `${Math.round(m)} ม.` : `${(m / 1000).toFixed(m < 10000 ? 1 : 0)} กม.`)
@@ -150,8 +151,8 @@ export default function ForceMap() {
                   {i.lat != null && <a className="badge" href={`https://maps.google.com/?q=${i.lat},${i.lng}`} target="_blank" rel="noreferrer">แผนที่</a>}
                   {i.photo_url && <button className="badge" onClick={() => openFile(i.photo_url)}>รูป</button>}
                   {i.audio_url && <button className="badge" onClick={() => openFile(i.audio_url)}>เสียง</button>}
-                  {i.status === 'open' && <button className="btn inline ghost sm" disabled={busy === i.id} onClick={() => setStatus(i, 'ack')}>รับเรื่อง</button>}
-                  <button className="btn inline ghost sm" disabled={busy === i.id} onClick={() => setStatus(i, 'closed')}>ปิดเรื่อง</button>
+                  {canEdit() && i.status === 'open' && <button className="btn inline ghost sm" disabled={busy === i.id} onClick={() => setStatus(i, 'ack')}>รับเรื่อง</button>}
+                  {canEdit() && <button className="btn inline ghost sm" disabled={busy === i.id} onClick={() => setStatus(i, 'closed')}>ปิดเรื่อง</button>}
                 </div>
               </div>
             ))}
@@ -204,8 +205,8 @@ export default function ForceMap() {
               </div>
 
               <div className="fm-block">
-                <div className="fm-h">ส่งคนไปแทน (ว่าง · ใกล้ที่สุดก่อน)</div>
-                <input className="fm-note" value={note} onChange={(e) => setNote(e.target.value)} maxLength={200} placeholder="หมายเหตุถึงคนที่ส่งไป (ไม่บังคับ) เช่น ไปแทนจุดประตู 2" />
+                <div className="fm-h">{canEdit() ? 'ส่งคนไปแทน (ว่าง · ใกล้ที่สุดก่อน)' : 'คนที่ว่าง · ใกล้ที่สุดก่อน'}</div>
+                {canEdit() && <input className="fm-note" value={note} onChange={(e) => setNote(e.target.value)} maxLength={200} placeholder="หมายเหตุถึงคนที่ส่งไป (ไม่บังคับ) เช่น ไปแทนจุดประตู 2" />}
                 {cands === null && <p className="muted">กำลังหา…</p>}
                 {cands?.length === 0 && <p className="muted">ไม่มีคนว่างที่ผูกกับโครงการนี้ — เพิ่มโครงการให้ตัวสแปร์ในหน้า "ผู้ใช้และสิทธิ์"</p>}
                 {cands?.map((c, idx) => (
@@ -214,7 +215,7 @@ export default function ForceMap() {
                       <b>{c.full_name}</b>{idx === 0 && <span className="badge duty" style={{ marginLeft: 6 }}>แนะนำ</span>}
                       <small>{th(ROLE_TH, c.role)} · {km(c.distance_m)}{c.location_source === 'last_seen' ? ' (ตำแหน่งล่าสุด)' : c.location_source === 'home_project' ? ' (จากโครงการที่ประจำ)' : ''}{!c.has_line ? ' · ยังไม่ผูก LINE' : ''}</small>
                     </span>
-                    <button className="btn inline sm" disabled={!!busy || !c.has_line} onClick={() => dispatch(c)}>{busy === c.user_id ? 'กำลังส่ง…' : 'ส่งไป'}</button>
+                    {canEdit() && <button className="btn inline sm" disabled={!!busy || !c.has_line} onClick={() => dispatch(c)}>{busy === c.user_id ? 'กำลังส่ง…' : 'ส่งไป'}</button>}
                   </div>
                 ))}
               </div>

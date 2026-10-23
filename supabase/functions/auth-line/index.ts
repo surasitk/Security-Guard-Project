@@ -111,14 +111,16 @@ Deno.serve(async (req) => {
       }
 
       const { data: existing } = await admin
-        .from("users").select("id").eq("line_user_id", lineUserId).maybeSingle();
-      if (existing) return json({ ok: false, error: "line_already_bound" }, 409);
+        .from("users").select("id, is_active").eq("line_user_id", lineUserId).maybeSingle();
+      if (existing?.is_active) return json({ ok: false, error: "line_already_bound" }, 409);
+      // LINE นี้เคยผูกกับบัญชีที่ถูกปิดใช้แล้ว (เช่น ลาออกแล้วกลับมาใหม่) → ปลดออกก่อน ผูกบัญชีใหม่ได้
+      if (existing) await admin.from("users").update({ line_user_id: null }).eq("id", existing.id);
 
       const { data: candidate } = await admin
         .from("users")
         .select("*")
-        .eq("employee_code", employee_code.trim())
-        .eq("phone", phone.trim())
+        .eq("employee_code", employee_code.trim().toUpperCase())
+        .eq("phone", String(phone).replace(/\D/g, "").replace(/^66(\d{9})$/, "0$1"))
         .is("line_user_id", null)
         .eq("is_active", true)
         .maybeSingle();
@@ -153,9 +155,10 @@ Deno.serve(async (req) => {
       .from("users")
       .select("*")
       .eq("line_user_id", lineUserId)
-      .eq("is_active", true)
       .maybeSingle();
     if (!user) return json({ ok: false, error: "not_registered" }, 404);
+    // ถูกปิดใช้งาน → แจ้งชัดเจน (ไม่ให้ไปหน้าลงทะเบียนใหม่)
+    if (!user.is_active) return json({ ok: false, error: "account_disabled" }, 403);
 
     const { data: pa } = await admin
       .from("platform_admins").select("user_id").eq("user_id", user.id).maybeSingle();
