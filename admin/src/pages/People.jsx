@@ -28,6 +28,7 @@ const ERR = {
   cannot_change_own_role: 'เปลี่ยนบทบาทของตัวเองไม่ได้',
   last_owner: 'Tenant ต้องมีเจ้าของอย่างน้อย 1 คน',
   duplicate_employee_code: 'รหัสพนักงานนี้มีอยู่แล้วใน Tenant นี้',
+  phone_in_use: 'หมายเลขนี้มีการใช้งานเรียบร้อยแล้ว',
   property_not_in_vendor: 'โครงการที่เลือกไม่ใช่ของ Tenant นี้',
   invalid_role: 'บทบาทไม่ถูกต้อง',
   not_found: 'ไม่พบผู้ใช้',
@@ -102,14 +103,14 @@ export default function People({ isPlatform = false, vendors = [] }) {
       setMsg({
         t: 'ok',
         m: form.id ? `บันทึก ${form.full_name} แล้ว`
-          : `เพิ่ม ${form.full_name}${otherVendor ? ` ใน ${vName}` : ''} แล้ว — ให้ผู้ใช้เพิ่มเพื่อน OA แล้วลงทะเบียนด้วยรหัส ${form.employee_code} + เบอร์โทร${otherVendor ? ' (สลับ Tenant ด้านบนเพื่อดูในรายชื่อ)' : ''}`,
+          : `เพิ่ม ${form.full_name}${otherVendor ? ` ใน ${vName}` : ''} แล้ว — ให้ผู้ใช้เพิ่มเพื่อน OA แล้วลงทะเบียนด้วยรหัส ${out.employee_code} + เบอร์โทร${otherVendor ? ' (สลับ Tenant ด้านบนเพื่อดูในรายชื่อ)' : ''}`,
       })
       setForm(null); load()
     } catch (e2) { setMsg({ t: 'err', m: errTh(e2) }) } finally { setBusy(false) }
   }
 
   async function disableUser(u) {
-    if (!window.confirm(`ปิดใช้งาน "${u.full_name}"?`)) return
+    if (!window.confirm(`ปิดใช้งาน "${u.full_name}"?\n\nผู้ใช้นี้จะถูกออกจากระบบทุกอุปกรณ์ทันที และเข้าใช้งานไม่ได้อีกจนกว่าจะเปิดใช้ใหม่`)) return
     try { const o = await rpc('set_user_active', { p_id: u.id, p_active: false }); if (!o.ok) throw new Error(ERR[o.error] || errTh(o.error)); load() }
     catch (e) { setMsg({ t: 'err', m: errTh(e) }) }
   }
@@ -182,9 +183,13 @@ export default function People({ isPlatform = false, vendors = [] }) {
                 </select>
               ) : <input value={vendors.find((v) => v.id === form.tenant_id)?.name || 'บริษัทปัจจุบัน'} disabled />}
             </div>
-            <div className="field"><label>รหัสพนักงาน *</label><input value={form.employee_code} onChange={set('employee_code')} placeholder="SG-001" required /></div>
+            <div className="field"><label>รหัสพนักงาน</label>
+              {form.id && isPlatform
+                ? <input value={form.employee_code} onChange={set('employee_code')} />
+                : <input value={form.id ? form.employee_code : 'สร้างอัตโนมัติเมื่อบันทึก'} disabled />}
+            </div>
             <div className="field"><label>ชื่อ-สกุล *</label><input value={form.full_name} onChange={set('full_name')} required /></div>
-            <div className="field"><label>เบอร์โทร</label><input value={form.phone} onChange={set('phone')} inputMode="tel" /></div>
+            <div className="field"><label>เบอร์โทร *</label><input value={form.phone} onChange={set('phone')} inputMode="tel" placeholder="08x-xxx-xxxx" required title="ใช้ลงทะเบียน LINE · ห้ามซ้ำกับผู้ใช้ที่ยังใช้งานอยู่ในระบบ" /></div>
             <div className="field"><label>ค่าแรง/วัน (บาท)</label><input value={form.daily_wage} onChange={set('daily_wage')} inputMode="numeric" /></div>
             <div className="form-sep">บทบาทและสิทธิ์</div>
             <div className="field wide"><label>บทบาท *</label>

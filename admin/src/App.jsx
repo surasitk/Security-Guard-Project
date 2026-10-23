@@ -62,6 +62,7 @@ export default function App() {
         const out = await initAuth()
         if (!out) return // กำลัง redirect ไป LINE Login
         if (out.error === 'not_registered') { setState('unregistered'); return }
+        if (out.error === 'account_disabled') { setState('disabled'); return }
         if (out.error) { setErr(errTh(out.error)); setState('error'); return }
         if (!['owner', 'admin', 'supervisor', 'shift_leader', 'client'].includes(out.user.role)) { setState('forbidden'); return }
         setState('ready')
@@ -73,6 +74,7 @@ export default function App() {
 
   if (state === 'loading') return <Center msg="กำลังเชื่อมต่อ…" />
   if (state === 'unregistered') return <Center msg="บัญชี LINE นี้ยังไม่ได้ลงทะเบียนในระบบ — ให้ผู้ดูแลเพิ่มคุณเป็นพนักงานก่อน แล้วลงทะเบียนผ่านแอปใน LINE" />
+  if (state === 'disabled') return <Center msg="บัญชีนี้ถูกปิดใช้งานแล้ว และออกจากระบบทุกอุปกรณ์ — ติดต่อแอดมินของบริษัทหากต้องการใช้งานอีกครั้ง" />
   if (state === 'forbidden') return <Center msg="บัญชีของคุณไม่มีสิทธิ์เข้าหลังบ้าน (ต้องเป็นเจ้าของ แอดมิน สายตรวจ หัวหน้ากะ หรือลูกค้า)" />
   if (state === 'error') return <Center msg={`เชื่อมต่อไม่สำเร็จ — ${err}`} />
 

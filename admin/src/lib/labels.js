@@ -33,7 +33,7 @@ export const INCIDENT_TONE = { open: 'alert', ack: 'warn', closed: 'duty' }
 export const ACTION_TH = {
   generate_assignments: 'จ่ายกะ', import_shifts: 'นำเข้ากะจาก Excel',
   create_user: 'เพิ่มผู้ใช้', update_user: 'แก้ไขผู้ใช้', set_user_active: 'เปิด/ปิดใช้ผู้ใช้',
-  line_account_bound: 'ผูกบัญชี LINE', create_vendor: 'สร้างบริษัท', update_vendor: 'แก้ไขบริษัท',
+  line_account_bound: 'ผูกบัญชี LINE', create_vendor: 'สร้าง Tenant', update_vendor: 'แก้ไข Tenant',
   admin_close_assignment: 'ปิดกะแทน (ลืมเช็คเอาต์)', create_checkpoint: 'สร้างจุดตรวจ', set_checkpoint_active: 'เปิด/ปิดจุดตรวจ',
   save_property: 'บันทึกโครงการ', set_property_active: 'เปิด/ปิดโครงการ', set_shift_mode: 'เปลี่ยนรูปแบบกะของโครงการ',
   dispatch: 'สั่งส่งคนไปโครงการ', send_broadcast: 'ส่งประกาศกลุ่ม',

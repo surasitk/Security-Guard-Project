@@ -65,7 +65,16 @@ export async function silentLogin() {
     forceRelogin()
     return new Promise(() => {}) // กำลัง redirect — ค้างสถานะโหลดไว้
   }
-  throw new Error(errTh(out.error || 'auth_failed'))
+  const err = new Error(errTh(out.error || 'auth_failed'))
+  err.code = out.error
+  throw err
+}
+
+/** ผู้ใช้ถูกปิดใช้งาน → ทิ้ง token แล้วโหลดใหม่ (หน้าแรกจะแสดง "บัญชีถูกปิดใช้งาน") */
+function kickOut() {
+  accessToken = null; currentUser = null
+  window.location.reload()
+  return new Promise(() => {})
 }
 
 export async function register(employeeCode, phone, consentVersion) {
@@ -89,9 +98,13 @@ async function authedFetch(path, options = {}, retried = false) {
       ...(options.headers || {}),
     },
   })
-  if (res.status === 401 && !retried) {
-    await silentLogin()
-    return authedFetch(path, options, true)
+  if (res.status === 401) {
+    const b = await res.clone().json().catch(() => null)
+    if (b?.code === 'account_disabled') return kickOut()
+    if (!retried) {
+      try { await silentLogin() } catch (e) { if (e.code === 'account_disabled') return kickOut(); throw e }
+      return authedFetch(path, options, true)
+    }
   }
   return res
 }
