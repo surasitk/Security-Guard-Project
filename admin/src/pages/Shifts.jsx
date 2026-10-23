@@ -2,12 +2,13 @@
 // · เรียงโครงการ ก–ฮ แล้ว A–Z · ในโครงการเรียงกะตามเวลาเข้า เช้า → ดึก (กลางวันก่อนกลางคืน)
 // · ค้นหาขั้นสูง: ข้อความ · จังหวัด · รูปแบบกะ · ช่วงกะ · เวลาเข้า (แม่แบบ) / พนักงาน · วันที่ · สถานะ (กะที่กำลังจะถึง)
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { list, insert, update, rpc, tenantId, fmtTime, fmtDate, getUser } from '../lib/api'
+import { list, insert, update, rpc, tenantId, fmtTime, fmtDate, getUser, errTh } from '../lib/api'
 import { buildTemplateFile, readWorkbook, toPayload, TPL_COLS, ASG_COLS } from '../lib/shiftImport'
+import { STATUS_TH as STATUS_ALL, th } from '../lib/labels'
 
 const DOW = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส']
 const ROLE_TH = { guard: 'รปภ.', shift_leader: 'หัวหน้ากะ', spare: 'ตัวสแปร์', trainer: 'ครูฝึก', supervisor: 'สายตรวจ', assistant_supervisor: 'ผู้ช่วยสายตรวจ' }
-const STATUS_TH = { scheduled: 'รอถึงกะ', checked_in: 'กำลังปฏิบัติงาน', checked_out: 'เสร็จแล้ว', absent: 'ขาดงาน' }
+const STATUS_TH = { ...STATUS_ALL, scheduled: 'รอถึงกะ' }
 
 // ── เรียงลำดับ ──
 const isThai = (s) => /^[฀-๿]/.test(String(s || '').trim())
@@ -42,7 +43,7 @@ export default function Shifts() {
       setTemplates(t); setGuards(g.sort((a, b) => byName(a.full_name, b.full_name)))
       setProperties(p.sort((a, b) => byName(a.name, b.name))); setUpcoming(u)
       setPeople(all.sort((a, b) => byName(a.full_name, b.full_name)))
-    } catch (e) { setMsg({ t: 'err', m: String(e.message) }) }
+    } catch (e) { setMsg({ t: 'err', m: errTh(e) }) }
   }
   useEffect(() => { load() }, [])
 
@@ -138,7 +139,7 @@ function TemplatesTab({ templates, properties, reload, setMsg }) {
         }
         setMsg({ t: failed ? 'err' : 'ok', m: `บันทึกแม่แบบ "${tForm.name}" แล้ว${moved ? ` · ปรับเวลากะที่จ่ายไว้ ${moved} กะ` : ''}${failed ? ` · ปรับไม่สำเร็จ ${failed} กะ (ชนกับกะอื่นของคนเดิม)` : ''}` })
         close(); reload()
-      } catch (e2) { setMsg({ t: 'err', m: String(e2.message) }) }
+      } catch (e2) { setMsg({ t: 'err', m: errTh(e2) }) }
       return
     }
     const dup = templates.find((t) => t.property_id === tForm.property_id && t.name.trim() === tForm.name.trim())
@@ -146,12 +147,12 @@ function TemplatesTab({ templates, properties, reload, setMsg }) {
     try {
       await insert('shift_templates', { tenant_id: tenantId(), property_id: tForm.property_id, name: tForm.name.trim(), start_time: tForm.start, end_time: tForm.end, crosses_midnight: tForm.cross, days_of_week: tForm.days, headcount: Number(tForm.headcount) || 1 })
       setMsg({ t: 'ok', m: `สร้างแม่แบบ "${tForm.name}" แล้ว` }); close(); reload()
-    } catch (e2) { setMsg({ t: 'err', m: String(e2.message) }) }
+    } catch (e2) { setMsg({ t: 'err', m: errTh(e2) }) }
   }
 
   async function deactivate(t) {
     if (!window.confirm(`ปิดใช้แม่แบบ "${t.name}" ของ ${t.properties?.name}? (กะที่สร้างไปแล้วไม่หาย)`)) return
-    try { await update('shift_templates', `id=eq.${t.id}`, { is_active: false }); reload() } catch (e) { setMsg({ t: 'err', m: String(e.message) }) }
+    try { await update('shift_templates', `id=eq.${t.id}`, { is_active: false }); reload() } catch (e) { setMsg({ t: 'err', m: errTh(e) }) }
   }
 
   const active = Object.values(f).some(Boolean)
@@ -263,9 +264,9 @@ function AssignTab({ templates, guards, reload, setMsg }) {
     e.preventDefault(); setMsg(null)
     try {
       const out = await rpc('generate_assignments', { p_template_id: g.template_id, p_user_id: g.user_id, p_date_from: g.from, p_date_to: g.to })
-      setMsg(out.ok ? { t: 'ok', m: `สร้างกะแล้ว ${out.created} กะ${out.skipped_overlap ? ` (ข้าม ${out.skipped_overlap} กะที่ซ้อน)` : ''}` } : { t: 'err', m: out.error })
+      setMsg(out.ok ? { t: 'ok', m: `สร้างกะแล้ว ${out.created} กะ${out.skipped_overlap ? ` (ข้าม ${out.skipped_overlap} กะที่ซ้อน)` : ''}` } : { t: 'err', m: errTh(out.error) })
       reload()
-    } catch (e2) { setMsg({ t: 'err', m: String(e2.message) }) }
+    } catch (e2) { setMsg({ t: 'err', m: errTh(e2) }) }
   }
   return (
     <form className="card" onSubmit={submit}>
@@ -328,7 +329,7 @@ function UpcomingTab({ upcoming, guards, reload, setMsg }) {
     if (!window.confirm(`ยกเลิก ${ids.length} กะที่เลือก? (กะจะหายจากตารางและแอปยาม แต่ยังเก็บประวัติไว้)`)) return
     setBusy(true); setMsg(null)
     try { await update('shift_assignments', `id=in.(${ids.join(',')})&status=eq.scheduled`, { status: 'cancelled' }); setMsg({ t: 'ok', m: `ยกเลิกแล้ว ${ids.length} กะ` }); setSel(new Set()); reload() }
-    catch (e) { setMsg({ t: 'err', m: String(e.message) }) } finally { setBusy(false) }
+    catch (e) { setMsg({ t: 'err', m: errTh(e) }) } finally { setBusy(false) }
   }
   async function swapSelected() {
     const ids = [...sel]; const who = guards.find((x) => x.id === swapTo)
@@ -387,7 +388,7 @@ function UpcomingTab({ upcoming, guards, reload, setMsg }) {
                   <td>{isNight(bkkHM(s.starts_at)) ? <span className="badge sh-night">กลางคืน</span> : <span className="badge sh-day">กลางวัน</span>}</td>
                   <td>{s.properties?.name}</td>
                   <td>{s.users?.full_name} <span className="muted">{s.users?.employee_code}</span></td>
-                  <td><span className={`badge ${s.status === 'checked_in' ? 'duty' : ''}`}>{STATUS_TH[s.status] || s.status}</span></td>
+                  <td><span className={`badge ${s.status === 'checked_in' ? 'duty' : ''}`}>{th(STATUS_TH, s.status)}</span></td>
                 </tr>
               ))}
             </tbody>
@@ -416,23 +417,23 @@ function ImportTab({ templates, properties, people, reload, setMsg, onDone }) {
       const { default: ExcelJS } = await import('exceljs')
       const buf = await buildTemplateFile(ExcelJS, {
         properties: properties.filter((p) => !p.is_test), templates,
-        people: people.map((u) => ({ ...u, role_th: ROLE_TH[u.role] || u.role })),
+        people: people.map((u) => ({ ...u, role_th: th(ROLE_TH, u.role) })),
       })
       const a = document.createElement('a')
       a.href = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
       a.download = 'แบบฟอร์มนำเข้าตารางกะ.xlsx'
       document.body.appendChild(a); a.click(); a.remove()
       setTimeout(() => URL.revokeObjectURL(a.href), 2000)
-    } catch (e) { setMsg({ t: 'err', m: `สร้างแบบฟอร์มไม่สำเร็จ (${String(e.message || e)})` }) } finally { setBusy('') }
+    } catch (e) { setMsg({ t: 'err', m: `สร้างแบบฟอร์มไม่สำเร็จ (${errTh(e)})` }) } finally { setBusy('') }
   }
 
   async function validate(d) {
     setBusy('กำลังตรวจข้อมูลทุกแถว…')
     try {
       const out = await rpc('import_shifts', { p_data: toPayload(d), p_commit: false })
-      if (!out.ok) { setMsg({ t: 'err', m: out.error === 'forbidden' ? 'นำเข้าได้เฉพาะเจ้าของหรือแอดมินของบริษัท' : out.error }); return false }
+      if (!out.ok) { setMsg({ t: 'err', m: out.error === 'forbidden' ? 'นำเข้าได้เฉพาะเจ้าของหรือแอดมินของบริษัท' : errTh(out.error) }); return false }
       setResult(out); return true
-    } catch (e) { setMsg({ t: 'err', m: String(e.message) }); return false } finally { setBusy('') }
+    } catch (e) { setMsg({ t: 'err', m: errTh(e) }); return false } finally { setBusy('') }
   }
 
   async function onFile(e) {
@@ -445,7 +446,7 @@ function ImportTab({ templates, properties, people, reload, setMsg, onDone }) {
       if (!d.templates.length && !d.assignments.length) { setMsg({ t: 'err', m: 'ไฟล์ไม่มีข้อมูล — กรอกในชีต "แม่แบบกะ" หรือ "จ่ายกะ" แล้วอัปโหลดใหม่' }); setBusy(''); return }
       setData(d)
       if (await validate(d)) setView('summary')
-    } catch (e2) { setMsg({ t: 'err', m: String(e2.message || e2) }); setBusy('') }
+    } catch (e2) { setMsg({ t: 'err', m: errTh(e2) }); setBusy('') }
   }
 
   async function revalidate() { if (await validate(data)) setView('summary') }
@@ -454,11 +455,11 @@ function ImportTab({ templates, properties, people, reload, setMsg, onDone }) {
     setBusy('กำลังนำเข้า…')
     try {
       const out = await rpc('import_shifts', { p_data: toPayload(data), p_commit: true })
-      if (!out.ok) { setMsg({ t: 'err', m: out.error }); return }
+      if (!out.ok) { setMsg({ t: 'err', m: errTh(out.error) }); return }
       const s = out.summary
       setMsg({ t: 'ok', m: `นำเข้าเรียบร้อย · สร้างแม่แบบใหม่ ${s.templates_created} · สร้างกะ ${s.shifts_created} กะ${s.shifts_skipped ? ` · ข้ามกะที่ซ้อน ${s.shifts_skipped}` : ''}${s.rows_error ? ` · ข้ามแถวที่ผิด ${s.rows_error} แถว` : ''}` })
       reset(); reload(); onDone()
-    } catch (e) { setMsg({ t: 'err', m: String(e.message) }) } finally { setBusy('') }
+    } catch (e) { setMsg({ t: 'err', m: errTh(e) }) } finally { setBusy('') }
   }
 
   function reset() { setData(null); setResult(null); setView('idle'); setFileName('') }

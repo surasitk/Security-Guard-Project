@@ -6,11 +6,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { list, rpc, callFn, signedUrl, fmtTime, fmtDate } from '../lib/api'
+import { list, rpc, callFn, signedUrl, fmtTime, fmtDate, errTh } from '../lib/api'
+import { ROLE_TH, KIND_TH, INCIDENT_TH, INCIDENT_TONE, th } from '../lib/labels'
 
-const ROLE_TH = { spare: 'ตัวสแปร์', trainer: 'ครูฝึก', supervisor: 'สายตรวจ', assistant_supervisor: 'ผู้ช่วยสายตรวจ', shift_leader: 'หัวหน้ากะ', guard: 'รปภ.' }
-const KIND_TH = { scheduled: 'ตามกะ', adhoc: 'เช็คอินโครงการ', emergency: 'ฉุกเฉิน', open: 'ตามช่วงกะ' }
-const INC_TH = { open: 'รอรับเรื่อง', ack: 'รับเรื่องแล้ว', closed: 'ปิดแล้ว' }
 const km = (m) => (m == null ? '—' : m < 1000 ? `${Math.round(m)} ม.` : `${(m / 1000).toFixed(m < 10000 ? 1 : 0)} กม.`)
 const tone = (s) => (s.missing > 0 || s.open_sos > 0 ? 'alert' : s.on_duty > 0 ? 'duty' : 'idle')
 
@@ -39,7 +37,7 @@ export default function ForceMap() {
         list(`v_incidents?select=*&status=neq.closed&order=created_at.desc&limit=30${filter ? `&property_id=eq.${filter}` : ''}`).catch(() => []),
       ])
       setSites(s || []); setIncidents(inc || []); setStamp(new Date())
-    } catch (e) { setMsg({ t: 'err', m: String(e.message || e) }); setSites([]) }
+    } catch (e) { setMsg({ t: 'err', m: errTh(e) }); setSites([]) }
   }
   useEffect(() => {
     setSites(null); load()
@@ -98,15 +96,15 @@ export default function ForceMap() {
     setBusy(c.user_id); setMsg(null)
     try {
       const out = await rpc('dispatch_person', { p_property_id: sel, p_user_id: c.user_id, p_note: note || null })
-      if (!out.ok) { setMsg({ t: 'err', m: out.error === 'user_no_line' ? `${c.full_name} ยังไม่ได้ผูก LINE — โทรแจ้งแทน${c.phone ? ` (${c.phone})` : ''}` : `ส่งไม่สำเร็จ (${out.error})` }); return }
+      if (!out.ok) { setMsg({ t: 'err', m: out.error === 'user_no_line' ? `${c.full_name} ยังไม่ได้ผูก LINE — โทรแจ้งแทน${c.phone ? ` (${c.phone})` : ''}` : errTh(out.error) }); return }
       const r = await callFn('notify-line', { notification_id: out.notification_id }).catch(() => null)
-      setMsg(r?.ok ? { t: 'ok', m: `ส่งคำสั่งให้ ${c.full_name} ทาง LINE แล้ว` } : { t: 'err', m: `บันทึกคำสั่งแล้ว แต่ส่ง LINE ไม่สำเร็จ (${r?.error || 'network'})` })
+      setMsg(r?.ok ? { t: 'ok', m: `ส่งคำสั่งให้ ${c.full_name} ทาง LINE แล้ว` } : { t: 'err', m: `บันทึกคำสั่งแล้ว แต่ส่ง LINE ไม่สำเร็จ — ${errTh(r?.error || 'failed to fetch')}` })
     } finally { setBusy('') }
   }
 
   async function setStatus(i, status) {
     setBusy(i.id)
-    try { const out = await rpc('set_incident_status', { p_id: i.id, p_status: status }); if (!out.ok) setMsg({ t: 'err', m: out.error }); await load() } finally { setBusy('') }
+    try { const out = await rpc('set_incident_status', { p_id: i.id, p_status: status }); if (!out.ok) setMsg({ t: 'err', m: errTh(out.error) }); await load() } finally { setBusy('') }
   }
   async function openFile(path) { try { window.open(await signedUrl(path), '_blank') } catch { setMsg({ t: 'err', m: 'เปิดไฟล์ไม่สำเร็จ' }) } }
 
@@ -148,7 +146,7 @@ export default function ForceMap() {
                   {i.note && <div style={{ marginTop: 4 }}>{i.note}</div>}
                 </div>
                 <div className="fm-sos-act">
-                  <span className={`badge ${i.status === 'open' ? 'alert' : 'warn'}`}>{INC_TH[i.status]}</span>
+                  <span className={`badge ${INCIDENT_TONE[i.status] || ''}`}>{th(INCIDENT_TH, i.status)}</span>
                   {i.lat != null && <a className="badge" href={`https://maps.google.com/?q=${i.lat},${i.lng}`} target="_blank" rel="noreferrer">แผนที่</a>}
                   {i.photo_url && <button className="badge" onClick={() => openFile(i.photo_url)}>รูป</button>}
                   {i.audio_url && <button className="badge" onClick={() => openFile(i.audio_url)}>เสียง</button>}
@@ -199,7 +197,7 @@ export default function ForceMap() {
                 {site.people.length === 0 && <p className="muted">ยังไม่มีใครเช็กอิน</p>}
                 {site.people.map((p) => (
                   <div key={p.user_id} className="fm-person">
-                    <span><b>{p.name}</b><small>{ROLE_TH[p.role] || p.role} · {KIND_TH[p.kind] || p.kind}</small></span>
+                    <span><b>{p.name}</b><small>{th(ROLE_TH, p.role)} · {th(KIND_TH, p.kind)}</small></span>
                     <span className="muted">ตั้งแต่ {fmtTime(p.since)}</span>
                   </div>
                 ))}
@@ -214,7 +212,7 @@ export default function ForceMap() {
                   <div key={c.user_id} className="fm-person">
                     <span>
                       <b>{c.full_name}</b>{idx === 0 && <span className="badge duty" style={{ marginLeft: 6 }}>แนะนำ</span>}
-                      <small>{ROLE_TH[c.role] || c.role} · {km(c.distance_m)}{c.location_source === 'last_seen' ? ' (ตำแหน่งล่าสุด)' : c.location_source === 'home_project' ? ' (จากโครงการที่ประจำ)' : ''}{!c.has_line ? ' · ยังไม่ผูก LINE' : ''}</small>
+                      <small>{th(ROLE_TH, c.role)} · {km(c.distance_m)}{c.location_source === 'last_seen' ? ' (ตำแหน่งล่าสุด)' : c.location_source === 'home_project' ? ' (จากโครงการที่ประจำ)' : ''}{!c.has_line ? ' · ยังไม่ผูก LINE' : ''}</small>
                     </span>
                     <button className="btn inline sm" disabled={!!busy || !c.has_line} onClick={() => dispatch(c)}>{busy === c.user_id ? 'กำลังส่ง…' : 'ส่งไป'}</button>
                   </div>

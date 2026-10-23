@@ -10,7 +10,7 @@
 //   - Notice = "รับทราบ" ไม่ใช่ความยินยอม · consent แต่ละเรื่องเป็น checkbox แยก ไม่ติ๊กไว้ก่อน ปฏิเสธได้
 //   - บันทึกผ่าน RPC เท่านั้น เวลาจาก server
 import { useEffect, useState } from 'react'
-import { rpc } from '../lib/api'
+import { rpc, errTh } from '../lib/api'
 
 const fmt = (ts) => new Date(ts).toLocaleString('th-TH', {
   day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
@@ -75,9 +75,9 @@ export function PrivacyGate({ status, onDone }) {
       })
       onDone(out)
     } catch (e) {
-      setErr(String(e.message || e).includes('notice_outdated')
+      setErr(errTh(e) === errTh('notice_outdated')
         ? 'มีประกาศฉบับใหม่กว่า กรุณาปิดแล้วเปิดแอปใหม่'
-        : 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง')
+        : errTh(e, 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง'))
     } finally {
       setBusy(false)
     }

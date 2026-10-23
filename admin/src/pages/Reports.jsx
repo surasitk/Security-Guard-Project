@@ -2,7 +2,7 @@
 // แบบฟอร์ม: หัว "โครงการ …" · วันที่ · ชื่อ-สกุล · เวลาเข้างาน · เวลาออกงาน · สาย(นาที) · OT(นาที) · สรุปท้ายตาราง
 // ข้อมูลมาจาก RPC report_attendance (สิทธิ์ตัดสินที่ฐานข้อมูล: หัวหน้ากะ/สายตรวจเห็นเฉพาะโครงการที่ผูกไว้)
 import { useEffect, useMemo, useState } from 'react'
-import { list, rpc } from '../lib/api'
+import { list, rpc, errTh } from '../lib/api'
 
 const bkkDate = (d = new Date()) => new Date(d.getTime() + 7 * 3600 * 1000).toISOString().slice(0, 10)
 const firstOfMonth = () => `${bkkDate().slice(0, 8)}01`
@@ -76,7 +76,7 @@ export default function Reports() {
       setRows(await rpc('report_attendance', {
         p_from: f.from, p_to: f.to, p_property_id: f.property || null, p_user_id: f.user || null,
       }))
-    } catch (e2) { setMsg({ t: 'err', m: String(e2.message) }) } finally { setBusy(false) }
+    } catch (e2) { setMsg({ t: 'err', m: errTh(e2) }) } finally { setBusy(false) }
   }
 
   // แยกตามโครงการ (1 โครงการ = 1 ตาราง / 1 sheet)
@@ -167,7 +167,7 @@ export default function Reports() {
       a.download = `รายงานเข้างาน_${f.from}_${f.to}.xlsx`
       document.body.appendChild(a); a.click(); a.remove()
       setTimeout(() => URL.revokeObjectURL(a.href), 2000)
-    } catch (e2) { setMsg({ t: 'err', m: `Export ไม่สำเร็จ (${String(e2.message || e2)})` }) } finally { setBusy(false) }
+    } catch (e2) { setMsg({ t: 'err', m: `Export ไม่สำเร็จ (${errTh(e2)})` }) } finally { setBusy(false) }
   }
 
   return (

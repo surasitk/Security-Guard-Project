@@ -2,12 +2,12 @@
 // ผู้ใช้ประเภท "ลูกค้า" เห็นเฉพาะเมนูนี้ และเฉพาะโครงการของตน · ทีมงานเห็นทุกโครงการที่ดูแล (ใช้พรีวิวก่อนส่งให้ลูกค้า)
 // ข้อมูล: RPC client_projects() · client_dashboard(property, from, to)
 import { useEffect, useState } from 'react'
-import { rpc, fmtDate, fmtTime } from '../lib/api'
+import { rpc, fmtDate, fmtTime, errTh } from '../lib/api'
+import { INCIDENT_TH, INCIDENT_TONE, th } from '../lib/labels'
 
 const bkkDate = (d = new Date()) => new Date(d.getTime() + 7 * 3600 * 1000).toISOString().slice(0, 10)
 const daysAgo = (n) => bkkDate(new Date(Date.now() - n * 86400000))
 const pct = (a, b) => (b ? Math.round((a / b) * 100) : null)
-const INC_TH = { open: 'รอรับเรื่อง', ack: 'รับเรื่องแล้ว', closed: 'ปิดแล้ว' }
 const dd = (iso) => new Date(`${iso}T00:00:00+07:00`).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', timeZone: 'Asia/Bangkok' })
 
 export default function ClientDashboard() {
@@ -20,7 +20,7 @@ export default function ClientDashboard() {
     rpc('client_projects').then((r) => {
       setProjects(r || [])
       if (r?.length) setF((x) => ({ ...x, property: r[0].property_id }))
-    }).catch((e) => { setProjects([]); setErr(String(e.message || e)) })
+    }).catch((e) => { setProjects([]); setErr(errTh(e)) })
   }, [])
 
   useEffect(() => {
@@ -29,8 +29,8 @@ export default function ClientDashboard() {
     let live = true
     setData(null); setErr('')
     rpc('client_dashboard', { p_property_id: f.property, p_from: f.from, p_to: f.to })
-      .then((d) => { if (!live) return; if (d?.ok) setData(d); else setErr(d?.error === 'forbidden' ? 'ไม่มีสิทธิ์ดูโครงการนี้' : String(d?.error)) })
-      .catch((e) => live && setErr(String(e.message || e)))
+      .then((d) => { if (!live) return; if (d?.ok) setData(d); else setErr(d?.error === 'forbidden' ? 'ไม่มีสิทธิ์ดูโครงการนี้' : errTh(d?.error)) })
+      .catch((e) => live && setErr(errTh(e)))
     return () => { live = false }
   }, [f.property, f.from, f.to])
 
@@ -130,7 +130,7 @@ export default function ClientDashboard() {
                       <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(i.at)} {fmtTime(i.at)}</td>
                       <td>{i.category || 'SOS'}</td>
                       <td>{i.note || '—'}</td>
-                      <td><span className={`badge ${i.status === 'closed' ? 'duty' : i.status === 'open' ? 'alert' : 'warn'}`}>{INC_TH[i.status]}</span></td>
+                      <td><span className={`badge ${INCIDENT_TONE[i.status] || ''}`}>{th(INCIDENT_TH, i.status)}</span></td>
                     </tr>
                   ))}
                 </tbody>

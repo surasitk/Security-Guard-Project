@@ -1,5 +1,9 @@
 // Guard OS Admin — API client (LINE Login ผ่าน LIFF ใช้ได้ทั้งเดสก์ท็อป/มือถือ)
 import liff from '@line/liff'
+import { errTh } from './errors'
+export { errTh }
+// เน็ตหลุด/ต่อไม่ได้ → ข้อความไทย (แทน 'Failed to fetch')
+const safeFetch = (u, o) => fetch(u, o).catch((e) => { throw new Error(errTh(e)) })
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -37,7 +41,7 @@ export async function initAuth() {
   await liff.init({ liffId: import.meta.env.VITE_LIFF_ID })
   if (!liff.isLoggedIn()) { liff.login(); return null }
   if (!idTokenFresh()) { forceRelogin(); return null }
-  const res = await fetch(FN_URL, {
+  const res = await safeFetch(FN_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}` },
     body: JSON.stringify({ mode: 'login', id_token: liff.getIDToken(), act_tenant_id: recall(ACT_KEY) || undefined }),
@@ -65,7 +69,7 @@ export async function initAuth() {
 }
 
 async function authed(path, options = {}, retried = false) {
-  const res = await fetch(`${SUPABASE_URL}${path}`, {
+  const res = await safeFetch(`${SUPABASE_URL}${path}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -80,7 +84,7 @@ async function authed(path, options = {}, retried = false) {
 
 export async function list(pathWithQuery) {
   const res = await authed(`/rest/v1/${pathWithQuery}`)
-  if (!res.ok) throw new Error(`GET ${pathWithQuery} → ${res.status}`)
+  if (!res.ok) { const b = await res.json().catch(() => null); throw new Error(errTh(b?.message || b?.code || `failed_${res.status}`)) }
   return res.json()
 }
 
@@ -91,7 +95,7 @@ export async function insert(table, row) {
     body: JSON.stringify(row),
   })
   const body = await res.json().catch(() => null)
-  if (!res.ok) throw new Error(body?.message || `insert ${table} → ${res.status}`)
+  if (!res.ok) throw new Error(errTh(body?.message || `failed_${res.status}`))
   return body
 }
 
@@ -100,13 +104,13 @@ export async function update(table, filter, patch) {
     method: 'PATCH',
     body: JSON.stringify(patch),
   })
-  if (!res.ok) throw new Error(`update ${table} → ${res.status}`)
+  if (!res.ok) { const b = await res.json().catch(() => null); throw new Error(errTh(b?.message || `failed_${res.status}`)) }
 }
 
 export async function rpc(fn, args = {}) {
   const res = await authed(`/rest/v1/rpc/${fn}`, { method: 'POST', body: JSON.stringify(args) })
   const body = await res.json().catch(() => null)
-  if (!res.ok) throw new Error(body?.message || `rpc ${fn} → ${res.status}`)
+  if (!res.ok) throw new Error(errTh(body?.message || `failed_${res.status}`))
   return body
 }
 
@@ -114,7 +118,7 @@ export async function rpc(fn, args = {}) {
 export async function callFn(name, body) {
   const res = await authed(`/functions/v1/${name}`, { method: 'POST', body: JSON.stringify(body) })
   const out = await res.json().catch(() => null)
-  if (!res.ok) throw new Error(out?.error || `${name} → ${res.status}`)
+  if (!res.ok) throw new Error(errTh(out?.error || `failed_${res.status}`))
   return out
 }
 
@@ -125,7 +129,7 @@ export async function signedUrl(path) {
     body: JSON.stringify({ expiresIn: 600 }),
   })
   const body = await res.json()
-  if (!res.ok || !body.signedURL) throw new Error('sign_failed')
+  if (!res.ok || !body.signedURL) throw new Error(errTh('sign_failed'))
   return `${SUPABASE_URL}/storage/v1${body.signedURL}`
 }
 

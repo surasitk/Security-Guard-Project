@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { initAuth, getUser, getVendor, switchVendor, tenantId } from './lib/api'
+import { initAuth, getUser, getVendor, switchVendor, tenantId, errTh } from './lib/api'
 import Dashboard from './pages/Dashboard.jsx'
 import Monitor from './pages/Monitor.jsx'
 import People from './pages/People.jsx'
@@ -62,12 +62,12 @@ export default function App() {
         const out = await initAuth()
         if (!out) return // กำลัง redirect ไป LINE Login
         if (out.error === 'not_registered') { setState('unregistered'); return }
-        if (out.error) { setErr(out.error); setState('error'); return }
+        if (out.error) { setErr(errTh(out.error)); setState('error'); return }
         if (!['owner', 'admin', 'supervisor', 'shift_leader', 'client'].includes(out.user.role)) { setState('forbidden'); return }
         setState('ready')
         if (out.user.role === 'client') { setTab('client'); return }
         rpc('is_platform_admin').then((pa) => { setIsPlatform(pa); if (pa) rpc('list_vendors').then(setVendors).catch(() => {}) }).catch(() => {})
-      } catch (e) { setErr(String(e.message || e)); setState('error') }
+      } catch (e) { setErr(errTh(e, 'เข้าสู่ระบบไม่สำเร็จ')); setState('error') }
     })()
   }, [])
 
@@ -92,7 +92,7 @@ export default function App() {
     setSwitching(true)
     try {
       const out = await switchVendor(e.target.value)
-      if (out?.error) setErr(out.error)
+      if (out?.error) setErr(errTh(out.error))
       setCtx((n) => n + 1)
     } finally { setSwitching(false) }
   }

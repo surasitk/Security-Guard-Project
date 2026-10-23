@@ -2,7 +2,7 @@
 // เช่น แจ้งน้ำท่วม การชุมนุม เปลี่ยนรหัสประตู
 // ผู้รับ = ผูกกับโครงการ + มีกะในโครงการช่วง 30 วันก่อน–หลัง (ต้องผูก LINE แล้ว) · RPC broadcast_recipients / send_broadcast
 import { useEffect, useMemo, useState } from 'react'
-import { list, rpc, callFn, fmtDate, fmtTime } from '../lib/api'
+import { list, rpc, callFn, fmtDate, fmtTime, errTh } from '../lib/api'
 
 const TEMPLATES = [
   { k: 'น้ำท่วม', t: 'แจ้งเตือนน้ำท่วม: บริเวณ … มีน้ำท่วมขัง ให้เดินทางเผื่อเวลา หลีกเลี่ยงเส้นทาง … และดูแลทรัพย์สินชั้นล่างของโครงการ' },
@@ -46,9 +46,9 @@ export default function Broadcast() {
     setBusy(true)
     try {
       const out = await rpc('send_broadcast', { ...args, p_message: message })
-      if (!out.ok) { setMsg({ t: 'err', m: { no_recipients: 'ยังไม่มีผู้รับที่ผูก LINE', empty_message: 'พิมพ์ข้อความก่อน', forbidden: 'บัญชีนี้ไม่มีสิทธิ์ส่งประกาศ' }[out.error] || out.error }); return }
+      if (!out.ok) { setMsg({ t: 'err', m: { no_recipients: 'ยังไม่มีผู้รับที่ผูก LINE', empty_message: 'พิมพ์ข้อความก่อน', forbidden: 'บัญชีนี้ไม่มีสิทธิ์ส่งประกาศ' }[out.error] || errTh(out.error) }); return }
       const r = await callFn('notify-line', { notification_id: out.notification_id }).catch(() => null)
-      setMsg(r?.ok ? { t: 'ok', m: `ส่งประกาศถึง ${r.recipients ?? out.recipients} คนแล้ว` } : { t: 'err', m: `บันทึกประกาศแล้ว แต่ส่ง LINE ไม่สำเร็จ (${r?.error || 'network'})` })
+      setMsg(r?.ok ? { t: 'ok', m: `ส่งประกาศถึง ${r.recipients ?? out.recipients} คนแล้ว` } : { t: 'err', m: `บันทึกประกาศแล้ว แต่ส่ง LINE ไม่สำเร็จ — ${errTh(r?.error || 'failed to fetch')}` })
       setMessage(''); loadHistory()
     } finally { setBusy(false) }
   }

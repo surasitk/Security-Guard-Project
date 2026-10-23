@@ -1,6 +1,6 @@
 // F1 — ลงทะเบียนผูกบัญชี LINE (ครั้งเดียวต่อ user) + PDPA consent
 import { useState } from 'react'
-import { register } from '../lib/api'
+import { register, errTh } from '../lib/api'
 import Brand from '../components/Brand.jsx'
 
 const CONSENT_VERSION = import.meta.env.VITE_CONSENT_VERSION || '2026-08-01'
@@ -26,7 +26,7 @@ export default function Register({ onDone }) {
     try {
       const out = await register(code, phone, CONSENT_VERSION)
       if (out.ok) onDone()
-      else setErr(ERROR_TH[out.error] || `ลงทะเบียนไม่สำเร็จ (${out.error})`)
+      else setErr(ERROR_TH[out.error] || errTh(out.error, 'ลงทะเบียนไม่สำเร็จ — ลองใหม่อีกครั้ง'))
     } catch {
       setErr('เชื่อมต่อไม่ได้ ลองใหม่อีกครั้ง')
     } finally {

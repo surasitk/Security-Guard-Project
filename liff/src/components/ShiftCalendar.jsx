@@ -12,6 +12,7 @@ const STATUS = {
   checked_in: { t: 'กำลังปฏิบัติงาน', c: 'duty' },
   checked_out: { t: 'เสร็จแล้ว', c: 'ink' },
   absent: { t: 'ขาดงาน', c: 'alert' },
+  cancelled: { t: 'ยกเลิกแล้ว', c: '' },
 }
 const KIND = { adhoc: 'เช็คอินโครงการ', emergency: 'ฉุกเฉิน', open: 'ตามช่วงกะ' }
 
@@ -111,7 +112,7 @@ export default function ShiftCalendar({ wide = false }) {
               <b>{showsOthers ? r.user_name : r.property_name}{r.is_mine && showsOthers ? ' (คุณ)' : ''}</b>
               <span>{showsOthers ? r.property_name : ''}{r.is_holiday_work ? `${showsOthers ? ' · ' : ''}วันหยุด (OT)` : ''}{KIND[r.kind] ? ` · ${KIND[r.kind]}` : ''}</span>
             </div>
-            <span className={`pill ${STATUS[r.status]?.c || ''}`}>{STATUS[r.status]?.t || r.status}</span>
+            <span className={`pill ${STATUS[r.status]?.c || ''}`}>{STATUS[r.status]?.t || 'อื่นๆ'}</span>
           </div>
         ))}
       </div>

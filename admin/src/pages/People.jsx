@@ -2,7 +2,7 @@
 // ผู้ใช้และสิทธิ์ (โปรไฟล์ผู้ใช้) — ข้อมูลทั่วไป · บทบาท · โครงการที่ได้รับมอบหมาย · วันหยุดประจำสัปดาห์ · Super Admin
 // ยามลงทะเบียน LINE เองภายหลังด้วยรหัสพนักงาน+เบอร์ — บทบาทกำหนดจากหน้านี้เท่านั้น
 import { useEffect, useMemo, useState } from 'react'
-import { list, rpc, tenantId, getUser } from '../lib/api'
+import { list, rpc, tenantId, getUser, errTh } from '../lib/api'
 import { useSort, byName, ResultLine } from '../lib/sortTable.jsx'
 
 const ROLES = [
@@ -57,7 +57,7 @@ export default function People({ isPlatform = false, vendors = [] }) {
       ])
       setRows(us)
       setAccess(Object.fromEntries((acc || []).map((a) => [a.user_id, a])))
-    } catch (e) { setMsg({ t: 'err', m: String(e.message) }) }
+    } catch (e) { setMsg({ t: 'err', m: errTh(e) }) }
   }
   async function loadProps(tid) {
     if (!tid || propsByVendor[tid]) return
@@ -96,7 +96,7 @@ export default function People({ isPlatform = false, vendors = [] }) {
         p_property_ids: SCOPED.includes(form.role) ? form.property_ids : [],
         p_platform_admin: isPlatform ? form.platform_admin : null,
       })
-      if (!out.ok) throw new Error(ERR[out.error] || out.error)
+      if (!out.ok) throw new Error(ERR[out.error] || errTh(out.error))
       const otherVendor = form.tenant_id !== tenantId()
       const vName = vendors.find((v) => v.id === form.tenant_id)?.name
       setMsg({
@@ -105,13 +105,13 @@ export default function People({ isPlatform = false, vendors = [] }) {
           : `เพิ่ม ${form.full_name}${otherVendor ? ` ใน ${vName}` : ''} แล้ว — ให้ผู้ใช้เพิ่มเพื่อน OA แล้วลงทะเบียนด้วยรหัส ${form.employee_code} + เบอร์โทร${otherVendor ? ' (สลับ Vendor ด้านบนเพื่อดูในรายชื่อ)' : ''}`,
       })
       setForm(null); load()
-    } catch (e2) { setMsg({ t: 'err', m: String(e2.message) }) } finally { setBusy(false) }
+    } catch (e2) { setMsg({ t: 'err', m: errTh(e2) }) } finally { setBusy(false) }
   }
 
   async function disableUser(u) {
     if (!window.confirm(`ปิดใช้งาน "${u.full_name}"?`)) return
-    try { const o = await rpc('set_user_active', { p_id: u.id, p_active: false }); if (!o.ok) throw new Error(ERR[o.error] || o.error); load() }
-    catch (e) { setMsg({ t: 'err', m: String(e.message) }) }
+    try { const o = await rpc('set_user_active', { p_id: u.id, p_active: false }); if (!o.ok) throw new Error(ERR[o.error] || errTh(o.error)); load() }
+    catch (e) { setMsg({ t: 'err', m: errTh(e) }) }
   }
 
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value })

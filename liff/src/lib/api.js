@@ -1,5 +1,9 @@
 // Guard OS LIFF — API client
 // F2: token เก็บใน memory เท่านั้น (ไม่ใช้ localStorage) หมดอายุ → ขอใหม่เงียบๆ ด้วย LINE ID token
+import { errTh } from './errors'
+export { errTh }
+// เน็ตหลุด/ต่อไม่ได้ → ข้อความไทย (แทน 'Failed to fetch')
+const safeFetch = (u, o) => fetch(u, o).catch((e) => { throw new Error(errTh(e)) })
 import liff from '@line/liff'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
@@ -42,7 +46,7 @@ export async function initLiff() {
 }
 
 async function callAuth(body) {
-  const res = await fetch(FN_URL, {
+  const res = await safeFetch(FN_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}` },
     body: JSON.stringify(body),
@@ -61,7 +65,7 @@ export async function silentLogin() {
     forceRelogin()
     return new Promise(() => {}) // กำลัง redirect — ค้างสถานะโหลดไว้
   }
-  throw new Error(out.error || 'auth_failed')
+  throw new Error(errTh(out.error || 'auth_failed'))
 }
 
 export async function register(employeeCode, phone, consentVersion) {
@@ -76,7 +80,7 @@ export async function register(employeeCode, phone, consentVersion) {
 
 /** เรียก PostgREST/RPC ด้วย token ที่ mint แล้ว — retry 1 ครั้งถ้า token หมดอายุ */
 async function authedFetch(path, options = {}, retried = false) {
-  const res = await fetch(`${SUPABASE_URL}${path}`, {
+  const res = await safeFetch(`${SUPABASE_URL}${path}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -94,7 +98,7 @@ async function authedFetch(path, options = {}, retried = false) {
 
 export async function list(pathWithQuery) {
   const res = await authedFetch(`/rest/v1/${pathWithQuery}`)
-  if (!res.ok) throw new Error(`GET ${pathWithQuery} → ${res.status}`)
+  if (!res.ok) { const b = await res.json().catch(() => null); throw new Error(errTh(b?.message || `failed_${res.status}`)) }
   return res.json()
 }
 
@@ -103,7 +107,7 @@ export async function rpc(fn, args = {}) {
     method: 'POST',
     body: JSON.stringify(args),
   })
-  if (!res.ok) throw new Error(`rpc_${fn}_failed_${res.status}`)
+  if (!res.ok) { const b = await res.json().catch(() => null); throw new Error(errTh(b?.message || `failed_${res.status}`)) }
   return res.json()
 }
 
@@ -126,7 +130,7 @@ export async function compressImage(file, maxDim = 640, quality = 0.5) {
     const url = URL.createObjectURL(file)
     const img = new Image()
     await new Promise((resolve, reject) => {
-      img.onload = resolve; img.onerror = () => reject(new Error('image_decode_failed'))
+      img.onload = resolve; img.onerror = () => reject(new Error(errTh('image_decode_failed')))
       img.src = url
     })
     width = img.naturalWidth; height = img.naturalHeight; source = img
@@ -138,7 +142,7 @@ export async function compressImage(file, maxDim = 640, quality = 0.5) {
   canvas.height = Math.round(height * scale)
   canvas.getContext('2d').drawImage(source, 0, 0, canvas.width, canvas.height)
   const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality))
-  if (!blob) throw new Error('compress_failed')
+  if (!blob) throw new Error(errTh('compress_failed'))
   return blob
 }
 
@@ -151,7 +155,7 @@ export async function uploadSelfie(blob) {
     headers: { 'Content-Type': 'image/jpeg' },
     body: blob,
   })
-  if (!res.ok) throw new Error('selfie_upload_failed')
+  if (!res.ok) throw new Error(errTh('selfie_upload_failed'))
   return name
 }
 
@@ -165,7 +169,7 @@ export async function uploadMedia(blob, ext, contentType) {
     headers: { 'Content-Type': contentType || 'application/octet-stream' },
     body: blob,
   })
-  if (!res.ok) throw new Error('media_upload_failed')
+  if (!res.ok) throw new Error(errTh('media_upload_failed'))
   return name
 }
 

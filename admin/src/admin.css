@@ -329,3 +329,4 @@ table.grid.dense td { padding: 11px 12px; }
 table.grid.dense th { padding: 10px 12px; }
 @media (max-width: 880px) { .table-wrap > table.grid { display: table; width: 100%; } }
 table.grid.dense th.sortable { padding: 0; }
+td.row-act .badge.solid { background: var(--ink); color: #fff; border-color: var(--ink); }

@@ -2,7 +2,7 @@
 // กด SOS → นับถอยหลัง 3 วิ (ยกเลิกได้) → ส่งพิกัด + รูป + เสียง (ถ้าแนบไว้) → push LINE ถึงสายตรวจ/เจ้าของทันที
 // แนบรูป/เสียง/ประเภท/ข้อความได้ก่อนกด แต่ไม่บังคับ — เหตุด่วนกดปุ่มเดียวก็ส่งได้
 import { useEffect, useRef, useState } from 'react'
-import { getUser, rpc, getPosition, compressImage, uploadMedia, withTimeout, notifyLine } from '../lib/api'
+import { getUser, rpc, getPosition, compressImage, uploadMedia, withTimeout, notifyLine, errTh } from '../lib/api'
 import Brand from '../components/Brand.jsx'
 
 const CATS = ['บุกรุก', 'ไฟไหม้', 'ทะเลาะวิวาท', 'บาดเจ็บ/ป่วย', 'ทรัพย์สินเสียหาย', 'อื่นๆ']
@@ -119,7 +119,7 @@ export default function Incident() {
         p_photo_url: photoPath, p_audio_url: audioPath,
         p_category: cat || null, p_note: note.trim() || null,
       })
-      if (!out?.ok) { setMsg({ type: 'err', text: ERR_TH[out?.error] || `ส่งไม่สำเร็จ (${out?.error})` }); return }
+      if (!out?.ok) { setMsg({ type: 'err', text: ERR_TH[out?.error] || errTh(out?.error, 'ส่งแจ้งเหตุไม่สำเร็จ — กดอีกครั้ง หรือโทรหาหัวหน้ากะ') }); return }
       if (out.notification_id) await notifyLine(out.notification_id)
       setDone({
         at: new Date(), gps: !!coords,
@@ -127,7 +127,7 @@ export default function Incident() {
       })
       setPhoto(null); setAudio(null); setNote(''); setCat('')
     } catch (e) {
-      setMsg({ type: 'err', text: `ส่งไม่สำเร็จ (${String(e.message || e)}) — กดอีกครั้ง หรือโทรหาหัวหน้ากะ` })
+      setMsg({ type: 'err', text: `ส่งไม่สำเร็จ (${errTh(e)}) — กดอีกครั้ง หรือโทรหาหัวหน้ากะ` })
     } finally { setBusy('') }
   }
 

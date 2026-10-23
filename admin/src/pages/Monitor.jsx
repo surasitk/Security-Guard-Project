@@ -1,8 +1,9 @@
 // Monitoring — log เหตุการณ์ทั้งหมด (เข้า/ออกงาน + พิกัด + รูป + ธงผิดปกติ + การแก้ไขระบบ)
 // filter จังหวัด/โครงการแบบ multi-select · Sprint 2 จะเพิ่ม patrol scans + incidents เข้า log เดียวกัน
 import { useEffect, useMemo, useState } from 'react'
-import { list, signedUrl, fmtTime, fmtDate } from '../lib/api'
+import { list, signedUrl, fmtTime, fmtDate, errTh } from '../lib/api'
 import FilterChips from '../components/FilterChips.jsx'
+import { ACTION_TH, ROLE_TH, flagList, th } from '../lib/labels'
 
 const DAYS_BACK = 7
 
@@ -33,7 +34,7 @@ export default function Monitor() {
           setAudit(await list(`audit_logs?select=id,action,target_table,target_id,after,created_at,actor_user_id&created_at=gte.${since}&order=created_at.desc&limit=500`))
           setTpls(Object.fromEntries((await list('shift_templates?select=id,name,properties(name)').catch(() => [])).map((t) => [t.id, t])))
         } catch { /* supervisor มองไม่เห็น audit — ข้าม */ }
-      } catch (e) { setErr(String(e.message || e)) }
+      } catch (e) { setErr(errTh(e)) }
     })()
   }, [])
 
@@ -103,8 +104,7 @@ export default function Monitor() {
                 <td>
                   {e.type === 'in' && e.row.late_minutes > 0 && <span className="muted">สาย {e.row.late_minutes} น. </span>}
                   {e.type === 'out' && e.row.early_leave_minutes > 0 && <span className="muted">ออกก่อน {e.row.early_leave_minutes} น. </span>}
-                  {e.row.is_mock_flag && <span className="badge">ตรวจสอบ GPS</span>}
-                  {e.row.flag_reason && <span className="muted"> {e.row.flag_reason}</span>}
+                  {flagList(e.row.flag_reason, e.row.is_mock_flag).map((fl) => <span key={fl.code} className={`badge ${fl.tone}`} style={{ marginRight: 4 }}>{fl.label}</span>)}
                 </td>
               </tr>
             ))}
@@ -123,12 +123,6 @@ export default function Monitor() {
 }
 
 // ── การแก้ไขระบบ: กลุ่มตามผู้ทำ → กดขยายดูแต่ละรายการ ──
-const ACTION_TH = {
-  generate_assignments: 'จ่ายกะ', create_user: 'เพิ่มผู้ใช้', update_user: 'แก้ไขผู้ใช้',
-  line_account_bound: 'ผูกบัญชี LINE', create_vendor: 'สร้างบริษัท', update_vendor: 'แก้ไขบริษัท',
-  admin_close_assignment: 'ปิดกะ (ลืมเช็คเอาต์)', create_checkpoint: 'สร้างจุดตรวจ', save_property: 'บันทึกโครงการ',
-}
-const ROLE_TH = { owner: 'เจ้าของ', admin: 'แอดมิน', supervisor: 'สายตรวจ', assistant_supervisor: 'ผู้ช่วยสายตรวจ', trainer: 'ครูฝึก', spare: 'ตัวสแปร์', shift_leader: 'หัวหน้ากะ', guard: 'ยาม', client: 'ลูกค้า' }
 const dmy = (d) => d ? new Date(d).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' }) : ''
 
 function describe(a, users, tpls) {
@@ -141,7 +135,7 @@ function describe(a, users, tpls) {
       return `ให้ ${who(x.user_id)} · ${t ? `${t.properties?.name || ''} ${t.name}` : 'แม่แบบกะ'} · ${range} · สร้าง ${x.created ?? 0} กะ${x.skipped_overlap ? ` (ข้าม ${x.skipped_overlap} กะที่ซ้อน)` : ''}`
     }
     case 'create_user': case 'update_user':
-      return `${who(a.target_id)} · ${ROLE_TH[x.role] || x.role || ''}${x.properties?.length ? ` · ${x.properties.length} โครงการ` : ''}${x.platform_admin ? ' · Super Admin' : ''}`
+      return `${who(a.target_id)} · ${th(ROLE_TH, x.role, '')}${x.properties?.length ? ` · ${x.properties.length} โครงการ` : ''}${x.platform_admin ? ' · Super Admin' : ''}`
     case 'line_account_bound': return 'ผูกบัญชี LINE กับข้อมูลพนักงาน'
     case 'create_vendor': return `${x.company || ''}${x.owner_code ? ` · owner ${x.owner_code}` : ''}`
     case 'admin_close_assignment': return x.note ? `หมายเหตุ: ${x.note}` : 'ปิดกะแทนพนักงาน'
@@ -178,7 +172,7 @@ function AuditByActor({ audit, users, tpls }) {
               <span className="who"><b>{name}</b><span className="muted">{g.items.length} รายการ · ล่าสุด {fmtDate(g.last)} {fmtTime(g.last)}</span></span>
               <span className="sum">
                 {Object.entries(g.counts).sort((a, b) => b[1] - a[1]).map(([act, n]) => (
-                  <span key={act} className="badge">{ACTION_TH[act] || act} ×{n}</span>
+                  <span key={act} className="badge">{th(ACTION_TH, act, 'แก้ไขข้อมูล')} ×{n}</span>
                 ))}
               </span>
               <svg className="chev" viewBox="0 0 12 8" aria-hidden="true"><path d="M1 1.5 6 6.5 11 1.5" fill="none" stroke="currentColor" strokeWidth="1.6" /></svg>
@@ -188,7 +182,7 @@ function AuditByActor({ audit, users, tpls }) {
                 {g.items.map((a) => (
                   <li key={a.id || a.created_at}>
                     <span className="t">{fmtDate(a.created_at)} {fmtTime(a.created_at)}</span>
-                    <span className="act">{ACTION_TH[a.action] || a.action}</span>
+                    <span className="act">{th(ACTION_TH, a.action, 'แก้ไขข้อมูล')}</span>
                     <span className="d">{describe(a, users, tpls)}</span>
                   </li>
                 ))}

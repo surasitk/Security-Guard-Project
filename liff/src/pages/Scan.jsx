@@ -2,7 +2,7 @@
 // เปิดจาก rich menu (?page=scan) หรือถูกเปิดพร้อม &code=... (สแกน QR จาก LINE) → auto submit
 import { useEffect, useRef, useState } from 'react'
 import liff from '@line/liff'
-import { getUser, rpc, getPosition, deviceFingerprint, withTimeout, readParams } from '../lib/api'
+import { getUser, rpc, getPosition, deviceFingerprint, withTimeout, readParams, errTh } from '../lib/api'
 import Brand from '../components/Brand.jsx'
 
 const ERR_TH = {
@@ -51,10 +51,10 @@ export default function Scan() {
         const nogps = coords ? '' : ' · ไม่มีพิกัด'
         setMsg({ type: 'ok', text: `✓ สแกนจุด "${out.checkpoint}" สำเร็จ ${t}${nogps}` })
       } else {
-        setMsg({ type: 'err', text: ERR_TH[out.error] || `สแกนไม่สำเร็จ (${out.error})` })
+        setMsg({ type: 'err', text: ERR_TH[out.error] || errTh(out.error, 'สแกนไม่สำเร็จ — ลองใหม่อีกครั้ง') })
       }
     } catch (e) {
-      setMsg({ type: 'err', text: `สแกนไม่สำเร็จ (${String(e.message || e)}) — ลองใหม่` })
+      setMsg({ type: 'err', text: `สแกนไม่สำเร็จ (${errTh(e)}) — ลองใหม่` })
     } finally { setBusy(false); setStep('') }
   }
 
@@ -76,7 +76,7 @@ export default function Scan() {
       const m = String(e?.message || e)
       setMsg({ type: 'err', text: m === 'unsupported'
         ? 'เครื่องนี้เปิดกล้องสแกนใน LINE ไม่ได้ — ใช้แอปกล้องสแกน QR แล้วเปิดลิงก์ หรือกรอกรหัสด้านล่าง'
-        : `เปิดกล้องไม่สำเร็จ (${m})` })
+        : `เปิดกล้องไม่สำเร็จ — ${errTh(e, 'ลองใหม่ หรือกรอกรหัสด้านล่าง')}` })
     }
   }
 

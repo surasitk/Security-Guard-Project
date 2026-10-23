@@ -2,7 +2,7 @@
 // โครงการ/ไซต์ — CRUD มาตรฐาน: list มีปุ่มแก้ไข/ปิดใช้ · กด "เพิ่ม" หรือ "แก้ไข" → ฟอร์มเต็มจอ (ซ่อน list)
 // ที่อยู่ dropdown จังหวัด→อำเภอ→ตำบล + รหัสไปรษณีย์อัตโนมัติ · แผนที่ปักหมุด/ค้นหา · เขียนพิกัดผ่าน RPC (เสถียร)
 import { useEffect, useMemo, useState } from 'react'
-import { list, rpc, tenantId } from '../lib/api'
+import { list, rpc, tenantId, errTh } from '../lib/api'
 import { useSort, byName, ResultLine } from '../lib/sortTable.jsx'
 import { loadThaiAddress } from '../lib/thaiAddress'
 import MapPicker from '../components/MapPicker.jsx'
@@ -23,7 +23,7 @@ export default function Properties() {
   const [msg, setMsg] = useState(null)
   const [busy, setBusy] = useState(false)
 
-  const load = () => list('v_properties?select=*&is_active=is.true&order=created_at.desc').then(setRows).catch((e) => setMsg({ t: 'err', m: String(e.message) }))
+  const load = () => list('v_properties?select=*&is_active=is.true&order=created_at.desc').then(setRows).catch((e) => setMsg({ t: 'err', m: errTh(e) }))
   useEffect(() => {
     load()
     loadThaiAddress().then(setAddr).catch(() => setMsg({ t: 'err', m: 'โหลดข้อมูลที่อยู่ไม่สำเร็จ' }))
@@ -73,10 +73,10 @@ export default function Properties() {
     setBusy(true); setMsg(null)
     try {
       const o = await rpc('set_property_shift_mode', { p_id: row.id, p_mode: next })
-      if (!o.ok) throw new Error(o.error)
+      if (!o.ok) throw new Error(errTh(o.error))
       setMsg({ t: 'ok', m: next === 'open' ? `"${row.name}" เป็นแบบไม่จัดกะแล้ว — ตั้งช่วงกะและจำนวนคนในหน้าตารางกะ` : `"${row.name}" กลับเป็นแบบจัดกะล่วงหน้าแล้ว` })
       load()
-    } catch (e2) { setMsg({ t: 'err', m: String(e2.message) }) } finally { setBusy(false) }
+    } catch (e2) { setMsg({ t: 'err', m: errTh(e2) }) } finally { setBusy(false) }
   }
 
   function backToList() { setMode('list'); setMsg(null); load() }
@@ -94,15 +94,15 @@ export default function Properties() {
         p_lat: form.lat, p_lng: form.lng,
         p_radius: Number(form.radius) || 150, p_rate: form.rate ? Number(form.rate) : null,
       })
-      if (!out.ok) throw new Error(out.error)
+      if (!out.ok) throw new Error(errTh(out.error))
       backToList()
-    } catch (e2) { setMsg({ t: 'err', m: String(e2.message) }) } finally { setBusy(false) }
+    } catch (e2) { setMsg({ t: 'err', m: errTh(e2) }) } finally { setBusy(false) }
   }
 
   async function disable(row) {
     if (!window.confirm(`ปิดใช้งานโครงการ "${row.name}"? (กะที่ผูกไว้ยังอยู่ แต่โครงการจะไม่แสดงในรายการ)`)) return
-    try { const o = await rpc('set_property_active', { p_id: row.id, p_active: false }); if (!o.ok) throw new Error(o.error); load() }
-    catch (e) { setMsg({ t: 'err', m: String(e.message) }) }
+    try { const o = await rpc('set_property_active', { p_id: row.id, p_active: false }); if (!o.ok) throw new Error(errTh(o.error)); load() }
+    catch (e) { setMsg({ t: 'err', m: errTh(e) }) }
   }
 
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value })

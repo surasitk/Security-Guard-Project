@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { initLiff, silentLogin, readParams } from './lib/api'
+import { initLiff, silentLogin, readParams, errTh } from './lib/api'
 import Register from './pages/Register.jsx'
 import Home from './pages/Home.jsx'
 import Scan from './pages/Scan.jsx'
@@ -25,7 +25,7 @@ export default function App() {
         const registered = await silentLogin()
         setState(registered ? 'ready' : 'register')
       } catch (e) {
-        setErrMsg(String(e.message || e))
+        setErrMsg(errTh(e, 'เข้าสู่ระบบไม่สำเร็จ'))
         setState('error')
       }
     })()

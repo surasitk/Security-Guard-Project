@@ -6,7 +6,7 @@
 // ขั้นตอนบันทึก: ถ่ายรูป → อัปโหลด → ขอ GPS (ไม่ได้ = บันทึกแบบไม่มีพิกัด+ติดธง) → RPC
 import { useEffect, useRef, useState } from 'react'
 import {
-  getUser, rpc, list, getPosition, compressImage, uploadSelfie, deviceFingerprint, withTimeout, notifyLine,
+  getUser, rpc, list, getPosition, compressImage, uploadSelfie, deviceFingerprint, withTimeout, notifyLine, errTh,
 } from '../lib/api'
 import ShiftCalendar from '../components/ShiftCalendar.jsx'
 import Brand from '../components/Brand.jsx'
@@ -135,11 +135,11 @@ export default function Home() {
       } else if (out.error === 'outside_geofence') {
         setMsg({ type: 'err', text: `คุณอยู่ห่างพื้นที่ ${Math.round(out.distance_m)} เมตร — เข้าใกล้จุดปฏิบัติงานแล้วลองใหม่` })
       } else {
-        setMsg({ type: 'err', text: ERROR_TH[out.error] || `ไม่สำเร็จ (${out.error})` })
+        setMsg({ type: 'err', text: ERROR_TH[out.error] || errTh(out.error) })
         if (out.error === 'checkout_window_closed' || out.error === 'already_checked_in') load().catch(() => {})
       }
     } catch (e) {
-      setMsg({ type: 'err', text: `บันทึกไม่สำเร็จ (${String(e.message || e)}) — ลองใหม่` })
+      setMsg({ type: 'err', text: `บันทึกไม่สำเร็จ (${errTh(e)}) — ลองใหม่` })
     } finally { setBusy(false); setStep('') }
   }
 
@@ -158,7 +158,7 @@ export default function Home() {
       fp = await deviceFingerprint()
     } catch (err) {
       const m = String(err?.message || err)
-      setMsg({ type: 'err', text: m === 'timeout:upload' ? 'อัปโหลดรูปช้าเกินไป — สัญญาณเน็ตอ่อน ลองใหม่' : `เตรียมรูปไม่สำเร็จ (${m})` })
+      setMsg({ type: 'err', text: m === 'timeout:upload' ? 'อัปโหลดรูปช้าเกินไป — สัญญาณเน็ตอ่อน ลองใหม่' : `เตรียมรูปไม่สำเร็จ — ${errTh(err, 'ถ่ายรูปใหม่อีกครั้ง')}` })
       setBusy(false); setStep(''); return
     }
     setStep('กำลังหาตำแหน่ง…')
@@ -189,7 +189,7 @@ export default function Home() {
           <h1>สวัสดี {user?.full_name}</h1>
           <p className="sub">รหัสพนักงาน {user?.employee_code}</p>
         </div>
-        <span className="pill role">{isPlatform ? 'Super Admin' : (ROLE_TH[user?.role] || user?.role)}</span>
+        <span className="pill role">{isPlatform ? 'Super Admin' : (ROLE_TH[user?.role] || 'พนักงาน')}</span>
       </div>
 
       <input ref={fileRef} type="file" accept="image/*" capture="user" hidden onChange={onSelfie} />
@@ -199,7 +199,7 @@ export default function Home() {
       {current && (
         <div className="card duty on">
           <span className="pill duty">กำลังปฏิบัติงาน</span>
-          {current.kind !== 'scheduled' && <span className="pill warn" style={{ marginLeft: 6 }}>{KIND_LABEL[current.kind]}</span>}
+          {current.kind !== 'scheduled' && <span className="pill warn" style={{ marginLeft: 6 }}>{KIND_LABEL[current.kind] || 'นอกตาราง'}</span>}
           <div className="v">{current.property_name}{current.unit_name ? ` · ${current.unit_name}` : ''}</div>
           <p className="when">เข้างาน {fmtTime(current.checked_in_at)} น.{current.kind === 'scheduled' && ` · กะ ${fmtTime(current.starts_at)}–${fmtTime(current.ends_at)}`}</p>
           {current.kind === 'scheduled' && <p className="muted" style={{ marginTop: 4 }}>เช็คเอาต์ได้ถึง {fmtTime(current.checkout_deadline)} น.</p>}

@@ -1,8 +1,9 @@
 // ภาพรวมวันนี้ — กะทั้งหมด / เข้าแล้ว / สาย / ยังไม่เข้า + รายการลงเวลาสด
 // ค้นหาขั้นสูง (ชื่อ · จังหวัด · โครงการ · สถานะ) ใช้กับตัวเลขสรุปและทุกตาราง · ทุกตารางกดหัวคอลัมน์เพื่อเรียง (ไทย ก–ฮ ก่อน A–Z)
 import { useEffect, useMemo, useState } from 'react'
-import { list, rpc, todayRangeBkk, fmtTime } from '../lib/api'
+import { list, rpc, todayRangeBkk, fmtTime, errTh } from '../lib/api'
 import { useSort, byName, ResultLine } from '../lib/sortTable.jsx'
+import { STATUS_TH, STATUS_TONE, KIND_TH, flagList, th } from '../lib/labels'
 const STATUS_RANK = { overdue: 0, absent: 1, scheduled: 2, checked_in: 3, checked_out: 4 }
 const t = (ts) => (ts ? new Date(ts).getTime() : null)
 
@@ -30,15 +31,15 @@ export default function Dashboard() {
         setCoverage(await rpc('open_coverage').catch(() => []))
         const cutoff = new Date(Date.now() - 3600 * 1000).toISOString()
         setStuck(await list(`shift_assignments?select=id,starts_at,ends_at,kind,users!user_id(full_name,employee_code),properties(id,name,province)&status=eq.checked_in&ends_at=lt.${cutoff}&order=ends_at`).catch(() => []))
-      } catch (e) { setErr(String(e.message || e)) }
+      } catch (e) { setErr(errTh(e)) }
     })()
   }, [reload])
 
   async function closeShift(x) {
     const note = window.prompt(`ปิดกะของ ${x.users?.full_name} (ลืมเช็คเอาต์)\nบันทึกหมายเหตุ (ไม่บังคับ):`, 'ลืมเช็คเอาต์')
     if (note === null) return
-    try { const o = await rpc('admin_close_assignment', { p_assignment_id: x.id, p_note: note }); if (!o.ok) throw new Error(o.error); setReload((n) => n + 1) }
-    catch (e) { setErr(String(e.message || e)) }
+    try { const o = await rpc('admin_close_assignment', { p_assignment_id: x.id, p_note: note }); if (!o.ok) throw new Error(errTh(o.error)); setReload((n) => n + 1) }
+    catch (e) { setErr(errTh(e)) }
   }
 
   // ── ค้นหาขั้นสูง ──
@@ -236,7 +237,7 @@ export default function Dashboard() {
                     <td>
                       {a.early_reason && <div>เหตุผล: {a.early_reason}</div>}
                       {(a.is_mock_flag || a.flag_reason)
-                        ? (a.flag_reason || 'mock_gps').split(',').map((fl) => <span key={fl} className={`badge ${fl === 'early_checkout' || fl === 'emergency' ? 'warn' : 'alert'}`} style={{ marginRight: 4 }}>{FLAG[fl] || fl}</span>)
+                        ? flagList(a.flag_reason, a.is_mock_flag).map((fl) => <span key={fl.code} className={`badge ${fl.tone}`} style={{ marginRight: 4 }}>{fl.label}</span>)
                         : (!a.early_reason && <span className="muted">ปกติ</span>)}
                     </td>
                   </tr>
@@ -250,14 +251,8 @@ export default function Dashboard() {
   )
 }
 
-const KIND = { adhoc: 'เช็คอินโครงการ', emergency: 'ฉุกเฉิน', open: 'ตามช่วงกะ' }
-const FLAG = {
-  no_gps: 'ไม่มีพิกัด', mock_gps_suspected: 'สงสัย GPS ปลอม', kiosk_wrong_property: 'เครื่องผิดโครงการ',
-  emergency: 'เข้างานฉุกเฉิน', early_checkout: 'ออกก่อนเวลา', closed_by_admin: 'ผู้ดูแลปิดกะ', auto_closed_admin: 'ปิดโดยระบบ',
-}
+const KIND = KIND_TH
 
 function Status({ s }) {
-  const map = { scheduled: 'รอเข้างาน', overdue: 'เลยเวลาเริ่ม', checked_in: 'กำลังปฏิบัติงาน', checked_out: 'ออกงานแล้ว', absent: 'ขาดงาน', cancelled: 'ยกเลิก' }
-  const tone = { checked_in: 'duty', overdue: 'warn', absent: 'alert', checked_out: 'solid' }[s] || ''
-  return <span className={`badge ${tone}`}>{map[s] || s}</span>
+  return <span className={`badge ${STATUS_TONE[s] || ''}`}>{th(STATUS_TH, s, 'ไม่ทราบสถานะ')}</span>
 }

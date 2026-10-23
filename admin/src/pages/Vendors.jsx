@@ -1,6 +1,6 @@
 // Vendors — จัดการบริษัท รปภ. ที่ใช้ระบบ (เฉพาะเจ้าของแพลตฟอร์ม) · สร้าง + แก้ไข inline + เปิด/ปิด
 import { useEffect, useState } from 'react'
-import { rpc, fmtDate } from '../lib/api'
+import { rpc, fmtDate, errTh } from '../lib/api'
 
 export default function Vendors() {
   const [rows, setRows] = useState(null)
@@ -10,7 +10,7 @@ export default function Vendors() {
   const [edit, setEdit] = useState(null) // { id, name, plan, is_active }
   const [saving, setSaving] = useState(false)
 
-  const load = () => rpc('list_vendors').then(setRows).catch((e) => setMsg({ t: 'err', m: String(e.message) }))
+  const load = () => rpc('list_vendors').then(setRows).catch((e) => setMsg({ t: 'err', m: errTh(e) }))
   useEffect(() => { load() }, [])
 
   async function submit(e) {
@@ -24,17 +24,17 @@ export default function Vendors() {
         setMsg({ t: 'ok', m: `สร้าง ${form.company} แล้ว — ส่งลิงก์ https://liff.line.me/${import.meta.env.VITE_PATROL_LIFF_ID || '2010926067-2cuN81fZ'} ให้ owner ลงทะเบียนด้วยรหัส ${form.owner_code} + เบอร์ ${form.owner_phone}` })
         setForm({ company: '', plan: 'basic', owner_name: '', owner_code: 'ADM-001', owner_phone: '' })
         load()
-      } else setMsg({ t: 'err', m: out.error })
-    } catch (e2) { setMsg({ t: 'err', m: String(e2.message) }) } finally { setBusy(false) }
+      } else setMsg({ t: 'err', m: errTh(out.error) })
+    } catch (e2) { setMsg({ t: 'err', m: errTh(e2) }) } finally { setBusy(false) }
   }
 
   async function saveEdit() {
     setSaving(true); setMsg(null)
     try {
       const o = await rpc('update_vendor', { p_tenant_id: edit.id, p_name: edit.name.trim(), p_plan: edit.plan, p_is_active: edit.is_active })
-      if (!o.ok) throw new Error(o.error)
+      if (!o.ok) throw new Error(errTh(o.error))
       setMsg({ t: 'ok', m: 'บันทึกแล้ว' }); setEdit(null); load()
-    } catch (e) { setMsg({ t: 'err', m: String(e.message) }) } finally { setSaving(false) }
+    } catch (e) { setMsg({ t: 'err', m: errTh(e) }) } finally { setSaving(false) }
   }
 
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value })
