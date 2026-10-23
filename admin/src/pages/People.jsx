@@ -1,7 +1,9 @@
+// ตารางเรียงได้ทุกคอลัมน์ (ค่าเริ่มต้น บทบาท → ชื่อ ก–ฮ, A–Z) + ค้นหาขั้นสูง: ข้อความ · บทบาท · โครงการ · LINE · วันหยุด
 // ผู้ใช้และสิทธิ์ (โปรไฟล์ผู้ใช้) — ข้อมูลทั่วไป · บทบาท · โครงการที่ได้รับมอบหมาย · วันหยุดประจำสัปดาห์ · Super Admin
 // ยามลงทะเบียน LINE เองภายหลังด้วยรหัสพนักงาน+เบอร์ — บทบาทกำหนดจากหน้านี้เท่านั้น
 import { useEffect, useMemo, useState } from 'react'
 import { list, rpc, tenantId, getUser } from '../lib/api'
+import { useSort, byName, ResultLine } from '../lib/sortTable.jsx'
 
 const ROLES = [
   ['guard', 'ยาม', 'เข้า-ออกงานตามกะ และเข้างานฉุกเฉินได้ในโครงการที่มีชื่อ (ไม่เกิน 5 โครงการ) · ไม่เข้าหลังบ้าน'],
@@ -31,6 +33,8 @@ const ERR = {
   not_found: 'ไม่พบผู้ใช้',
   project_limit_exceeded: 'ผูกโครงการเกินจำนวนที่บทบาทนี้กำหนด',
 }
+const ROLE_ORDER = ['owner', 'admin', 'supervisor', 'assistant_supervisor', 'trainer', 'shift_leader', 'spare', 'guard', 'client']
+const roleRank = (r) => { const i = ROLE_ORDER.indexOf(r); return i < 0 ? 99 : i }
 const roleLabel = (r) => (ROLES.find(([v]) => v === r) || [r, r])[1]
 const EMPTY = { id: null, tenant_id: '', employee_code: '', full_name: '', phone: '', role: 'guard', daily_wage: '', days_off: [], property_ids: [], platform_admin: false }
 
@@ -122,13 +126,52 @@ export default function People({ isPlatform = false, vendors = [] }) {
   const formProps = form ? (propsByVendor[form.tenant_id] || []) : []
   const roleDesc = form ? (ROLES.find(([v]) => v === form.role) || [])[2] : ''
 
+  // ── ค้นหาขั้นสูง + เรียง ──
+  const F0 = { q: '', role: '', prop: '', line: '', dayoff: '' }
+  const [f, setF] = useState(F0)
+  const fActive = Object.values(f).some(Boolean)
+  const setFv = (k) => (e) => setF({ ...f, [k]: e.target.value })
+  const propsOfUser = (u) => {
+    const a = access[u.id] || {}
+    if (['owner', 'admin'].includes(u.role)) return null              // ทุกโครงการ
+    return SCOPED.includes(u.role) ? (a.property_ids || []) : []
+  }
+  const propLabel = (u) => {
+    const ids = propsOfUser(u)
+    if (ids === null) return 'ทุกโครงการ'
+    if (!SCOPED.includes(u.role)) return ''
+    return ids.map((id) => propName[id]).filter(Boolean).sort(byName).join(', ')
+  }
+  const propList = useMemo(() => Object.entries(propName).map(([id, name]) => ({ id, name })).sort((a, b) => byName(a.name, b.name)), [propName])
+  const filtered = useMemo(() => {
+    if (!rows) return rows
+    const q = f.q.trim().toLowerCase()
+    return rows.filter((u) => {
+      if (q && ![u.full_name, u.employee_code, u.phone, roleLabel(u.role)].join(' ').toLowerCase().includes(q)) return false
+      if (f.role && u.role !== f.role) return false
+      if (f.prop === '__none') { const ids = propsOfUser(u); if (!(SCOPED.includes(u.role) && ids && ids.length === 0)) return false }
+      else if (f.prop) { const ids = propsOfUser(u); if (!(ids === null || ids.includes(f.prop))) return false }
+      if (f.line && (u.line_user_id ? 'yes' : 'no') !== f.line) return false
+      if (f.dayoff !== '' && !(u.weekly_days_off || []).includes(Number(f.dayoff))) return false
+      return true
+    })
+  }, [rows, f, access, propName])
+  const SORT_COLS = useMemo(() => ({
+    code: (u) => u.employee_code,
+    name: (u) => u.full_name,
+    role: (u) => [roleRank(u.role), u.full_name],
+    prop: (u) => [propLabel(u) || null, u.full_name],
+    dayoff: (u) => [(u.weekly_days_off || []).length ? Math.min(...u.weekly_days_off) : null, u.full_name],
+    phone: (u) => u.phone,
+    line: (u) => [u.line_user_id ? 0 : 1, u.full_name],
+  }), [access, propName])
+  const { sorted, th } = useSort(filtered, SORT_COLS, { key: 'role', dir: 'asc' })
+
   return (
     <div>
-      <div className="section-h" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2>{form ? (form.id ? `แก้ไขผู้ใช้: ${form.full_name}` : 'เพิ่มผู้ใช้') : 'ผู้ใช้และสิทธิ์'}</h2>
-        {!form && <button className="btn inline" onClick={openCreate}>+ เพิ่มผู้ใช้</button>}
-      </div>
-
+      {form && (
+        <div className="section-h"><h2>{form.id ? `แก้ไขผู้ใช้: ${form.full_name}` : 'เพิ่มผู้ใช้'}</h2></div>
+      )}
       {form && (
         <form className="card" onSubmit={save}>
           <div className="form-grid">
@@ -193,38 +236,65 @@ export default function People({ isPlatform = false, vendors = [] }) {
       )}
       {msg && <div className={`notice ${msg.t === 'err' ? 'err' : ''}`}>{msg.m}</div>}
 
-      <div className="section-h"><h2>ผู้ใช้ทั้งหมด {rows ? `(${rows.length})` : ''}</h2></div>
+      <div className="section-h">
+        <h2>ผู้ใช้ทั้งหมด {rows ? `(${rows.length})` : ''}</h2>
+        {!form && <button className="btn inline" onClick={openCreate}>+ เพิ่มผู้ใช้</button>}
+      </div>
+      <div className="filters sh-filters">
+        <div className="field grow"><label>ค้นหา</label><input value={f.q} onChange={setFv('q')} placeholder="ชื่อ รหัสพนักงาน หรือเบอร์โทร" /></div>
+        <div className="field"><label>บทบาท</label>
+          <select value={f.role} onChange={setFv('role')}><option value="">ทั้งหมด</option>{ROLE_ORDER.map((r) => <option key={r} value={r}>{roleLabel(r)}</option>)}</select>
+        </div>
+        <div className="field"><label>โครงการ</label>
+          <select value={f.prop} onChange={setFv('prop')}>
+            <option value="">ทั้งหมด</option><option value="__none">ยังไม่ผูกโครงการ</option>
+            {propList.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+        </div>
+        <div className="field narrow"><label>LINE</label>
+          <select value={f.line} onChange={setFv('line')}><option value="">ทั้งหมด</option><option value="yes">ผูกแล้ว</option><option value="no">ยังไม่ผูก</option></select>
+        </div>
+        <div className="field narrow"><label>หยุดวัน</label>
+          <select value={f.dayoff} onChange={setFv('dayoff')}><option value="">ทั้งหมด</option>{DAYS.map((d, i) => <option key={i} value={i}>{d}</option>)}</select>
+        </div>
+      </div>
       {!rows ? <p className="muted">กำลังโหลด…</p> : (
-        <table className="grid">
-          <thead><tr><th>รหัส</th><th>ชื่อ</th><th>บทบาท</th><th>โครงการ</th><th>วันหยุด</th><th>เบอร์</th><th>LINE</th><th></th></tr></thead>
-          <tbody>
-            {rows.map((u) => {
-              const a = access[u.id] || {}
-              const scoped = SCOPED.includes(u.role)
-              return (
-                <tr key={u.id}>
-                  <td>{u.employee_code}</td>
-                  <td>{u.full_name}</td>
-                  <td>
-                    {roleLabel(u.role)}
-                    {a.is_platform_admin && <> <span className="badge solid">Super Admin</span></>}
-                  </td>
-                  <td className="muted">
-                    {scoped ? ((a.property_ids || []).map((id) => propName[id]).filter(Boolean).join(', ') || 'ยังไม่ผูก')
-                      : (['owner', 'admin'].includes(u.role) ? 'ทุกโครงการ' : '—')}
-                  </td>
-                  <td>{(u.weekly_days_off || []).length ? u.weekly_days_off.map((d) => DAY_SHORT[d]).join(' ') : '—'}</td>
-                  <td>{u.phone || '—'}</td>
-                  <td>{u.line_user_id ? <span className="badge solid">ผูกแล้ว</span> : <span className="badge">ยังไม่ผูก</span>}</td>
-                  <td style={{ whiteSpace: 'nowrap' }}>
-                    <button className="badge" style={{ cursor: 'pointer', fontFamily: 'var(--font)', background: 'none', marginRight: 6 }} onClick={() => openEdit(u)}>แก้ไข</button>
-                    {u.id !== me.id && <button className="badge" style={{ cursor: 'pointer', fontFamily: 'var(--font)', background: 'none' }} onClick={() => disableUser(u)}>ปิดใช้</button>}
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+        <>
+          <ResultLine shown={sorted.length} total={rows.length} unit="คน" active={fActive} onClear={() => setF(F0)} note="กดหัวคอลัมน์เพื่อเรียง" />
+          {sorted.length === 0 ? <p className="muted">ไม่พบผู้ใช้ตามตัวกรอง</p> : (
+            <div className="table-wrap">
+              <table className="grid dense">
+                <thead><tr>
+                  {th('code', 'รหัส')}{th('name', 'ชื่อ')}{th('role', 'บทบาท')}{th('prop', 'โครงการ')}{th('dayoff', 'วันหยุด')}{th('phone', 'เบอร์')}{th('line', 'LINE')}<th></th>
+                </tr></thead>
+                <tbody>
+                  {sorted.map((u) => {
+                    const a = access[u.id] || {}
+                    const label = propLabel(u)
+                    return (
+                      <tr key={u.id}>
+                        <td>{u.employee_code}</td>
+                        <td>{u.full_name}</td>
+                        <td>
+                          {roleLabel(u.role)}
+                          {a.is_platform_admin && <> <span className="badge solid">Super Admin</span></>}
+                        </td>
+                        <td className="muted wrap-sm">{SCOPED.includes(u.role) || ['owner', 'admin'].includes(u.role) ? (label || 'ยังไม่ผูก') : '—'}</td>
+                        <td>{(u.weekly_days_off || []).length ? u.weekly_days_off.map((d) => DAY_SHORT[d]).join(' ') : '—'}</td>
+                        <td>{u.phone || '—'}</td>
+                        <td>{u.line_user_id ? <span className="badge solid">ผูกแล้ว</span> : <span className="badge">ยังไม่ผูก</span>}</td>
+                        <td className="row-act">
+                          <button className="badge" onClick={() => openEdit(u)}>แก้ไข</button>
+                          {u.id !== me.id && <button className="badge" onClick={() => disableUser(u)}>ปิดใช้</button>}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
       )}
     </div>
   )

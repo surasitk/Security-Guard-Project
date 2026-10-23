@@ -1,13 +1,17 @@
-// ภาพรวมวันนี้ — กะทั้งหมด / เข้าแล้ว / สาย / ยังไม่เข้า + รายการลงเวลาสด + filter จังหวัด/โครงการ
+// ภาพรวมวันนี้ — กะทั้งหมด / เข้าแล้ว / สาย / ยังไม่เข้า + รายการลงเวลาสด
+// ค้นหาขั้นสูง (ชื่อ · จังหวัด · โครงการ · สถานะ) ใช้กับตัวเลขสรุปและทุกตาราง · ทุกตารางกดหัวคอลัมน์เพื่อเรียง (ไทย ก–ฮ ก่อน A–Z)
 import { useEffect, useMemo, useState } from 'react'
 import { list, rpc, todayRangeBkk, fmtTime } from '../lib/api'
-import FilterChips from '../components/FilterChips.jsx'
+import { useSort, byName, ResultLine } from '../lib/sortTable.jsx'
+const STATUS_RANK = { overdue: 0, absent: 1, scheduled: 2, checked_in: 3, checked_out: 4 }
+const t = (ts) => (ts ? new Date(ts).getTime() : null)
 
 export default function Dashboard() {
   const [shiftsAll, setShifts] = useState(null)
   const [attAll, setAtt] = useState([])
-  const [provSel, setProvSel] = useState(new Set())
-  const [propSel, setPropSel] = useState(new Set())
+  const [props, setProps] = useState([])
+  const F0 = { q: '', province: '', prop: '', status: '' }
+  const [f, setF] = useState(F0)
   const [err, setErr] = useState('')
   const [stuck, setStuck] = useState([])
   const [reload, setReload] = useState(0)
@@ -19,12 +23,13 @@ export default function Dashboard() {
         const [start, end] = todayRangeBkk()
         const [s, a] = await Promise.all([
           list(`shift_assignments?select=id,starts_at,ends_at,status,kind,is_holiday_work,users!user_id(full_name,employee_code),properties!inner(id,name,province,is_test)&properties.is_test=is.false&starts_at=gte.${start}&starts_at=lt.${end}&status=neq.cancelled&order=starts_at`),
-          list(`attendance?select=check_in_at,check_out_at,late_minutes,early_leave_minutes,early_reason,flag_reason,in_distance_m,is_mock_flag,users(full_name),properties!inner(id,name,province,is_test)&properties.is_test=is.false&check_in_at=gte.${start}&order=check_in_at.desc&limit=30`),
+          list(`attendance?select=check_in_at,check_out_at,late_minutes,early_leave_minutes,early_reason,flag_reason,in_distance_m,is_mock_flag,users(full_name,employee_code),properties!inner(id,name,province,is_test)&properties.is_test=is.false&check_in_at=gte.${start}&order=check_in_at.desc&limit=300`),
         ])
         setShifts(s); setAtt(a)
+        list('properties?select=id,name,province&is_active=is.true&is_test=is.false').then(setProps).catch(() => {})
         setCoverage(await rpc('open_coverage').catch(() => []))
         const cutoff = new Date(Date.now() - 3600 * 1000).toISOString()
-        setStuck(await list(`shift_assignments?select=id,starts_at,ends_at,kind,users!user_id(full_name,employee_code),properties(name)&status=eq.checked_in&ends_at=lt.${cutoff}&order=ends_at`).catch(() => []))
+        setStuck(await list(`shift_assignments?select=id,starts_at,ends_at,kind,users!user_id(full_name,employee_code),properties(id,name,province)&status=eq.checked_in&ends_at=lt.${cutoff}&order=ends_at`).catch(() => []))
       } catch (e) { setErr(String(e.message || e)) }
     })()
   }, [reload])
@@ -36,30 +41,21 @@ export default function Dashboard() {
     catch (e) { setErr(String(e.message || e)) }
   }
 
-  const provinces = useMemo(() => {
-    if (!shiftsAll) return []
-    const s = [...new Set([...shiftsAll, ...attAll].map((r) => r.properties?.province || 'ไม่ระบุ'))]
-    return s.sort().map((v) => ({ value: v, label: v }))
-  }, [shiftsAll, attAll])
-  const propOptions = useMemo(() => {
-    if (!shiftsAll) return []
-    const m = new Map()
-    for (const r of [...shiftsAll, ...attAll]) if (r.properties) m.set(r.properties.id, r.properties.name)
-    return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1])).map(([value, label]) => ({ value, label }))
-  }, [shiftsAll, attAll])
-
-  const match = (r) => {
-    const prov = r.properties?.province || 'ไม่ระบุ'
-    if (provSel.size && !provSel.has(prov)) return false
-    if (propSel.size && !propSel.has(r.properties?.id)) return false
+  // ── ค้นหาขั้นสูง ──
+  const provOf = useMemo(() => Object.fromEntries(props.map((p) => [p.id, p.province || 'ไม่ระบุ'])), [props])
+  const provinces = useMemo(() => [...new Set(props.map((p) => p.province || 'ไม่ระบุ'))].sort(byName), [props])
+  const propOptions = useMemo(() => props.filter((p) => !f.province || (p.province || 'ไม่ระบุ') === f.province).sort((a, b) => byName(a.name, b.name)), [props, f.province])
+  const setFv = (k) => (e) => setF({ ...f, [k]: e.target.value, ...(k === 'province' ? { prop: '' } : {}) })
+  const fActive = Object.values(f).some(Boolean)
+  const q = f.q.trim().toLowerCase()
+  // r: { pid, province, text }
+  const pass = (pid, province, text) => {
+    if (f.province && (province || provOf[pid] || 'ไม่ระบุ') !== f.province) return false
+    if (f.prop && pid !== f.prop) return false
+    if (q && !String(text || '').toLowerCase().includes(q)) return false
     return true
   }
-
-  if (err) return <div className="notice err">โหลดข้อมูลไม่สำเร็จ — {err}</div>
-  if (!shiftsAll) return <p className="muted">กำลังโหลด…</p>
-
-  const shifts = shiftsAll.filter(match)
-  const att = attAll.filter(match)
+  const match = (r) => pass(r.properties?.id, r.properties?.province, `${r.users?.full_name} ${r.users?.employee_code} ${r.properties?.name}`)
   const now = Date.now()
   // สถานะที่คำนวณ ณ ตอนนี้ (ยังไม่มี cron มาตี absent จริงใน DB — คำนวณฝั่งจอไปก่อน)
   const derive = (s) => {
@@ -68,6 +64,32 @@ export default function Dashboard() {
     if (now >= new Date(s.starts_at).getTime()) return 'overdue'    // เลยเวลาเริ่มแล้วยังไม่เข้า
     return 'scheduled'
   }
+  const shifts = useMemo(() => (shiftsAll || []).filter(match), [shiftsAll, f, provOf])
+  const shiftRows = useMemo(() => shifts.filter((s) => !f.status || derive(s) === f.status), [shifts, f.status])
+  const att = useMemo(() => attAll.filter(match), [attAll, f, provOf])
+  const cov = useMemo(() => coverage.filter((c) => pass(c.property_id, null, `${c.property_name} ${c.slot_name}`)), [coverage, f, provOf])
+  const stuckF = useMemo(() => stuck.filter(match), [stuck, f, provOf])
+
+  const covSort = useSort(cov, useMemo(() => ({
+    name: (c) => c.property_name, slot: (c) => [t(c.slot_start), c.property_name],
+    duty: (c) => [c.on_duty / Math.max(1, c.headcount), c.property_name],
+    status: (c) => [c.short ? 0 : c.on_duty >= c.headcount ? 2 : 1, c.property_name],
+  }), []), { key: 'status', dir: 'asc' })
+  const stuckSort = useSort(stuckF, useMemo(() => ({
+    who: (x) => x.users?.full_name, prop: (x) => x.properties?.name, time: (x) => t(x.ends_at),
+  }), []), { key: 'time', dir: 'asc' })
+  const shiftSort = useSort(shiftRows, useMemo(() => ({
+    who: (s) => s.users?.full_name, prop: (s) => [s.properties?.name, t(s.starts_at)],
+    time: (s) => [t(s.starts_at), s.properties?.name], status: (s) => [STATUS_RANK[derive(s)] ?? 9, t(s.starts_at)],
+  }), [shiftsAll]), { key: 'time', dir: 'asc' })
+  const attSort = useSort(att, useMemo(() => ({
+    who: (a) => a.users?.full_name, prop: (a) => a.properties?.name, in: (a) => t(a.check_in_at), out: (a) => t(a.check_out_at),
+    note: (a) => [(a.is_mock_flag || a.flag_reason || a.early_reason) ? 0 : 1, -t(a.check_in_at)],
+  }), []), { key: 'in', dir: 'desc' })
+
+  if (err) return <div className="notice err">โหลดข้อมูลไม่สำเร็จ — {err}</div>
+  if (!shiftsAll) return <p className="muted">กำลังโหลด…</p>
+
   const total = shifts.length
   const checkedIn = shifts.filter((s) => s.status === 'checked_in').length
   const done = shifts.filter((s) => s.status === 'checked_out').length
@@ -79,12 +101,22 @@ export default function Dashboard() {
 
   return (
     <div>
-      {(provinces.length > 1 || propOptions.length > 1) && (
-        <div className="filters">
-          <FilterChips label="จังหวัด" options={provinces} selected={provSel} onChange={setProvSel} />
-          <FilterChips label="โครงการ" options={propOptions} selected={propSel} onChange={setPropSel} />
+      <div className="filters sh-filters">
+        <div className="field grow"><label>ค้นหา</label><input value={f.q} onChange={setFv('q')} placeholder="ชื่อพนักงาน รหัส หรือชื่อโครงการ" /></div>
+        <div className="field"><label>จังหวัด</label>
+          <select value={f.province} onChange={setFv('province')}><option value="">ทั้งหมด</option>{provinces.map((x) => <option key={x}>{x}</option>)}</select>
         </div>
-      )}
+        <div className="field"><label>โครงการ</label>
+          <select value={f.prop} onChange={setFv('prop')}><option value="">ทั้งหมด</option>{propOptions.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
+        </div>
+        <div className="field"><label>สถานะกะ</label>
+          <select value={f.status} onChange={setFv('status')}>
+            <option value="">ทั้งหมด</option><option value="checked_in">กำลังปฏิบัติงาน</option><option value="overdue">เลยเวลาเริ่ม</option>
+            <option value="scheduled">รอเข้างาน</option><option value="absent">ขาดงาน</option><option value="checked_out">ออกงานแล้ว</option>
+          </select>
+        </div>
+        {fActive && <div className="sh-actions"><button className="link-btn" onClick={() => setF(F0)}>ล้างตัวกรอง</button></div>}
+      </div>
       <section className="board" aria-label="สถานะเวรวันนี้">
         <div className="board-top">
           <div className="big">{checkedIn}<small>คนกำลังปฏิบัติงาน จากกะวันนี้ {total} กะ</small></div>
@@ -110,90 +142,109 @@ export default function Dashboard() {
       <div className="stat-row">
         <div className={`stat ${late ? 'warn' : ''}`}><div className="n">{late}</div><div className="l">เข้าสายวันนี้</div></div>
         <div className={`stat ${flagged ? 'warn' : ''}`}><div className="n">{flagged}</div><div className="l">รายการติดธงตรวจสอบ</div></div>
-        <div className={`stat ${stuck.length ? 'alert' : ''}`}><div className="n">{stuck.length}</div><div className="l">ลืมเช็คเอาต์ รอปิดกะ</div></div>
+        <div className={`stat ${stuckF.length ? 'alert' : ''}`}><div className="n">{stuckF.length}</div><div className="l">ลืมเช็คเอาต์ รอปิดกะ</div></div>
         {coverage.length > 0 && (
-          <div className={`stat ${coverage.some((c) => c.short) ? 'alert' : ''}`}><div className="n">{coverage.filter((c) => c.short).length}</div><div className="l">จุดที่คนไม่ครบตอนนี้</div></div>
+          <div className={`stat ${cov.some((c) => c.short) ? 'alert' : ''}`}><div className="n">{cov.filter((c) => c.short).length}</div><div className="l">จุดที่คนไม่ครบตอนนี้</div></div>
         )}
       </div>
 
       {coverage.length > 0 && (
         <>
           <div className="section-h"><h2>โครงการแบบไม่จัดกะ · ช่วงกะตอนนี้</h2></div>
-          <table className="grid">
-            <thead><tr><th>โครงการ</th><th>ช่วงกะ</th><th>อยู่เวร / ต้องมี</th><th>สถานะ</th></tr></thead>
-            <tbody>
-              {coverage.map((c) => (
-                <tr key={`${c.property_id}-${c.slot_start}`}>
-                  <td>{c.property_name}</td>
-                  <td>{c.slot_name} · {fmtTime(c.slot_start)}–{fmtTime(c.slot_end)}</td>
-                  <td><b>{c.on_duty}</b> / {c.headcount} คน</td>
-                  <td>{c.short ? <span className="badge alert">ขาด {c.headcount - c.on_duty} คน</span>
-                    : c.on_duty >= c.headcount ? <span className="badge duty">ครบ</span>
-                    : <span className="badge warn">รอเข้างาน</span>}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <ResultLine shown={cov.length} total={coverage.length} unit="ช่วงกะ" active={fActive} onClear={() => setF(F0)} note={`ขาดคน ${cov.filter((c) => c.short).length} จุด · กดหัวคอลัมน์เพื่อเรียง`} />
+          {cov.length > 0 && (
+            <div className="table-wrap">
+              <table className="grid">
+                <thead><tr>{covSort.th('name', 'โครงการ')}{covSort.th('slot', 'ช่วงกะ')}{covSort.th('duty', 'อยู่เวร / ต้องมี')}{covSort.th('status', 'สถานะ')}</tr></thead>
+                <tbody>
+                  {covSort.sorted.map((c) => (
+                    <tr key={`${c.property_id}-${c.slot_start}`}>
+                      <td>{c.property_name}</td>
+                      <td>{c.slot_name} · {fmtTime(c.slot_start)}–{fmtTime(c.slot_end)}</td>
+                      <td><b>{c.on_duty}</b> / {c.headcount} คน</td>
+                      <td>{c.short ? <span className="badge alert">ขาด {c.headcount - c.on_duty} คน</span>
+                        : c.on_duty >= c.headcount ? <span className="badge duty">ครบ</span>
+                        : <span className="badge warn">รอเข้างาน</span>}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </>
       )}
 
-      {stuck.length > 0 && (
+      {stuckF.length > 0 && (
         <>
-          <div className="section-h"><h2>ลืมเช็คเอาต์ (เกิน 1 ชม. หลังจบกะ) · {stuck.length}</h2></div>
-          <table className="grid">
-            <thead><tr><th>พนักงาน</th><th>โครงการ</th><th>กะ</th><th></th></tr></thead>
-            <tbody>
-              {stuck.map((x) => (
-                <tr key={x.id}>
-                  <td>{x.users?.full_name} <span className="muted">({x.users?.employee_code})</span></td>
-                  <td>{x.properties?.name}{x.kind !== 'scheduled' ? <span className="badge" style={{ marginLeft: 6 }}>{KIND[x.kind]}</span> : null}</td>
-                  <td>{new Date(x.starts_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', timeZone: 'Asia/Bangkok' })} {fmtTime(x.starts_at)}–{fmtTime(x.ends_at)}</td>
-                  <td><button className="badge solid" style={{ cursor: 'pointer', border: 'none', fontFamily: 'var(--font)' }} onClick={() => closeShift(x)}>ปิดกะ</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="section-h"><h2>ลืมเช็คเอาต์ (เกิน 1 ชม. หลังจบกะ) · {stuckF.length}</h2></div>
+          <div className="table-wrap">
+            <table className="grid">
+              <thead><tr>{stuckSort.th('who', 'พนักงาน')}{stuckSort.th('prop', 'โครงการ')}{stuckSort.th('time', 'กะ')}<th></th></tr></thead>
+              <tbody>
+                {stuckSort.sorted.map((x) => (
+                  <tr key={x.id}>
+                    <td>{x.users?.full_name} <span className="muted">({x.users?.employee_code})</span></td>
+                    <td>{x.properties?.name}{x.kind !== 'scheduled' ? <span className="badge" style={{ marginLeft: 6 }}>{KIND[x.kind]}</span> : null}</td>
+                    <td>{new Date(x.starts_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', timeZone: 'Asia/Bangkok' })} {fmtTime(x.starts_at)}–{fmtTime(x.ends_at)}</td>
+                    <td className="row-act"><button className="badge solid" style={{ border: 'none' }} onClick={() => closeShift(x)}>ปิดกะ</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </>
       )}
 
       <div className="section-h"><h2>กะวันนี้</h2></div>
-      {total === 0 ? <p className="muted">ยังไม่มีกะวันนี้ — สร้างจากแท็บ "ตารางกะ"</p> : (
-        <table className="grid">
-          <thead><tr><th>พนักงาน</th><th>โครงการ</th><th>เวลา</th><th>สถานะ</th></tr></thead>
-          <tbody>
-            {shifts.map((s) => (
-              <tr key={s.id}>
-                <td>{s.users?.full_name} <span className="muted">({s.users?.employee_code})</span></td>
-                <td>{s.properties?.name}{s.is_holiday_work ? ' · วันหยุด' : ''}{s.kind && s.kind !== 'scheduled' ? <span className="badge warn" style={{ marginLeft: 6 }}>{KIND[s.kind]}</span> : null}</td>
-                <td>{fmtTime(s.starts_at)}–{fmtTime(s.ends_at)}</td>
-                <td><Status s={derive(s)} /></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {total === 0 ? <p className="muted">{fActive ? 'ไม่พบกะตามตัวกรอง' : 'ยังไม่มีกะวันนี้ — สร้างจากแท็บ "ตารางกะ"'}</p> : (
+        <>
+          <ResultLine shown={shiftRows.length} total={shiftsAll.length} unit="กะ" active={fActive} onClear={() => setF(F0)} note="กดหัวคอลัมน์เพื่อเรียง" />
+          {shiftRows.length > 0 && (
+            <div className="table-wrap">
+              <table className="grid">
+                <thead><tr>{shiftSort.th('who', 'พนักงาน')}{shiftSort.th('prop', 'โครงการ')}{shiftSort.th('time', 'เวลา')}{shiftSort.th('status', 'สถานะ')}</tr></thead>
+                <tbody>
+                  {shiftSort.sorted.map((s) => (
+                    <tr key={s.id}>
+                      <td>{s.users?.full_name} <span className="muted">({s.users?.employee_code})</span></td>
+                      <td>{s.properties?.name}{s.is_holiday_work ? ' · วันหยุด' : ''}{s.kind && s.kind !== 'scheduled' ? <span className="badge warn" style={{ marginLeft: 6 }}>{KIND[s.kind]}</span> : null}</td>
+                      <td>{fmtTime(s.starts_at)}–{fmtTime(s.ends_at)}</td>
+                      <td><Status s={derive(s)} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
       )}
 
-      <div className="section-h"><h2>การลงเวลาล่าสุด</h2></div>
-      {att.length === 0 ? <p className="muted">ยังไม่มีการลงเวลาวันนี้</p> : (
-        <table className="grid">
-          <thead><tr><th>พนักงาน</th><th>โครงการ</th><th>เข้า</th><th>ออก</th><th>หมายเหตุ</th></tr></thead>
-          <tbody>
-            {att.map((a, i) => (
-              <tr key={i}>
-                <td>{a.users?.full_name}</td>
-                <td>{a.properties?.name}</td>
-                <td>{fmtTime(a.check_in_at)}{a.late_minutes > 0 && <span className="muted"> (สาย {a.late_minutes} น.)</span>}</td>
-                <td>{fmtTime(a.check_out_at)}{a.early_leave_minutes > 0 && <span className="muted"> (ก่อนเวลา {a.early_leave_minutes} น.)</span>}</td>
-                <td>
-                  {a.early_reason && <div>เหตุผล: {a.early_reason}</div>}
-                  {(a.is_mock_flag || a.flag_reason)
-                    ? (a.flag_reason || 'mock_gps').split(',').map((f) => <span key={f} className={`badge ${f === 'early_checkout' || f === 'emergency' ? 'warn' : 'alert'}`} style={{ marginRight: 4 }}>{FLAG[f] || f}</span>)
-                    : (!a.early_reason && <span className="muted">ปกติ</span>)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="section-h"><h2>การลงเวลาวันนี้</h2></div>
+      {att.length === 0 ? <p className="muted">{fActive && attAll.length ? 'ไม่พบการลงเวลาตามตัวกรอง' : 'ยังไม่มีการลงเวลาวันนี้'}</p> : (
+        <>
+          <ResultLine shown={att.length} total={attAll.length} unit="รายการ" active={fActive} onClear={() => setF(F0)} note="ล่าสุดอยู่บน · กดหัวคอลัมน์เพื่อเรียง" />
+          <div className="table-wrap">
+            <table className="grid">
+              <thead><tr>{attSort.th('who', 'พนักงาน')}{attSort.th('prop', 'โครงการ')}{attSort.th('in', 'เข้า')}{attSort.th('out', 'ออก')}{attSort.th('note', 'หมายเหตุ')}</tr></thead>
+              <tbody>
+                {attSort.sorted.map((a, i) => (
+                  <tr key={i}>
+                    <td>{a.users?.full_name}</td>
+                    <td>{a.properties?.name}</td>
+                    <td>{fmtTime(a.check_in_at)}{a.late_minutes > 0 && <span className="muted"> (สาย {a.late_minutes} น.)</span>}</td>
+                    <td>{fmtTime(a.check_out_at)}{a.early_leave_minutes > 0 && <span className="muted"> (ก่อนเวลา {a.early_leave_minutes} น.)</span>}</td>
+                    <td>
+                      {a.early_reason && <div>เหตุผล: {a.early_reason}</div>}
+                      {(a.is_mock_flag || a.flag_reason)
+                        ? (a.flag_reason || 'mock_gps').split(',').map((fl) => <span key={fl} className={`badge ${fl === 'early_checkout' || fl === 'emergency' ? 'warn' : 'alert'}`} style={{ marginRight: 4 }}>{FLAG[fl] || fl}</span>)
+                        : (!a.early_reason && <span className="muted">ปกติ</span>)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </div>
   )

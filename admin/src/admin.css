@@ -304,3 +304,28 @@ table.grid tr.sel td { background: var(--paper); }
 .imp-grid td:nth-last-child(2) { min-width: 220px; max-width: 300px; white-space: normal; }
 .imp-grid input[type=time] { width: 110px; }
 .imp-grid input[type=date] { width: 150px; }
+
+/* ── ตารางเรียงได้ (lib/sortTable.jsx) ── */
+table.grid th.sortable { padding: 0; }
+table.grid th.sortable button { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 6px; width: 100%; padding: 11px 16px; cursor: pointer; font: 600 13px var(--font); color: var(--mute); white-space: nowrap; }
+table.grid th.sortable button:hover { color: var(--ink); }
+table.grid th.sortable button:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+table.grid th.sortable.on button { color: var(--ink); }
+.sort-ic { font-size: 10px; opacity: .45; }
+table.grid th.sortable.on .sort-ic { opacity: 1; }
+.page-h { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; }
+.page-h h2 { margin: 0; }
+td.num, th.num { text-align: right; }
+/* ปุ่มแก้ไข/ปิดใช้ อยู่ขอบขวาเสมอเมื่อตารางกว้างกว่าจอ */
+.table-wrap table.grid td.row-act { position: sticky; right: 0; background: var(--surface); box-shadow: -8px 0 8px -8px rgba(0,0,0,.12); }
+.table-wrap table.grid tbody tr:hover td.row-act { background: #fafbfa; }
+.table-wrap table.grid th:last-child:empty { position: sticky; right: 0; background: #fafbfa; }
+table.grid td.wrap-sm { white-space: normal; min-width: 140px; max-width: 260px; }
+/* กรอบมนย้ายไปที่ .table-wrap เพื่อให้คอลัมน์ปุ่ม sticky ทำงาน (overflow ของ table ตัดเนื้อหาเอง) */
+.table-wrap { border: 1px solid var(--line); background: var(--surface); box-shadow: var(--shadow); }
+.table-wrap > table.grid { border: 0; border-radius: 0; box-shadow: none; overflow: visible; }
+table.grid.dense th.sortable button { padding: 10px 12px; }
+table.grid.dense td { padding: 11px 12px; }
+table.grid.dense th { padding: 10px 12px; }
+@media (max-width: 880px) { .table-wrap > table.grid { display: table; width: 100%; } }
+table.grid.dense th.sortable { padding: 0; }
