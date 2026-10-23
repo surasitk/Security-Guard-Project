@@ -24,7 +24,7 @@ export const KIND_TH = { scheduled: 'ตามตารางกะ', adhoc: '�
 
 export const ROLE_TH = {
   owner: 'เจ้าของ', admin: 'ธุรการ/แอดมิน', supervisor: 'สายตรวจ', assistant_supervisor: 'ผู้ช่วยสายตรวจ',
-  trainer: 'ครูฝึก', spare: 'ตัวสแปร์', shift_leader: 'หัวหน้ากะ', guard: 'ยาม', client: 'ลูกค้า',
+  trainer: 'ครูฝึก', spare: 'ตัวสแปร์', shift_leader: 'หัวหน้ากะ', guard: 'รปภ.', client: 'ลูกค้า',
 }
 
 export const INCIDENT_TH = { open: 'รอรับเรื่อง', ack: 'รับเรื่องแล้ว กำลังจัดการ', closed: 'ปิดเรื่องแล้ว' }

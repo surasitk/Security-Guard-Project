@@ -63,12 +63,12 @@ export default function Properties() {
     })
     setMode('edit'); setMsg(null)
   }
-  // โหมดกะ: 'scheduled' = ผู้ดูแลจ่ายกะให้ · 'open' = ยามที่ผูกกับโครงการกดเข้างานเองตามช่วงกะ (แม่แบบกะ)
+  // โหมดกะ: 'scheduled' = ผู้ดูแลจ่ายกะให้ · 'open' = รปภ.ที่ผูกกับโครงการกดเข้างานเองตามช่วงกะ (แม่แบบกะ)
   async function toggleMode(row) {
     const next = row.shift_mode === 'open' ? 'scheduled' : 'open'
     const text = next === 'open'
-      ? `เปลี่ยน "${row.name}" เป็นแบบไม่จัดกะ?\n\nยามที่ผูกกับโครงการจะกดเข้างานเองได้ตามช่วงกะ (แม่แบบกะในหน้าตารางกะ) ควงต่อได้ถึง 24 ชม.\nอย่าลืมตั้งช่วงกะและจำนวนคนที่ต้องมีในหน้าตารางกะ`
-      : `เปลี่ยน "${row.name}" กลับเป็นแบบจัดกะล่วงหน้า?\n\nยามจะเข้างานได้เฉพาะกะที่ผู้ดูแลจ่ายให้`
+      ? `เปลี่ยน "${row.name}" เป็นแบบไม่จัดกะ?\n\nรปภ.ที่ผูกกับโครงการจะกดเข้างานเองได้ตามช่วงกะ (แม่แบบกะในหน้าตารางกะ) ควงต่อได้ถึง 24 ชม.\nอย่าลืมตั้งช่วงกะและจำนวนคนที่ต้องมีในหน้าตารางกะ`
+      : `เปลี่ยน "${row.name}" กลับเป็นแบบจัดกะล่วงหน้า?\n\nรปภ.จะเข้างานได้เฉพาะกะที่ผู้ดูแลจ่ายให้`
     if (!window.confirm(text)) return
     setBusy(true); setMsg(null)
     try {
@@ -177,7 +177,7 @@ export default function Properties() {
             <div className="field"><label>รหัสไปรษณีย์ (อัตโนมัติ)</label><input value={form.postcode} readOnly style={{ background: 'var(--paper)' }} /></div>
             <div className="field"><label>ที่อยู่ (เลขที่/ถนน/ซอย)</label><input value={form.address} onChange={set('address')} /></div>
             <div className="field"><label>รัศมี geofence (เมตร)</label><input value={form.radius} onChange={set('radius')} inputMode="numeric" /></div>
-            <div className="field"><label>อัตราเก็บลูกค้า/ยาม/วัน</label><input value={form.rate} onChange={set('rate')} inputMode="numeric" /></div>
+            <div className="field"><label>อัตราเก็บลูกค้า/รปภ./วัน</label><input value={form.rate} onChange={set('rate')} inputMode="numeric" /></div>
           </div>
 
           <MapPicker initLat={form.lat} initLng={form.lng} onPick={(lat, lng) => setForm((f) => ({ ...f, lat, lng }))} />
@@ -238,7 +238,7 @@ export default function Properties() {
                       <td>{p.geofence_radius_m} ม.</td>
                       <td>
                         <button type="button" className={`badge ${p.shift_mode === 'open' ? 'duty' : ''}`} onClick={() => toggleMode(p)} disabled={busy}
-                          title={p.shift_mode === 'open' ? 'ไม่จัดกะ · ยามเข้าตามช่วงกะ — กดเพื่อสลับ' : 'จัดกะล่วงหน้า — กดเพื่อสลับ'}>
+                          title={p.shift_mode === 'open' ? 'ไม่จัดกะ · รปภ.เข้าตามช่วงกะ — กดเพื่อสลับ' : 'จัดกะล่วงหน้า — กดเพื่อสลับ'}>
                           {p.shift_mode === 'open' ? 'ไม่จัดกะ' : 'จัดกะล่วงหน้า'}
                         </button>
                       </td>

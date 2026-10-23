@@ -1,4 +1,4 @@
-/* Guard OS — Duty Board theme (ใช้ร่วม: แอปยาม LIFF + หลังบ้าน)
+/* Guard OS — Duty Board theme (ใช้ร่วม: แอปรปภ. LIFF + หลังบ้าน)
    โทนหลักขาว-เทา-ดำ · สีใช้เมื่อมีความหมายเท่านั้น:
    เขียว = กำลังปฏิบัติงาน · อำพัน = ต้องดู/ธงตรวจสอบ · แดง = ขาด/ผิดพลาด */
 
@@ -40,7 +40,7 @@ body {
 :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 
-/* ── หน้าแอปยาม ── */
+/* ── หน้าแอปรปภ. ── */
 .page { max-width: 480px; margin: 0 auto; padding: 20px 18px 48px; min-height: 100vh; }
 .brand { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--ink-2); }
 .brand::before {
@@ -141,7 +141,7 @@ select {
 .bar > span { display: block; height: 100%; width: 40%; background: var(--ink); border-radius: 99px; animation: barslide 1.1s ease-in-out infinite; }
 @keyframes barslide { 0% { margin-left: -40%; } 100% { margin-left: 100%; } }
 
-/* ── เฉพาะแอปยาม ── */
+/* ── เฉพาะแอปรปภ. ── */
 .hello { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
 .hello .role { margin-top: 18px; }
 
