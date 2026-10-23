@@ -41,7 +41,7 @@ export default function Vendors() {
 
   return (
     <div>
-      <div className="section-h"><h2>เพิ่ม Vendor (บริษัท รปภ. ใหม่)</h2></div>
+      <div className="section-h"><h2>เพิ่ม Tenant (บริษัท รปภ. ใหม่)</h2></div>
       <form className="card" onSubmit={submit}>
         <div className="form-grid">
           <div className="field"><label>ชื่อบริษัท *</label><input value={form.company} onChange={set('company')} required /></div>
@@ -51,13 +51,13 @@ export default function Vendors() {
           <div className="field"><label>ชื่อ Owner ของบริษัท *</label><input value={form.owner_name} onChange={set('owner_name')} required /></div>
           <div className="field"><label>รหัสพนักงาน Owner *</label><input value={form.owner_code} onChange={set('owner_code')} required /></div>
           <div className="field"><label>เบอร์โทร Owner *</label><input value={form.owner_phone} onChange={set('owner_phone')} inputMode="tel" required /></div>
-          <button className="btn inline" type="submit" disabled={busy}>{busy ? 'กำลังสร้าง…' : 'สร้าง Vendor'}</button>
+          <button className="btn inline" type="submit" disabled={busy}>{busy ? 'กำลังสร้าง…' : 'สร้าง Tenant'}</button>
         </div>
         <p className="muted" style={{ marginTop: 10 }}>สร้างแล้ว owner ลงทะเบียนผูก LINE ด้วยรหัส+เบอร์ที่ตั้งไว้ แล้วเข้าเว็บ admin นี้ได้เลย — เห็นเฉพาะข้อมูลบริษัทตัวเอง</p>
       </form>
       {msg && <div className={`notice ${msg.t === 'err' ? 'err' : ''}`}>{msg.m}</div>}
 
-      <div className="section-h"><h2>Vendor ทั้งหมด {rows ? `(${rows.length})` : ''}</h2></div>
+      <div className="section-h"><h2>Tenant ทั้งหมด {rows ? `(${rows.length})` : ''}</h2></div>
       {!rows ? <p className="muted">กำลังโหลด…</p> : (
         <table className="grid">
           <thead><tr><th>บริษัท</th><th>แพ็คเกจ</th><th>สถานะ</th><th>โครงการ</th><th>พนักงาน</th><th>ผูก LINE</th><th>สร้างเมื่อ</th><th></th></tr></thead>

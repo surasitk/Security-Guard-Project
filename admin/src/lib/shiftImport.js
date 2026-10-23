@@ -121,7 +121,7 @@ export function toPayload({ templates, assignments }) {
   }
 }
 
-/** สร้างไฟล์แบบฟอร์ม (มีรายชื่อโครงการ/พนักงานของ Vendor ปัจจุบันให้เลือก) */
+/** สร้างไฟล์แบบฟอร์ม (มีรายชื่อโครงการ/พนักงานของ Tenant ปัจจุบันให้เลือก) */
 export async function buildTemplateFile(ExcelJS, { properties, people, templates }) {
   const wb = new ExcelJS.Workbook()
   wb.creator = 'Horguard Force'

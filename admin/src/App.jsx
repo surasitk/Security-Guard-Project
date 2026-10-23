@@ -44,7 +44,7 @@ const BASE_TABS = [
   { group: 'รายงาน', key: 'reports', label: 'รายงาน', icon: 'report', desc: 'รายงานเวลาเข้า-ออกงาน สาย และ OT ตามโครงการ ช่วงวันที่ และรายชื่อ — Export เป็น Excel', el: Reports },
   { group: 'รายงาน', key: 'client', label: 'แดชบอร์ดลูกค้า', icon: 'chart', desc: 'SLA การเข้ากะ ความครอบคลุมการตรวจตรา เหตุที่แจ้ง และ heat map จุดตรวจ รายโครงการ', el: ClientDashboard },
 ]
-const VENDOR_TAB = { group: 'ผู้ดูแลระบบ', key: 'vendors', label: 'บริษัทในระบบ', icon: 'org', desc: 'บริษัท รปภ. ที่ใช้ Horguard (เฉพาะ Super Admin)', el: Vendors }
+const VENDOR_TAB = { group: 'ผู้ดูแลระบบ', key: 'vendors', label: 'Tenant ในระบบ', icon: 'org', desc: 'Tenant = บริษัท รปภ. ที่ใช้ Horguard (เฉพาะ Super Admin)', el: Vendors }
 const ROLE_TH = { owner: 'เจ้าของ', admin: 'แอดมิน', supervisor: 'สายตรวจ', shift_leader: 'หัวหน้ากะ', client: 'ลูกค้า' }
 
 export default function App() {
@@ -53,7 +53,7 @@ export default function App() {
   const [tab, setTab] = useState('dashboard')
   const [isPlatform, setIsPlatform] = useState(false)
   const [vendors, setVendors] = useState([])
-  const [ctx, setCtx] = useState(0)          // เปลี่ยนเมื่อสลับ Vendor → หน้าโหลดข้อมูลใหม่
+  const [ctx, setCtx] = useState(0)          // เปลี่ยนเมื่อสลับ Tenant → หน้าโหลดข้อมูลใหม่
   const [switching, setSwitching] = useState(false)
 
   useEffect(() => {
@@ -84,7 +84,7 @@ export default function App() {
   const Active = (TABS.find((t) => t.key === tab) || TABS[0]).el
 
   const current = TABS.find((t) => t.key === tab) || TABS[0]
-  // Vendor ที่ใช้งานจริง = tenant ใน token (ไม่พึ่งค่าที่ฟังก์ชันส่งกลับ ป้องกันช่องเลือกแสดงไม่ตรงกับข้อมูล)
+  // Tenant ที่ใช้งานจริง = tenant ใน token (ไม่พึ่งค่าที่ฟังก์ชันส่งกลับ ป้องกันช่องเลือกแสดงไม่ตรงกับข้อมูล)
   const activeId = tenantId()
   const vendor = vendors.find((v) => v.id === activeId) || getVendor()
   const acting = isPlatform && activeId && user.home_tenant_id && activeId !== user.home_tenant_id
@@ -112,7 +112,7 @@ export default function App() {
         </nav>
         {isPlatform && vendors.length > 0 && (
           <div className="vendor-switch">
-            <label htmlFor="vsw">กำลังจัดการ Vendor</label>
+            <label htmlFor="vsw">กำลังจัดการ Tenant</label>
             <select id="vsw" value={activeId || ''} onChange={onVendor} disabled={switching}>
               {vendors.map((v) => <option key={v.id} value={v.id}>{v.is_test ? '🧪 ' : ''}{v.name}{v.id === user.home_tenant_id ? ' (บริษัทของฉัน)' : ''}</option>)}
             </select>
@@ -128,8 +128,8 @@ export default function App() {
           <div className="page-head">
             <div><h1>{current.label}</h1><p>{current.desc}</p></div>
           </div>
-          {acting && <div className="notice info" style={{ marginTop: 0 }}>คุณกำลังจัดการข้อมูลของ <b>{vendor?.name || "Vendor นี้"}</b> ในฐานะ Super Admin — ทุกการแก้ไขบันทึกในชื่อคุณ</div>}
-          {switching ? <p className="muted">กำลังสลับ Vendor…</p> : <Active key={`${tab}-${ctx}`} isPlatform={isPlatform} vendors={vendors} />}
+          {acting && <div className="notice info" style={{ marginTop: 0 }}>คุณกำลังจัดการข้อมูลของ <b>{vendor?.name || "Tenant นี้"}</b> ในฐานะ Super Admin — ทุกการแก้ไขบันทึกในชื่อคุณ</div>}
+          {switching ? <p className="muted">กำลังสลับ Tenant…</p> : <Active key={`${tab}-${ctx}`} isPlatform={isPlatform} vendors={vendors} />}
         </div>
       </main>
     </div>

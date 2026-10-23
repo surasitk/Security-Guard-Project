@@ -12,11 +12,11 @@ const FN_URL = `${SUPABASE_URL}/functions/v1/auth-line`
 let accessToken = null
 let currentUser = null
 let currentVendor = null
-const ACT_KEY = 'guardos_act_tenant'   // Vendor ที่ Super Admin เลือกไว้ (จำข้ามการรีเฟรช)
+const ACT_KEY = 'guardos_act_tenant'   // Tenant ที่ Super Admin เลือกไว้ (จำข้ามการรีเฟรช)
 function store(k, v) { try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k) } catch { /* ignore */ } }
 function recall(k) { try { return localStorage.getItem(k) || '' } catch { return '' } }
 export function getVendor() { return currentVendor }
-/** Super Admin สลับ Vendor → ขอ token ใหม่ของ Vendor นั้น (สิทธิ์เจ้าของ) */
+/** Super Admin สลับ Tenant → ขอ token ใหม่ของ Tenant นั้น (สิทธิ์เจ้าของ) */
 export async function switchVendor(id) { store(ACT_KEY, id); return initAuth() }
 
 export function getUser() { return currentUser }
@@ -47,7 +47,7 @@ export async function initAuth() {
     body: JSON.stringify({ mode: 'login', id_token: liff.getIDToken(), act_tenant_id: recall(ACT_KEY) || undefined }),
   })
   const out = await res.json()
-  // Vendor ที่จำไว้ใช้ไม่ได้แล้ว → กลับบริษัทตัวเอง
+  // Tenant ที่จำไว้ใช้ไม่ได้แล้ว → กลับบริษัทตัวเอง
   if (!out.ok && ['forbidden_switch_vendor', 'vendor_not_found'].includes(out.error) && recall(ACT_KEY)) {
     store(ACT_KEY, '')
     return initAuth()

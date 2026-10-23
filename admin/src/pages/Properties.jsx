@@ -148,7 +148,7 @@ export default function Properties() {
         <form className="card" onSubmit={submit}>
           <div className="form-grid" style={{ marginBottom: 16 }}>
             {mode === 'create' && vendors.length > 0 && (
-              <div className="field"><label>Vendor (บริษัทเจ้าของโครงการ)</label>
+              <div className="field"><label>Tenant (บริษัทเจ้าของโครงการ)</label>
                 <select value={vendorSel} onChange={(e) => setVendorSel(e.target.value)}>
                   {vendors.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
                 </select>

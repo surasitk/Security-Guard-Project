@@ -12,8 +12,8 @@ const ROLES = [
   ['assistant_supervisor', 'ผู้ช่วยสายตรวจ', 'เช็คอิน/เอาต์ได้ทุกโครงการที่ผูกไว้แม้ไม่มีกะ (ไม่เกิน 10) · ไม่เข้าหลังบ้าน'],
   ['spare', 'ตัวสแปร์', 'เช็คอิน/เอาต์ได้ทุกโครงการที่ผูกไว้แม้ไม่มีกะ (ไม่เกิน 10) · ไม่เข้าหลังบ้าน'],
   ['supervisor', 'สายตรวจ/ผจก.โซน', 'เช็คอิน/เอาต์ได้ทุกโครงการที่ผูกไว้แม้ไม่มีกะ (ไม่เกิน 10) · เข้าหลังบ้านเห็นเฉพาะโครงการที่ผูกไว้'],
-  ['admin', 'ธุรการ/แอดมิน', 'จัดการได้ทุกโครงการของ Vendor นี้'],
-  ['owner', 'เจ้าของ', 'สิทธิ์สูงสุดของ Vendor นี้ เห็นและจัดการทุกโครงการ'],
+  ['admin', 'ธุรการ/แอดมิน', 'จัดการได้ทุกโครงการของ Tenant นี้'],
+  ['owner', 'เจ้าของ', 'สิทธิ์สูงสุดของ Tenant นี้ เห็นและจัดการทุกโครงการ'],
   ['client', 'ลูกค้า', 'เข้าหลังบ้านได้เฉพาะเมนู "แดชบอร์ดลูกค้า" ของโครงการที่ผูกไว้'],
 ]
 const LIMIT = { guard: 5, shift_leader: 10, trainer: 10, assistant_supervisor: 10, spare: 10, supervisor: 10, client: 10 }
@@ -21,14 +21,14 @@ const SCOPED = Object.keys(LIMIT)
 const DAY_SHORT = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส']
 const DAYS = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัส', 'ศุกร์', 'เสาร์']
 const ERR = {
-  forbidden: 'ไม่มีสิทธิ์จัดการ Vendor นี้',
+  forbidden: 'ไม่มีสิทธิ์จัดการ Tenant นี้',
   owner_requires_owner: 'ตั้งบทบาท "เจ้าของ" ได้เฉพาะเจ้าของหรือ Super Admin',
   platform_admin_requires_platform_admin: 'ตั้ง Super Admin ได้เฉพาะ Super Admin',
   cannot_remove_own_platform_admin: 'ถอดสิทธิ์ Super Admin ของตัวเองไม่ได้',
   cannot_change_own_role: 'เปลี่ยนบทบาทของตัวเองไม่ได้',
-  last_owner: 'Vendor ต้องมีเจ้าของอย่างน้อย 1 คน',
-  duplicate_employee_code: 'รหัสพนักงานนี้มีอยู่แล้วใน Vendor นี้',
-  property_not_in_vendor: 'โครงการที่เลือกไม่ใช่ของ Vendor นี้',
+  last_owner: 'Tenant ต้องมีเจ้าของอย่างน้อย 1 คน',
+  duplicate_employee_code: 'รหัสพนักงานนี้มีอยู่แล้วใน Tenant นี้',
+  property_not_in_vendor: 'โครงการที่เลือกไม่ใช่ของ Tenant นี้',
   invalid_role: 'บทบาทไม่ถูกต้อง',
   not_found: 'ไม่พบผู้ใช้',
   project_limit_exceeded: 'ผูกโครงการเกินจำนวนที่บทบาทนี้กำหนด',
@@ -102,7 +102,7 @@ export default function People({ isPlatform = false, vendors = [] }) {
       setMsg({
         t: 'ok',
         m: form.id ? `บันทึก ${form.full_name} แล้ว`
-          : `เพิ่ม ${form.full_name}${otherVendor ? ` ใน ${vName}` : ''} แล้ว — ให้ผู้ใช้เพิ่มเพื่อน OA แล้วลงทะเบียนด้วยรหัส ${form.employee_code} + เบอร์โทร${otherVendor ? ' (สลับ Vendor ด้านบนเพื่อดูในรายชื่อ)' : ''}`,
+          : `เพิ่ม ${form.full_name}${otherVendor ? ` ใน ${vName}` : ''} แล้ว — ให้ผู้ใช้เพิ่มเพื่อน OA แล้วลงทะเบียนด้วยรหัส ${form.employee_code} + เบอร์โทร${otherVendor ? ' (สลับ Tenant ด้านบนเพื่อดูในรายชื่อ)' : ''}`,
       })
       setForm(null); load()
     } catch (e2) { setMsg({ t: 'err', m: errTh(e2) }) } finally { setBusy(false) }
@@ -175,7 +175,7 @@ export default function People({ isPlatform = false, vendors = [] }) {
       {form && (
         <form className="card" onSubmit={save}>
           <div className="form-grid">
-            <div className="field"><label>Vendor (บริษัท)</label>
+            <div className="field"><label>Tenant (บริษัท)</label>
               {isPlatform && !form.id ? (
                 <select value={form.tenant_id} onChange={(e) => setForm({ ...form, tenant_id: e.target.value, property_ids: [] })}>
                   {vendors.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
@@ -215,7 +215,7 @@ export default function People({ isPlatform = false, vendors = [] }) {
                       </label>
                     ))}
                   </div>
-                ) : <p className="hint">Vendor นี้ยังไม่มีโครงการ — สร้างในแท็บโครงการก่อน</p>}
+                ) : <p className="hint">Tenant นี้ยังไม่มีโครงการ — สร้างในแท็บโครงการก่อน</p>}
                 {!form.property_ids.length && formProps.length > 0 && <p className="hint">ยังไม่ได้เลือก — ผู้ใช้จะไม่เห็นโครงการใดเลย</p>}
               </div>
             )}
@@ -223,7 +223,7 @@ export default function People({ isPlatform = false, vendors = [] }) {
             {isPlatform && (
               <label className="consent" style={{ display: 'flex', gap: 10, alignItems: 'flex-start', gridColumn: '1 / -1' }}>
                 <input type="checkbox" checked={form.platform_admin} onChange={(e) => setForm({ ...form, platform_admin: e.target.checked })} style={{ marginTop: 4 }} disabled={form.id === me.id} />
-                <span><b>Super Admin</b> — เห็นและสลับดูได้ทุก Vendor สร้าง Vendor ใหม่ และตั้ง Super Admin คนอื่นได้ ควรให้เฉพาะทีมเจ้าของแพลตฟอร์ม</span>
+                <span><b>Super Admin</b> — เห็นและสลับดูได้ทุก Tenant สร้าง Tenant ใหม่ และตั้ง Super Admin คนอื่นได้ ควรให้เฉพาะทีมเจ้าของแพลตฟอร์ม</span>
               </label>
             )}
           </div>
