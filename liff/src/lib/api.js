@@ -227,6 +227,26 @@ export async function sendGpsEvidence(phase, first) {
   } catch { /* ไม่กระทบผู้ใช้ */ }
 }
 
+/**
+ * ระดับ รปภ. (รปภ. · หัวหน้ากะ · ตัวสแปร์) ลงเวลา/สแกนจุดตรวจได้เฉพาะมือถือ — บล็อก iPad, แท็บเล็ต และคอมพิวเตอร์
+ * SOS ใช้ได้ทุกเครื่อง · Super Admin ได้รับยกเว้น (ทดสอบจากคอม) · คืนข้อความไทย หรือ null ถ้าใช้ได้
+ */
+const GUARD_LEVEL = ['guard', 'shift_leader', 'spare']
+export function deviceBlockReason() {
+  try {
+    if (currentUser?.is_platform_admin) return null
+    // บังคับเฉพาะระดับ รปภ. — เจ้าหน้าที่ระดับสูง (เจ้าของ แอดมิน ผจก.โซน สายตรวจ ครูฝึก ผู้ช่วยสายตรวจ) ใช้ iPad ได้
+    if (!GUARD_LEVEL.includes(currentUser?.role)) return null
+    const ua = navigator.userAgent || ''
+    const os = typeof liff.getOS === 'function' ? liff.getOS() : null
+    const iPad = /iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)
+    const androidTablet = /Android/.test(ua) && !/Mobile/.test(ua)
+    if (iPad || androidTablet) return 'ลงเวลาบน iPad หรือแท็บเล็ตไม่ได้ — กรุณาใช้มือถือของคุณ'
+    if (os === 'web' || !/Android|iPhone|iPod/.test(ua)) return 'ลงเวลาบนคอมพิวเตอร์ไม่ได้ — กรุณาเปิดเมนูจาก LINE ในมือถือของคุณ'
+    return null
+  } catch { return null }
+}
+
 /** device fingerprint แบบเบา (Sprint 1) — canvas + UA + screen */
 export async function deviceFingerprint() {
   const data = [navigator.userAgent, screen.width, screen.height, navigator.language].join('|')

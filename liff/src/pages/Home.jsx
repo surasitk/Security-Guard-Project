@@ -6,7 +6,7 @@
 // ขั้นตอนบันทึก: ถ่ายรูป → อัปโหลด → ขอ GPS (ไม่ได้ = บันทึกแบบไม่มีพิกัด+ติดธง) → RPC
 import { useEffect, useRef, useState } from 'react'
 import {
-  getUser, rpc, list, getPosition, compressImage, uploadSelfie, deviceFingerprint, withTimeout, notifyLine, errTh, sendGpsEvidence,
+  getUser, rpc, list, getPosition, compressImage, uploadSelfie, deviceFingerprint, withTimeout, notifyLine, errTh, sendGpsEvidence, deviceBlockReason,
 } from '../lib/api'
 import ShiftCalendar from '../components/ShiftCalendar.jsx'
 import Brand from '../components/Brand.jsx'
@@ -81,7 +81,9 @@ export default function Home() {
   const pastDeadline = current && current.checkout_deadline && new Date() > new Date(current.checkout_deadline)
   const isEarly = current && current.kind === 'scheduled' && new Date() < new Date(current.ends_at)
 
+  const blocked = deviceBlockReason()   // iPad/แท็บเล็ต/คอม → ลงเวลาไม่ได้
   function openCamera(action) {
+    if (blocked) { setMsg({ type: 'err', text: blocked }); return }
     setMsg(null); setGpsFallback(null)
     pending.current = action
     fileRef.current.click()
@@ -179,6 +181,7 @@ export default function Home() {
   const flowList = flowMode === 'open' ? openProjects : isField ? projects : schedProjects
   const flowTitle = flowMode === 'open' ? 'เข้างานตามช่วงกะ' : isField ? 'เช็คอินโครงการ' : isPlatform ? 'เข้างานทดสอบ' : 'เข้างานฉุกเฉิน'
   function startFlow(mode, list) {
+    if (blocked) { setMsg({ type: 'err', text: blocked }); return }
     setMsg(null); setFlowMode(mode)
     if (list.length === 1) { setPickProp(list[0]); setFlow('confirm') } else { setPickProp(null); setFlow('pick') }
   }
@@ -196,6 +199,7 @@ export default function Home() {
 
       <input ref={fileRef} type="file" accept="image/*" capture="user" hidden onChange={onSelfie} />
 
+      {blocked && <div className="notice err">{blocked}</div>}
       {shifts === null && <SkCards n={2} />}
 
       {current && (

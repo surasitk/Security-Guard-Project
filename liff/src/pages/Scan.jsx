@@ -2,7 +2,7 @@
 // เปิดจาก rich menu (?page=scan) หรือถูกเปิดพร้อม &code=... (สแกน QR จาก LINE) → auto submit
 import { useEffect, useRef, useState } from 'react'
 import liff from '@line/liff'
-import { getUser, rpc, getPosition, deviceFingerprint, withTimeout, readParams, errTh } from '../lib/api'
+import { getUser, rpc, getPosition, deviceFingerprint, withTimeout, readParams, errTh, deviceBlockReason } from '../lib/api'
 import Brand from '../components/Brand.jsx'
 
 const ERR_TH = {
@@ -29,7 +29,9 @@ export default function Scan() {
   const [msg, setMsg] = useState(null) // {type, text}
   const didAuto = useRef(false)
 
+  const blocked = deviceBlockReason()   // iPad/แท็บเล็ต/คอม → สแกนจุดตรวจไม่ได้
   async function submit(code) {
+    if (blocked) { setMsg({ type: 'err', text: blocked }); return }
     if (!code) { setMsg({ type: 'err', text: 'ไม่พบรหัสจุดตรวจใน QR' }); return }
     setBusy(true); setMsg(null)
     let coords = null, fp = null
@@ -91,7 +93,8 @@ export default function Scan() {
       {busy && <div className="notice"><div className="bar"><span /></div>{step}</div>}
       {msg && <div className={`notice ${msg.type === 'err' ? 'err' : ''}`}>{msg.text}</div>}
 
-      {!busy && (
+      {blocked && !msg && <div className="notice err">{blocked}</div>}
+      {!busy && !blocked && (
         <>
           <button className="btn" onClick={scanNow}>สแกน QR จุดตรวจ</button>
           <div className="spacer" />
