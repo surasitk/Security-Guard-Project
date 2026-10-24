@@ -17,6 +17,8 @@ export const FLAG_TH = {
   closed_by_admin: 'หัวหน้าปิดกะแทน',
   auto_closed_admin: 'ระบบปิดกะให้อัตโนมัติ',
   late: 'เข้าสาย',
+  gps_suspect_in: 'สงสัยพิกัดปลอม (ตอนเข้า)',
+  gps_suspect_out: 'สงสัยพิกัดปลอม (ตอนออก)',
 }
 export const FLAG_TONE = { emergency: 'warn', early_checkout: 'warn', closed_by_admin: 'warn', auto_closed_admin: 'warn', late: 'warn' }
 
@@ -26,6 +28,10 @@ export const ROLE_TH = {
   owner: 'เจ้าของ', admin: 'ธุรการ/แอดมิน', zone_manager: 'ผู้จัดการโซน', supervisor: 'สายตรวจ', assistant_supervisor: 'ผู้ช่วยสายตรวจ',
   trainer: 'ครูฝึก', spare: 'ตัวสแปร์', shift_leader: 'หัวหน้ากะ', guard: 'รปภ.', client: 'ลูกค้า',
 }
+
+// ผลการตรวจพิกัดน่าสงสัย
+export const GPS_STATUS_TH = { pending: 'รอตรวจ', normal: 'ตรวจแล้ว: ปกติ', confirmed: 'ยืนยัน: ผิดปกติ' }
+export const GPS_STATUS_TONE = { pending: 'warn', normal: '', confirmed: 'alert' }
 
 export const INCIDENT_TH = { open: 'รอรับเรื่อง', ack: 'รับเรื่องแล้ว กำลังจัดการ', closed: 'ปิดเรื่องแล้ว' }
 export const INCIDENT_TONE = { open: 'alert', ack: 'warn', closed: 'duty' }
@@ -37,6 +43,7 @@ export const ACTION_TH = {
   admin_close_assignment: 'ปิดกะแทน (ลืมเช็คเอาต์)', create_checkpoint: 'สร้างจุดตรวจ', set_checkpoint_active: 'เปิด/ปิดจุดตรวจ',
   save_property: 'บันทึกโครงการ', set_property_active: 'เปิด/ปิดโครงการ', set_shift_mode: 'เปลี่ยนรูปแบบกะของโครงการ',
   dispatch: 'สั่งส่งคนไปโครงการ', send_broadcast: 'ส่งประกาศกลุ่ม',
+  review_gps_suspicion: 'ตรวจพิกัดน่าสงสัย',
   incident_open: 'เปิดเรื่องแจ้งเหตุใหม่', incident_ack: 'รับเรื่องแจ้งเหตุ', incident_closed: 'ปิดเรื่องแจ้งเหตุ',
 }
 

@@ -6,7 +6,7 @@
 // ขั้นตอนบันทึก: ถ่ายรูป → อัปโหลด → ขอ GPS (ไม่ได้ = บันทึกแบบไม่มีพิกัด+ติดธง) → RPC
 import { useEffect, useRef, useState } from 'react'
 import {
-  getUser, rpc, list, getPosition, compressImage, uploadSelfie, deviceFingerprint, withTimeout, notifyLine, errTh,
+  getUser, rpc, list, getPosition, compressImage, uploadSelfie, deviceFingerprint, withTimeout, notifyLine, errTh, sendGpsEvidence,
 } from '../lib/api'
 import ShiftCalendar from '../components/ShiftCalendar.jsx'
 import Brand from '../components/Brand.jsx'
@@ -114,6 +114,7 @@ export default function Home() {
         })
       }
       if (out.ok) {
+        if (coords) sendGpsEvidence(action.type === 'out' ? 'out' : 'in', coords)   // เบื้องหลัง ไม่รอ
         setGpsFallback(null); setFlow(null); setPickProp(null)
         const t = fmtTime(new Date().toISOString())
         const nogps = out.no_gps ? ' · ไม่มีพิกัด — หัวหน้าจะตรวจสอบ' : ''
