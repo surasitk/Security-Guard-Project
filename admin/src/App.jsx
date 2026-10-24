@@ -12,6 +12,7 @@ import ForceMap from './pages/ForceMap.jsx'
 import Broadcast from './pages/Broadcast.jsx'
 import ClientDashboard from './pages/ClientDashboard.jsx'
 import GpsReport from './pages/GpsReport.jsx'
+import Incidents from './pages/Incidents.jsx'
 import { rpc } from './lib/api'
 import { SkLine, SkPage } from './components/Skeleton.jsx'
 import logoWhite from './assets/horguard-white.png'
@@ -29,6 +30,7 @@ const I = {
   map: <><path d="M9 4 3 6.5v13.5l6-2.5 6 2.5 6-2.5V4l-6 2.5z" /><path d="M9 4v13.5M15 6.5V20" /></>,
   megaphone: <><path d="M3 10v4h3l7 4V6L6 10z" /><path d="M17 9a4 4 0 0 1 0 6M19.5 6.5a7.5 7.5 0 0 1 0 11" /></>,
   chart: <><path d="M4 20V4M4 20h16" /><path d="M8 16v-4M12 16V8M16 16v-6" /></>,
+  siren: <><path d="M6 18v-6a6 6 0 0 1 12 0v6" /><path d="M4 18h16v3H4zM12 3V1.5M4.2 6.2 3 5M19.8 6.2 21 5" /></>,
   pin: <><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z" /><path d="M12 7.5v3.5M12 13.6v.01" /></>,
   report: <><path d="M7 3h7l5 5v13H7z" /><path d="M14 3v5h5M10 13h6M10 17h6M10 9h2" /></>,
 }
@@ -38,6 +40,7 @@ const Icon = ({ k }) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColo
 const BASE_TABS = [
   { group: 'ปฏิบัติการ', key: 'dashboard', label: 'ภาพรวมวันนี้', icon: 'dash', desc: 'ใครอยู่เวร ใครยังไม่เข้า และสิ่งที่ต้องจัดการวันนี้', el: Dashboard },
   { group: 'ปฏิบัติการ', key: 'forcemap', label: 'แผนที่กำลังพล', icon: 'map', desc: 'ใครเช็กอินอยู่ไซต์ไหนตอนนี้ ไซต์ที่คนขาด และส่งตัวสแปร์ที่อยู่ใกล้ที่สุดไปแทน · เหตุแจ้ง SOS', el: ForceMap },
+  { group: 'ปฏิบัติการ', key: 'sos', label: 'แจ้งเหตุ SOS', icon: 'siren', desc: 'ทุกเรื่องที่ รปภ. กด SOS จาก LINE — ดูรายละเอียด แผนที่ รูป เสียง อัปเดตสถานะ และประวัติว่าใครทำอะไร · Export Excel', el: Incidents },
   { group: 'ปฏิบัติการ', key: 'monitor', label: 'มอนิเตอร์', icon: 'eye', desc: 'เหตุการณ์เข้า-ออกงาน 7 วันล่าสุด พร้อมรูปและพิกัด', el: Monitor },
   { group: 'ปฏิบัติการ', key: 'broadcast', label: 'ประกาศกลุ่ม', icon: 'megaphone', desc: 'ส่งข้อความถึงทุกคนในโครงการหรือจังหวัดที่เลือก ผ่าน LINE OA', el: Broadcast, noLeader: true },
   { group: 'วางแผนและตั้งค่า', key: 'shifts', label: 'ตารางกะ', icon: 'cal', desc: 'สร้างแม่แบบกะ จ่ายกะ และจัดการกะที่กำลังจะถึง', el: Shifts },
@@ -51,12 +54,22 @@ const BASE_TABS = [
 const VENDOR_TAB = { group: 'ผู้ดูแลระบบ', key: 'vendors', label: 'Tenant ในระบบ', icon: 'org', desc: 'Tenant = บริษัท รปภ. ที่ใช้ Horguard (เฉพาะ Super Admin)', el: Vendors }
 const ROLE_TH = { owner: 'เจ้าของ', admin: 'แอดมิน', zone_manager: 'ผู้จัดการโซน', supervisor: 'สายตรวจ', shift_leader: 'หัวหน้ากะ', client: 'ลูกค้า' }
 // ผู้จัดการโซน: ดูได้อย่างเดียว เฉพาะเมนูเหล่านี้ (ไม่เห็นค่าแรง/เงิน)
-const ZONE_TABS = ['dashboard', 'forcemap', 'shifts', 'checkpoints', 'reports', 'gpsreport']
+const ZONE_TABS = ['dashboard', 'forcemap', 'sos', 'shifts', 'checkpoints', 'reports', 'gpsreport']
+
+// ?sos=<id> — เปิดผ่าน LIFF จะมาเป็น ?liff.state=%3Fsos%3D<id> ก่อน liff.init เสร็จ
+function deepLinkSos() {
+  const q = new URLSearchParams(window.location.search)
+  if (q.get('sos')) return q.get('sos')
+  const st = q.get('liff.state')
+  if (st) { try { return new URLSearchParams(st.slice(st.indexOf('?') + 1)).get('sos') } catch { /* ignore */ } }
+  return null
+}
 
 export default function App() {
   const [state, setState] = useState('loading')
   const [err, setErr] = useState('')
-  const [tab, setTab] = useState('dashboard')
+  const sosId = deepLinkSos()   // ลิงก์จากข้อความ SOS ใน LINE
+  const [tab, setTab] = useState(sosId ? 'sos' : 'dashboard')
   const [isPlatform, setIsPlatform] = useState(false)
   const [vendors, setVendors] = useState([])
   const [ctx, setCtx] = useState(0)          // เปลี่ยนเมื่อสลับ Tenant → หน้าโหลดข้อมูลใหม่
@@ -153,7 +166,7 @@ export default function App() {
           </div>
           {role === 'zone_manager' && <div className="notice info" style={{ marginTop: 0 }}>สิทธิ์ผู้จัดการโซน: ดูข้อมูลได้อย่างเดียว · เห็นเฉพาะโครงการที่ได้รับมอบหมาย (ถ้าไม่ได้ผูกโครงการ เห็นทุกโครงการ)</div>}
           {acting && <div className="notice info" style={{ marginTop: 0 }}>คุณกำลังจัดการข้อมูลของ <b>{vendor?.name || "Tenant นี้"}</b> ในฐานะ Super Admin — ทุกการแก้ไขบันทึกในชื่อคุณ</div>}
-          {switching ? <p className="muted">กำลังสลับ Tenant…</p> : <Active key={`${tab}-${ctx}`} isPlatform={isPlatform} vendors={vendors} />}
+          {switching ? <p className="muted">กำลังสลับ Tenant…</p> : <Active key={`${tab}-${ctx}`} isPlatform={isPlatform} vendors={vendors} sosId={tab === 'sos' ? sosId : null} />}
         </div>
       </main>
     </div>

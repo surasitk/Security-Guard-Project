@@ -382,3 +382,32 @@ td.av-cell { width: 44px; padding-right: 0 !important; }
 .row-menu button:hover, .row-menu button:focus-visible { background: var(--sunk); }
 .row-menu button small { display: block; font-size: 12px; color: var(--mute); }
 .row-menu button.danger { color: var(--alert); }
+
+/* ── แจ้งเหตุ SOS (Ticket) ── */
+.mono { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 12.5px; letter-spacing: .02em; }
+table.grid tr.click { cursor: pointer; }
+table.grid tr.click:hover td { background: #fafbfa; }
+table.grid tr.sel td { background: #f3f5f2; }
+table.grid tr.sos-open td:first-child { box-shadow: inset 4px 0 0 var(--alert); }
+.drawer-back { position: fixed; inset: 0; z-index: 950; background: rgba(15, 18, 21, .38); display: flex; justify-content: flex-end; }
+.drawer { width: min(560px, 100%); height: 100%; overflow-y: auto; background: var(--paper); box-shadow: -18px 0 40px -20px rgba(0,0,0,.4); padding: 20px 22px 40px; animation: drawer-in .18s ease-out; }
+@keyframes drawer-in { from { transform: translateX(24px); opacity: .6; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .drawer { animation: none; } }
+.drawer-h { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+.drawer-h h2 { font-size: 21px; margin: 4px 0 6px; }
+.sos-who { display: flex; align-items: center; gap: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 12px 14px; }
+.sos-who > div { flex: 1; }
+.sos-sec { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 14px 16px; margin-top: 12px; }
+.sos-photo { display: block; width: 100%; max-height: 300px; object-fit: cover; border-radius: 10px; margin-top: 8px; border: 1px solid var(--line); }
+.sos-map { height: 240px; border-radius: 10px; border: 1px solid var(--line); overflow: hidden; z-index: 0; }
+.sos-site { width: 16px; height: 16px; border-radius: 50%; background: #737a82; box-shadow: 0 0 0 3px #fff, 0 1px 4px rgba(0,0,0,.3); }
+.sos-steps { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
+.sos-step { border: 1px solid var(--line); background: var(--surface); border-radius: 99px; padding: 7px 14px; font: inherit; font-size: 14px; cursor: pointer; min-height: 38px; color: var(--ink-2); }
+.sos-step.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+.sos-step.on.alert { background: var(--alert); border-color: var(--alert); }
+.sos-step.on.duty { background: var(--duty); border-color: var(--duty); }
+.sos-note { width: 100%; padding: 10px; border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: 15px; margin-bottom: 10px; }
+.sos-timeline { list-style: none; margin: 4px 0 0; padding: 0; }
+.sos-timeline li { display: flex; gap: 10px; padding: 9px 0; border-bottom: 1px dashed var(--line); font-size: 14px; }
+.sos-timeline li:last-child { border-bottom: 0; }
+.sos-ev-note { background: var(--sunk); border-radius: 8px; padding: 6px 10px; margin: 4px 0; white-space: pre-line; }

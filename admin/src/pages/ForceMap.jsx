@@ -37,7 +37,7 @@ export default function ForceMap() {
     try {
       const [s, inc] = await Promise.all([
         rpc('force_map', { p_property_id: filter || null }),
-        list(`v_incidents?select=*&status=neq.closed&order=created_at.desc&limit=30${filter ? `&property_id=eq.${filter}` : ''}`).catch(() => []),
+        list(`v_incidents?select=*&status=in.(open,ack,on_site)&order=created_at.desc&limit=30${filter ? `&property_id=eq.${filter}` : ''}`).catch(() => []),
       ])
       setSites(s || []); setIncidents(inc || []); setStamp(new Date())
     } catch (e) { setMsg({ t: 'err', m: errTh(e) }); setSites([]) }

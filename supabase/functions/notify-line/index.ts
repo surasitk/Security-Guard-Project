@@ -27,6 +27,10 @@ const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE
 const fmt = (ts: string) =>
   new Date(ts).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Bangkok" });
 
+const fmtDT = (ts: string) =>
+  new Date(ts).toLocaleString("th-TH", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Bangkok" });
+// เปิด Ticket ใน Horguard Force ผ่าน LIFF (ล็อกอิน LINE อัตโนมัติ)
+const FORCE_LIFF = Deno.env.get("FORCE_LIFF_URL") ?? "https://liff.line.me/2010926067-B1ybp5Oq";
 const SIGN_TTL = 7 * 24 * 3600;
 async function signed(path?: unknown): Promise<string | null> {
   if (!path || typeof path !== "string") return null;
@@ -62,6 +66,7 @@ async function messagesFor(n: { kind: string; payload: Record<string, unknown> }
       `เวลา ${fmt(String(p.at))}`,
       map ? `📍 พิกัด: ${map}` : "📍 ไม่ได้รับพิกัด",
       audio ? `🎙️ ฟังเสียง: ${audio}` : "",
+      p.incident_id ? `📋 เปิดเรื่องใน Force: ${FORCE_LIFF}?sos=${p.incident_id}` : "",
     ].filter(Boolean).join("\n"))];
     if (photo) out.push({ type: "image", originalContentUrl: photo, previewImageUrl: photo });
     return out;
@@ -92,7 +97,7 @@ async function messagesFor(n: { kind: string; payload: Record<string, unknown> }
     return [text([
       "⛔ บัญชีของคุณถูกระงับการใช้งานชั่วคราว",
       `${p.to_name}${p.company ? ` · ${p.company}` : ""}`,
-      p.until ? `ระงับถึง ${fmt(String(p.until))}` : "ระงับจนกว่าผู้ดูแลจะยกเลิก",
+      p.until ? `ระงับถึง ${fmtDT(String(p.until))} น.` : "ระงับจนกว่าผู้ดูแลจะยกเลิก",
       p.reason ? `เหตุผล: ${p.reason}` : "",
       "ระหว่างนี้จะเข้าใช้ Horguard ไม่ได้ — สอบถามหัวหน้างานหรือแอดมินของบริษัท",
     ].filter(Boolean).join("\n"))];
