@@ -15,6 +15,8 @@ import GpsReport from './pages/GpsReport.jsx'
 import Incidents from './pages/Incidents.jsx'
 import Packages from './pages/Packages.jsx'
 import MyPlan from './pages/MyPlan.jsx'
+import Inbox from './pages/Inbox.jsx'
+import InboxSend from './pages/InboxSend.jsx'
 import { rpc } from './lib/api'
 import { SkLine, SkPage } from './components/Skeleton.jsx'
 import logoWhite from './assets/horguard-white.png'
@@ -36,6 +38,9 @@ const I = {
   pin: <><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z" /><path d="M12 7.5v3.5M12 13.6v.01" /></>,
   tag: <><path d="M3 12V4h8l10 10-8 8z" /><circle cx="7.5" cy="8.5" r="1.5" /></>,
   box: <><path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z" /><path d="M3 7.5 12 12l9-4.5M12 12v9" /></>,
+  inbox: <><path d="M4 13h4l1.5 3h5L16 13h4" /><path d="M4 13l2-8h12l2 8v6H4z" /></>,
+  send: <path d="m22 2-11 11M22 2l-7 20-4-9-9-4z" />,
+  bell: <><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z" /><path d="M10 20.5a2 2 0 0 0 4 0" /></>,
   report: <><path d="M7 3h7l5 5v13H7z" /><path d="M14 3v5h5M10 13h6M10 17h6M10 9h2" /></>,
 }
 const Icon = ({ k }) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{I[k]}</svg>
@@ -43,6 +48,7 @@ const Icon = ({ k }) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColo
 // เรียงตามหมวด: ปฏิบัติการ → วางแผนและตั้งค่า → รายงาน → ผู้ดูแลระบบ
 const BASE_TABS = [
   { group: 'ปฏิบัติการ', key: 'dashboard', label: 'ภาพรวมวันนี้', icon: 'dash', desc: 'ใครอยู่เวร ใครยังไม่เข้า และสิ่งที่ต้องจัดการวันนี้', el: Dashboard },
+  { group: 'ปฏิบัติการ', key: 'inbox', label: 'กล่องข้อความ', icon: 'inbox', desc: 'ประกาศจากทีม Horguard และการแจ้งเตือนสำคัญของบริษัท เช่น แพ็กเกจใกล้เต็ม หรือช่วงทดลองใช้ใกล้หมด', el: Inbox },
   { group: 'ปฏิบัติการ', key: 'forcemap', label: 'แผนที่กำลังพล', icon: 'map', desc: 'ใครเช็กอินอยู่ไซต์ไหนตอนนี้ ไซต์ที่คนขาด และส่งตัวสแปร์ที่อยู่ใกล้ที่สุดไปแทน · เหตุแจ้ง SOS', el: ForceMap },
   { group: 'ปฏิบัติการ', key: 'sos', label: 'แจ้งเหตุ SOS', icon: 'siren', desc: 'ทุกเรื่องที่ รปภ. กด SOS จาก LINE — ดูรายละเอียด แผนที่ รูป เสียง อัปเดตสถานะ และประวัติว่าใครทำอะไร · Export Excel', el: Incidents },
   { group: 'ปฏิบัติการ', key: 'monitor', label: 'มอนิเตอร์', icon: 'eye', desc: 'เหตุการณ์เข้า-ออกงาน 7 วันล่าสุด พร้อมรูปและพิกัด', el: Monitor },
@@ -57,10 +63,11 @@ const BASE_TABS = [
   { group: 'บัญชีบริษัท', key: 'myplan', label: 'แพ็กเกจของฉัน', icon: 'box', desc: 'แพ็กเกจปัจจุบัน การใช้งานเทียบเพดาน และประมาณการค่าบริการเดือนนี้', el: MyPlan, ownerOnly: true },
 ]
 const VENDOR_TAB = { group: 'ผู้ดูแลระบบ', key: 'vendors', label: 'Tenant ในระบบ', icon: 'org', desc: 'Tenant = บริษัท รปภ. ที่ใช้ Horguard (เฉพาะ Super Admin)', el: Vendors }
+const SEND_TAB = { group: 'ผู้ดูแลระบบ', key: 'inboxsend', label: 'ส่งข้อความถึง Tenant', icon: 'send', desc: 'ข้อความจะไปอยู่ในกล่องข้อความของบริษัทที่เลือก เฉพาะบทบาทที่กำหนด (เฉพาะ Super Admin)', el: InboxSend }
 const PACKAGES_TAB = { group: 'ผู้ดูแลระบบ', key: 'packages', label: 'แพ็กเกจและราคา', icon: 'tag', desc: 'ราคา เพดาน และข้อความหน้าเว็บของแต่ละแพ็กเกจ · กำหนดแพ็กเกจให้ Tenant (เฉพาะ Super Admin)', el: Packages }
 const ROLE_TH = { owner: 'เจ้าของ', admin: 'แอดมิน', zone_manager: 'ผู้จัดการโซน', supervisor: 'สายตรวจ', shift_leader: 'หัวหน้ากะ', client: 'ลูกค้า' }
 // ผู้จัดการโซน: ดูได้อย่างเดียว เฉพาะเมนูเหล่านี้ (ไม่เห็นค่าแรง/เงิน)
-const ZONE_TABS = ['dashboard', 'forcemap', 'sos', 'shifts', 'checkpoints', 'reports', 'gpsreport']
+const ZONE_TABS = ['dashboard', 'inbox', 'forcemap', 'sos', 'shifts', 'checkpoints', 'reports', 'gpsreport']
 
 // ?sos=<id> — เปิดผ่าน LIFF จะมาเป็น ?liff.state=%3Fsos%3D<id> ก่อน liff.init เสร็จ
 function deepLinkSos() {
@@ -81,6 +88,19 @@ export default function App() {
   const [ctx, setCtx] = useState(0)          // เปลี่ยนเมื่อสลับ Tenant → หน้าโหลดข้อมูลใหม่
   const [switching, setSwitching] = useState(false)
   const [menu, setMenu] = useState(false)       // เมนูเลื่อน (iPad แนวตั้ง / มือถือ)
+  const [unread, setUnread] = useState(0)       // กล่องข้อความที่ยังไม่อ่าน (migration 36)
+  const refreshUnread = () => rpc('inbox_unread_count').then((n) => setUnread(Number(n) || 0)).catch(() => {})
+
+  // นับข้อความใหม่ทุก 60 วินาที และเมื่อกลับมาที่หน้าต่างนี้
+  useEffect(() => {
+    if (state !== 'ready') return undefined
+    refreshUnread()
+    const t = setInterval(() => { if (document.visibilityState === 'visible') refreshUnread() }, 60000)
+    const onFocus = () => refreshUnread()
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onFocus)
+    return () => { clearInterval(t); window.removeEventListener('focus', onFocus); document.removeEventListener('visibilitychange', onFocus) }
+  }, [state, ctx]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     (async () => {
@@ -113,9 +133,9 @@ export default function App() {
   // ลูกค้าเห็นเฉพาะแดชบอร์ดลูกค้า (เมนูอื่นค่อยเปิดภายหลัง)
   const staffTabs = BASE_TABS.filter((t) => !(t.noLeader && role === 'shift_leader')
     && !(t.ownerOnly && !isPlatform && !['owner', 'admin'].includes(role)))
-  const TABS = role === 'client' ? BASE_TABS.filter((t) => t.key === 'client')
+  const TABS = role === 'client' ? BASE_TABS.filter((t) => ['client', 'inbox'].includes(t.key))
     : role === 'zone_manager' ? BASE_TABS.filter((t) => ZONE_TABS.includes(t.key))
-    : isPlatform ? [...staffTabs, VENDOR_TAB, PACKAGES_TAB] : staffTabs
+    : isPlatform ? [...staffTabs, VENDOR_TAB, PACKAGES_TAB, SEND_TAB] : staffTabs
   const Active = (TABS.find((t) => t.key === tab) || TABS[0]).el
 
   const current = TABS.find((t) => t.key === tab) || TABS[0]
@@ -123,6 +143,12 @@ export default function App() {
   const activeId = tenantId()
   const vendor = vendors.find((v) => v.id === activeId) || getVendor()
   const acting = isPlatform && activeId && user.home_tenant_id && activeId !== user.home_tenant_id
+  const go = (k) => { setTab(k); setMenu(false); window.scrollTo(0, 0) }
+  const bell = (cls) => (
+    <button className={`bell ${cls}`} onClick={() => go('inbox')} aria-label={unread ? `กล่องข้อความ ยังไม่อ่าน ${unread} ข้อความ` : 'กล่องข้อความ'}>
+      <Icon k="bell" />{unread > 0 && <span className="bell-n">{unread > 99 ? '99+' : unread}</span>}
+    </button>
+  )
   async function onVendor(e) {
     setSwitching(true)
     try {
@@ -139,6 +165,7 @@ export default function App() {
         </button>
         <img src={logoWhite} alt="Horguard" />
         <span className="tb-title">{current.label}</span>
+        {bell('on-dark')}
       </header>
       <div className={`side-backdrop ${menu ? 'open' : ''}`} onClick={() => setMenu(false)} />
       <aside className={`side ${menu ? 'open' : ''}`}>
@@ -147,8 +174,8 @@ export default function App() {
           {TABS.map((t, i) => (
             <div key={t.key} style={{ display: 'contents' }}>
               {TABS.length > 1 && t.group && t.group !== TABS[i - 1]?.group && <div className="group">{t.group}</div>}
-              <button className={tab === t.key ? 'active' : ''} aria-current={tab === t.key ? 'page' : undefined} onClick={() => { setTab(t.key); setMenu(false); window.scrollTo(0, 0) }}>
-                <Icon k={t.icon} />{t.label}
+              <button className={tab === t.key ? 'active' : ''} aria-current={tab === t.key ? 'page' : undefined} onClick={() => go(t.key)}>
+                <Icon k={t.icon} />{t.label}{t.key === 'inbox' && unread > 0 && <span className="nav-n" aria-label={`ยังไม่อ่าน ${unread}`}>{unread > 99 ? '99+' : unread}</span>}
               </button>
             </div>
           ))}
@@ -170,10 +197,11 @@ export default function App() {
         <div className="main-inner">
           <div className="page-head">
             <div><h1>{current.label}</h1><p>{current.desc}</p></div>
+            {bell('in-head')}
           </div>
           {role === 'zone_manager' && <div className="notice info" style={{ marginTop: 0 }}>สิทธิ์ผู้จัดการโซน: ดูข้อมูลได้อย่างเดียว · เห็นเฉพาะโครงการที่ได้รับมอบหมาย (ถ้าไม่ได้ผูกโครงการ เห็นทุกโครงการ)</div>}
           {acting && <div className="notice info" style={{ marginTop: 0 }}>คุณกำลังจัดการข้อมูลของ <b>{vendor?.name || "Tenant นี้"}</b> ในฐานะ Super Admin — ทุกการแก้ไขบันทึกในชื่อคุณ</div>}
-          {switching ? <p className="muted">กำลังสลับ Tenant…</p> : <Active key={`${tab}-${ctx}`} isPlatform={isPlatform} vendors={vendors} sosId={tab === 'sos' ? sosId : null} />}
+          {switching ? <p className="muted">กำลังสลับ Tenant…</p> : <Active key={`${tab}-${ctx}`} isPlatform={isPlatform} vendors={vendors} sosId={tab === 'sos' ? sosId : null} onNav={go} onUnread={refreshUnread} />}
         </div>
       </main>
     </div>
