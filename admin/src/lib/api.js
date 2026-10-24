@@ -37,8 +37,17 @@ function forceRelogin() {
   liff.login({ redirectUri: window.location.href })
 }
 
+const KICK_KEY = 'hg_kicked'
+/** ถูกดีดออก → ต้องกดเข้าสู่ระบบด้วย LINE ใหม่ */
+export function relogin() {
+  try { sessionStorage.removeItem(KICK_KEY) } catch { /* ignore */ }
+  try { liff.logout() } catch { /* ignore */ }
+  liff.login({ redirectUri: window.location.origin + window.location.pathname })
+}
+
 export async function initAuth() {
   await liff.init({ liffId: import.meta.env.VITE_LIFF_ID })
+  try { if (sessionStorage.getItem(KICK_KEY)) return { error: 'kicked' } } catch { /* ignore */ }
   if (!liff.isLoggedIn()) { liff.login(); return null }
   if (!idTokenFresh()) { forceRelogin(); return null }
   const res = await safeFetch(FN_URL, {
@@ -52,6 +61,7 @@ export async function initAuth() {
     store(ACT_KEY, '')
     return initAuth()
   }
+  if (!out.ok && out.error === 'account_banned') return { error: 'account_banned', until: out.until, reason: out.reason }
   if (!out.ok) {
     // token ใช้ไม่ได้ทั้งที่ยังไม่หมดอายุ → ลอง login ใหม่ 1 ครั้ง (กัน loop ด้วย sessionStorage)
     if (out.error === 'invalid_line_token' && !sessionStorage.getItem('guardos_relogin')) {
@@ -80,10 +90,11 @@ async function authed(path, options = {}, retried = false) {
   })
   if (res.status === 401) {
     const b = await res.clone().json().catch(() => null)
-    if (b?.code === 'account_disabled') return kickOut()
+    if (b?.code === 'account_disabled' || b?.code === 'account_banned') return kickOut()
+    if (b?.code === 'session_revoked') return kickOut(true)
     if (!retried) {
       const out = await initAuth()
-      if (out?.error === 'account_disabled') return kickOut()
+      if (out?.error === 'account_disabled' || out?.error === 'account_banned') return kickOut()
       return authed(path, options, true)
     }
   }
@@ -91,8 +102,9 @@ async function authed(path, options = {}, retried = false) {
 }
 
 /** ผู้ใช้ถูกปิดใช้งาน → ทิ้ง token แล้วโหลดหน้าใหม่ (จะเจอหน้าจอ "บัญชีถูกปิดใช้งาน") */
-function kickOut() {
+function kickOut(kicked = false) {
   accessToken = ''; currentUser = null; clearCache()
+  if (kicked) { try { sessionStorage.setItem(KICK_KEY, '1') } catch { /* ignore */ } try { liff.logout() } catch { /* ignore */ } }
   window.location.reload()
   return new Promise(() => {})
 }

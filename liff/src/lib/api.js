@@ -65,13 +65,25 @@ export async function silentLogin() {
     forceRelogin()
     return new Promise(() => {}) // กำลัง redirect — ค้างสถานะโหลดไว้
   }
-  const err = new Error(errTh(out.error || 'auth_failed'))
+  const err = new Error(out.error === 'account_banned' ? banText(out) : errTh(out.error || 'auth_failed'))
   err.code = out.error
   throw err
 }
 
-/** ผู้ใช้ถูกปิดใช้งาน → ทิ้ง token แล้วโหลดใหม่ (หน้าแรกจะแสดง "บัญชีถูกปิดใช้งาน") */
-function kickOut() {
+const banText = (o) => `บัญชีของคุณถูกระงับการใช้งานชั่วคราว${o.until ? ` ถึง ${new Date(o.until).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Bangkok' })} น.` : ' จนกว่าผู้ดูแลจะยกเลิก'}${o.reason ? `\nเหตุผล: ${o.reason}` : ''}`
+
+const KICK_KEY = 'hg_kicked'
+export const wasKicked = () => { try { return !!sessionStorage.getItem(KICK_KEY) } catch { return false } }
+/** ถูกดีดออก → ต้องกดเข้าสู่ระบบด้วย LINE ใหม่ */
+export function relogin() {
+  try { sessionStorage.removeItem(KICK_KEY) } catch { /* ignore */ }
+  try { liff.logout() } catch { /* ignore */ }
+  liff.login({ redirectUri: window.location.href })
+}
+
+/** ผู้ใช้ถูกปิดใช้งาน/แบน/ดีดออก → ทิ้ง token แล้วโหลดใหม่ (หน้าแรกจะแสดงเหตุผล) */
+function kickOut(kicked = false) {
+  if (kicked) { try { sessionStorage.setItem(KICK_KEY, '1') } catch { /* ignore */ } try { liff.logout() } catch { /* ignore */ } }
   accessToken = null; currentUser = null
   window.location.reload()
   return new Promise(() => {})
@@ -100,9 +112,10 @@ async function authedFetch(path, options = {}, retried = false) {
   })
   if (res.status === 401) {
     const b = await res.clone().json().catch(() => null)
-    if (b?.code === 'account_disabled') return kickOut()
+    if (b?.code === 'account_disabled' || b?.code === 'account_banned') return kickOut()
+    if (b?.code === 'session_revoked') return kickOut(true)
     if (!retried) {
-      try { await silentLogin() } catch (e) { if (e.code === 'account_disabled') return kickOut(); throw e }
+      try { await silentLogin() } catch (e) { if (e.code === 'account_disabled' || e.code === 'account_banned') return kickOut(); throw e }
       return authedFetch(path, options, true)
     }
   }

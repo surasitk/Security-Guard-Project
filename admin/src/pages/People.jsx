@@ -2,7 +2,7 @@
 // ผู้ใช้และสิทธิ์ (โปรไฟล์ผู้ใช้) — ข้อมูลทั่วไป · บทบาท · โครงการที่ได้รับมอบหมาย · วันหยุดประจำสัปดาห์ · Super Admin
 // รปภ.ลงทะเบียน LINE เองภายหลังด้วยรหัสพนักงาน+เบอร์ — บทบาทกำหนดจากหน้านี้เท่านั้น
 import { useEffect, useMemo, useState } from 'react'
-import { list, rpc, tenantId, getUser, errTh } from '../lib/api'
+import { list, rpc, callFn, tenantId, getUser, errTh } from '../lib/api'
 import { useSort, byName, ResultLine } from '../lib/sortTable.jsx'
 import Avatar from '../components/Avatar.jsx'
 import { SkTable } from '../components/Skeleton.jsx'
@@ -33,6 +33,7 @@ const ERR = {
   duplicate_employee_code: 'รหัสพนักงานนี้มีอยู่แล้วใน Tenant นี้',
   phone_in_use: 'หมายเลขนี้มีการใช้งานเรียบร้อยแล้ว',
   property_not_in_vendor: 'โครงการที่เลือกไม่ใช่ของ Tenant นี้',
+  cannot_moderate_self: 'ดีดออกหรือแบนบัญชีของตัวเองไม่ได้',
   invalid_role: 'บทบาทไม่ถูกต้อง',
   not_found: 'ไม่พบผู้ใช้',
   project_limit_exceeded: 'ผูกโครงการเกินจำนวนที่บทบาทนี้กำหนด',
@@ -110,6 +111,55 @@ export default function People({ isPlatform = false, vendors = [] }) {
       })
       setForm(null); load()
     } catch (e2) { setMsg({ t: 'err', m: errTh(e2) }) } finally { setBusy(false) }
+  }
+
+  // ── ดีดออก / แบน (Super Admin · เจ้าของ · แอดมิน) ──
+  const canModerate = isPlatform || ['owner', 'admin'].includes(myRole)
+  const isBanned = (u) => u.banned_until && (u.banned_until === 'infinity' || new Date(u.banned_until) > new Date())
+  const banUntilText = (u) => (u.banned_until === 'infinity' ? 'จนกว่าจะปลด' : new Date(u.banned_until).toLocaleString('th-TH', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok' }))
+  const [banFor, setBanFor] = useState(null)        // { user, reason, days }
+  const [modBusy, setModBusy] = useState(false)
+  const [menu, setMenu] = useState(null)            // เมนู ⋯ ของแถว { id, u, top, right }
+  useEffect(() => {
+    if (!menu) return
+    const close = () => setMenu(null)
+    window.addEventListener('scroll', close, true); window.addEventListener('resize', close)
+    return () => { window.removeEventListener('scroll', close, true); window.removeEventListener('resize', close) }
+  }, [menu])
+
+  async function kickUser(u) {
+    if (!window.confirm(`ดีด "${u.full_name}" ออกจากระบบ?\n\nผู้ใช้จะหลุดออกจากทุกอุปกรณ์ทันที และต้องกดเข้าสู่ระบบด้วย LINE ใหม่ (บัญชียังใช้งานได้ตามปกติ)`)) return
+    try {
+      const o = await rpc('kick_user', { p_id: u.id })
+      if (!o.ok) throw new Error(ERR[o.error] || errTh(o.error))
+      setMsg({ t: 'ok', m: `ดีด ${u.full_name} ออกจากระบบแล้ว` })
+    } catch (e) { setMsg({ t: 'err', m: errTh(e) }) }
+  }
+
+  async function confirmBan() {
+    const { user: u, reason, days } = banFor
+    setModBusy(true)
+    try {
+      const until = days === 'forever' ? null : new Date(Date.now() + Number(days) * 86400000).toISOString()
+      const o = await rpc('ban_user', { p_id: u.id, p_until: until, p_reason: reason.trim() || null })
+      if (!o.ok) throw new Error(ERR[o.error] || errTh(o.error))
+      let note = u.line_user_id ? ' · แจ้งผู้ใช้ทาง LINE แล้ว' : ' · ผู้ใช้ยังไม่ผูก LINE จึงไม่ได้รับแจ้งเตือน'
+      if (o.notification_id) {
+        const r = await callFn('notify-line', { notification_id: o.notification_id }).catch(() => null)
+        if (!r?.ok) note = ' · ส่งแจ้งเตือน LINE ไม่สำเร็จ'
+      }
+      setMsg({ t: 'ok', m: `แบน ${u.full_name} แล้ว${note}` }); setBanFor(null); load()
+    } catch (e) { setMsg({ t: 'err', m: errTh(e) }) } finally { setModBusy(false) }
+  }
+
+  async function unbanUser(u) {
+    if (!window.confirm(`ยกเลิกการแบน "${u.full_name}"?`)) return
+    try {
+      const o = await rpc('unban_user', { p_id: u.id })
+      if (!o.ok) throw new Error(ERR[o.error] || errTh(o.error))
+      if (o.notification_id) await callFn('notify-line', { notification_id: o.notification_id }).catch(() => null)
+      setMsg({ t: 'ok', m: `ยกเลิกการแบน ${u.full_name} แล้ว` }); load()
+    } catch (e) { setMsg({ t: 'err', m: errTh(e) }) }
   }
 
   async function disableUser(u) {
@@ -283,7 +333,7 @@ export default function People({ isPlatform = false, vendors = [] }) {
                       <tr key={u.id}>
                         <td>{u.employee_code}</td>
                         <td className="av-cell"><Avatar src={u.line_picture_url || u.photo_url} name={u.full_name} title={u.line_display_name ? `LINE: ${u.line_display_name}` : (u.line_user_id ? 'ผูก LINE แล้ว' : 'ยังไม่ผูก LINE')} /></td>
-                        <td>{u.full_name}</td>
+                        <td>{u.full_name}{isBanned(u) && <div><span className="badge alert" title={u.ban_reason || ''}>ถูกแบน · {banUntilText(u)}</span></div>}</td>
                         <td>
                           {roleLabel(u.role)}
                           {a.is_platform_admin && <> <span className="badge solid">Super Admin</span></>}
@@ -294,7 +344,10 @@ export default function People({ isPlatform = false, vendors = [] }) {
                         <td>{u.line_user_id ? <span className="badge solid">ผูกแล้ว</span> : <span className="badge">ยังไม่ผูก</span>}</td>
                         <td className="row-act">
                           <button className="badge" onClick={() => openEdit(u)}>แก้ไข</button>
-                          {u.id !== me.id && <button className="badge" onClick={() => disableUser(u)}>ปิดใช้</button>}
+                          {u.id !== me.id && (
+                            <button className="badge" aria-haspopup="menu" aria-expanded={menu?.id === u.id} aria-label={`จัดการ ${u.full_name}`}
+                              onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setMenu(menu?.id === u.id ? null : { id: u.id, u, top: r.bottom + 6, right: window.innerWidth - r.right }) }}>⋯</button>
+                          )}
                         </td>
                       </tr>
                     )
@@ -304,6 +357,39 @@ export default function People({ isPlatform = false, vendors = [] }) {
             </div>
           )}
         </>
+      )}
+      {menu && (
+        <>
+          <div className="row-menu-back" onClick={() => setMenu(null)} />
+          <div className="row-menu" role="menu" style={{ top: menu.top, right: menu.right }}>
+            {canModerate && <button role="menuitem" onClick={() => { setMenu(null); kickUser(menu.u) }}>ดีดออกจากระบบ<small>หลุดทุกอุปกรณ์ ต้องเข้าสู่ระบบด้วย LINE ใหม่</small></button>}
+            {canModerate && (isBanned(menu.u)
+              ? <button role="menuitem" onClick={() => { setMenu(null); unbanUser(menu.u) }}>ปลดแบน</button>
+              : <button role="menuitem" className="danger" onClick={() => { setMenu(null); setBanFor({ user: menu.u, reason: '', days: '1' }) }}>แบนชั่วคราว…<small>ระงับการใช้งาน + แจ้งทาง LINE</small></button>)}
+            <button role="menuitem" onClick={() => { setMenu(null); disableUser(menu.u) }}>ปิดใช้งาน</button>
+          </div>
+        </>
+      )}
+      {banFor && (
+        <div className="modal-back" onClick={() => !modBusy && setBanFor(null)}>
+          <div className="modal" role="dialog" aria-modal="true" aria-labelledby="ban-h" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-h"><h2 id="ban-h">แบน {banFor.user.full_name}</h2><button className="link-btn" onClick={() => setBanFor(null)} disabled={modBusy}>ปิด</button></div>
+            <p className="muted">ระงับการใช้งานชั่วคราว — ผู้ใช้จะหลุดออกจากทุกอุปกรณ์ทันที เข้าระบบไม่ได้จนถึงเวลาที่กำหนด และได้รับแจ้งเตือนทาง LINE OA</p>
+            <div className="field" style={{ marginTop: 14 }}><label>ระยะเวลา</label>
+              <select value={banFor.days} onChange={(e) => setBanFor({ ...banFor, days: e.target.value })}>
+                <option value="1">1 วัน</option><option value="3">3 วัน</option><option value="7">7 วัน</option><option value="30">30 วัน</option><option value="forever">จนกว่าจะปลดแบน</option>
+              </select>
+            </div>
+            <div className="field"><label>เหตุผล (ไม่บังคับ)</label>
+              <textarea rows={3} maxLength={300} value={banFor.reason} onChange={(e) => setBanFor({ ...banFor, reason: e.target.value })} placeholder="เช่น ลงเวลาแทนผู้อื่น รอการสอบสวน" style={{ width: '100%', padding: 10, fontFamily: 'var(--font)', fontSize: 15, borderRadius: 8, border: '1px solid var(--line)' }} />
+              <p className="hint">ผู้ใช้จะเห็นเหตุผลนี้ในข้อความ LINE และหน้าจอแอป</p>
+            </div>
+            <div className="actions" style={{ marginTop: 6, alignItems: 'stretch' }}>
+              <button className="btn inline ghost" onClick={() => setBanFor(null)} disabled={modBusy}>ยกเลิก</button>
+              <button className="btn inline" style={{ background: 'var(--alert)' }} onClick={confirmBan} disabled={modBusy}>{modBusy ? 'กำลังแบน…' : 'ยืนยันแบน'}</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

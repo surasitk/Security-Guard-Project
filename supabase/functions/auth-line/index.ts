@@ -162,6 +162,13 @@ Deno.serve(async (req) => {
     if (!user) return json({ ok: false, error: "not_registered" }, 404);
     // ถูกปิดใช้งาน → แจ้งชัดเจน (ไม่ให้ไปหน้าลงทะเบียนใหม่)
     if (!user.is_active) return json({ ok: false, error: "account_disabled" }, 403);
+    // ถูกแบนชั่วคราว (banned_until = "infinity" คือจนกว่าจะปลด)
+    if (user.banned_until && (user.banned_until === "infinity" || new Date(user.banned_until).getTime() > Date.now())) {
+      return json({
+        ok: false, error: "account_banned",
+        until: user.banned_until === "infinity" ? null : user.banned_until, reason: user.ban_reason ?? null,
+      }, 403);
+    }
 
     // ชื่อ/รูป LINE ล่าสุด (คนเปลี่ยนรูป LINE ลิงก์เดิมจะใช้ไม่ได้) — เขียนเฉพาะเมื่อเปลี่ยน (นานๆ ครั้ง)
     if ((profile.picture ?? null) !== (user.line_picture_url ?? null) || (profile.name ?? null) !== (user.line_display_name ?? null)) {

@@ -374,3 +374,11 @@ td.av-cell { width: 44px; padding-right: 0 !important; }
 @media (prefers-reduced-motion: reduce) { .sk { animation: none; } }
 /* โครงหน้าตอนเชื่อมต่อ (ก่อนรู้ว่าเป็นใคร) */
 .shell-sk .side .sk { background: #2a2f35; animation: none; }
+
+/* ── เมนู ⋯ ของแถว (ดีดออก / แบน / ปิดใช้) ── */
+.row-menu-back { position: fixed; inset: 0; z-index: 900; }
+.row-menu { position: fixed; z-index: 901; min-width: 220px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 14px 34px -14px rgba(0,0,0,.35); padding: 6px; display: flex; flex-direction: column; }
+.row-menu button { text-align: left; background: none; border: 0; border-radius: 8px; padding: 9px 12px; font: inherit; font-size: 14.5px; color: var(--ink); cursor: pointer; min-height: 40px; }
+.row-menu button:hover, .row-menu button:focus-visible { background: var(--sunk); }
+.row-menu button small { display: block; font-size: 12px; color: var(--mute); }
+.row-menu button.danger { color: var(--alert); }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { initAuth, getUser, getVendor, switchVendor, tenantId, errTh } from './lib/api'
+import { initAuth, getUser, getVendor, switchVendor, tenantId, errTh, relogin } from './lib/api'
 import Dashboard from './pages/Dashboard.jsx'
 import Monitor from './pages/Monitor.jsx'
 import People from './pages/People.jsx'
@@ -70,6 +70,8 @@ export default function App() {
         if (!out) return // กำลัง redirect ไป LINE Login
         if (out.error === 'not_registered') { setState('unregistered'); return }
         if (out.error === 'account_disabled') { setState('disabled'); return }
+        if (out.error === 'kicked') { setState('kicked'); return }
+        if (out.error === 'account_banned') { setErr(banText(out)); setState('banned'); return }
         if (out.error) { setErr(errTh(out.error)); setState('error'); return }
         if (!['owner', 'admin', 'zone_manager', 'shift_leader', 'client'].includes(out.user.effective_role || out.user.role)) { setState('forbidden'); return }
         setState('ready')
@@ -82,6 +84,8 @@ export default function App() {
   if (state === 'loading') return <ShellSkeleton />
   if (state === 'unregistered') return <Center msg="บัญชี LINE นี้ยังไม่ได้ลงทะเบียนในระบบ — ให้ผู้ดูแลเพิ่มคุณเป็นพนักงานก่อน แล้วลงทะเบียนผ่านแอปใน LINE" />
   if (state === 'disabled') return <Center msg="บัญชีนี้ถูกปิดใช้งานแล้ว และออกจากระบบทุกอุปกรณ์ — ติดต่อแอดมินของบริษัทหากต้องการใช้งานอีกครั้ง" />
+  if (state === 'kicked') return <Center msg="คุณถูกออกจากระบบโดยผู้ดูแล — กรุณาเข้าสู่ระบบด้วย LINE อีกครั้ง" action={<button className="btn inline" onClick={relogin}>เข้าสู่ระบบด้วย LINE</button>} />
+  if (state === 'banned') return <Center msg={err} />
   if (state === 'forbidden') return <Center msg="บัญชีของคุณไม่มีสิทธิ์เข้า Horguard Force (สำหรับเจ้าของ แอดมิน ผู้จัดการโซน หัวหน้ากะ และลูกค้า) — ใช้งานผ่านเมนูใน LINE ได้ตามปกติ" />
   if (state === 'error') return <Center msg={`เชื่อมต่อไม่สำเร็จ — ${err}`} />
 
@@ -173,10 +177,12 @@ function ShellSkeleton() {
   )
 }
 
-function Center({ msg }) {
+const banText = (o) => `บัญชีนี้ถูกระงับการใช้งานชั่วคราว${o.until ? ` ถึง ${new Date(o.until).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Bangkok' })} น.` : ' จนกว่าผู้ดูแลจะยกเลิก'}${o.reason ? ` · เหตุผล: ${o.reason}` : ''} — ติดต่อแอดมินของบริษัท`
+
+function Center({ msg, action }) {
   return (
     <div className="splash">
-      <div><div className="brand-logo navy"><img src={logoNavy} alt="Horguard" /><span>Horguard Force</span></div><p>{msg}</p></div>
+      <div><div className="brand-logo navy"><img src={logoNavy} alt="Horguard" /><span>Horguard Force</span></div><p>{msg}</p>{action && <div style={{ marginTop: 16 }}>{action}</div>}</div>
     </div>
   )
 }

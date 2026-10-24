@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
-import { initLiff, silentLogin, readParams, errTh } from './lib/api'
+import { initLiff, silentLogin, readParams, errTh, wasKicked, relogin } from './lib/api'
 import Register from './pages/Register.jsx'
 import Home from './pages/Home.jsx'
 import Scan from './pages/Scan.jsx'
@@ -23,13 +23,14 @@ export default function App() {
 
   useEffect(() => {
     (async () => {
+      if (wasKicked()) { setState('kicked'); return }
       try {
         await initLiff()
         const registered = await silentLogin()
         setState(registered ? 'ready' : 'register')
       } catch (e) {
         setErrMsg(errTh(e, 'เข้าสู่ระบบไม่สำเร็จ'))
-        setState('error')
+        setState(['account_banned', 'account_disabled'].includes(e?.code) ? 'blocked' : 'error')
       }
     })()
   }, [])
@@ -40,6 +41,30 @@ export default function App() {
       <div className="page">
         <Brand />
         <div className="notice err">เชื่อมต่อไม่สำเร็จ — {errMsg}<br />ลองปิดแล้วเปิดใหม่ หรือติดต่อหัวหน้ากะ</div>
+      </div>
+    )
+  }
+  if (state === 'blocked') {   // ถูกแบน / ปิดใช้ — แสดงเหตุผลและเวลาสิ้นสุด
+    return (
+      <div className="page">
+        <Brand />
+        <div className="card fmp-deny" role="alert" style={{ marginTop: 16 }}>
+          <div className="v">ใช้งานไม่ได้ในขณะนี้</div>
+          <p className="muted" style={{ whiteSpace: 'pre-line' }}>{errMsg}</p>
+          <p className="muted" style={{ marginTop: 8 }}>สอบถามหัวหน้างานหรือแอดมินของบริษัท</p>
+        </div>
+      </div>
+    )
+  }
+  if (state === 'kicked') {
+    return (
+      <div className="page">
+        <Brand />
+        <div className="card fmp-deny" role="alert" style={{ marginTop: 16 }}>
+          <div className="v">คุณถูกออกจากระบบโดยผู้ดูแล</div>
+          <p className="muted">กรุณาเข้าสู่ระบบด้วย LINE อีกครั้งเพื่อใช้งานต่อ</p>
+          <button className="btn" style={{ marginTop: 14 }} onClick={relogin}>เข้าสู่ระบบด้วย LINE</button>
+        </div>
       </div>
     )
   }

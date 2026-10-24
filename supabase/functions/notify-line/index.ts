@@ -88,6 +88,22 @@ async function messagesFor(n: { kind: string; payload: Record<string, unknown> }
       `จาก ${p.sender_name}${names.length ? ` · ${names.slice(0, 5).join(", ")}${names.length > 5 ? ` +${names.length - 5}` : ""}` : ""}`,
     ].join("\n"))];
   }
+  if (n.kind === "ban") {
+    return [text([
+      "⛔ บัญชีของคุณถูกระงับการใช้งานชั่วคราว",
+      `${p.to_name}${p.company ? ` · ${p.company}` : ""}`,
+      p.until ? `ระงับถึง ${fmt(String(p.until))}` : "ระงับจนกว่าผู้ดูแลจะยกเลิก",
+      p.reason ? `เหตุผล: ${p.reason}` : "",
+      "ระหว่างนี้จะเข้าใช้ Horguard ไม่ได้ — สอบถามหัวหน้างานหรือแอดมินของบริษัท",
+    ].filter(Boolean).join("\n"))];
+  }
+  if (n.kind === "unban") {
+    return [text([
+      "✅ บัญชีของคุณใช้งานได้ตามปกติแล้ว",
+      `${p.to_name}`,
+      "เปิดเมนูใน LINE OA เพื่อเข้าใช้งานได้เลย",
+    ].join("\n"))];
+  }
   return [text(`แจ้งเตือน Guard OS: ${n.kind}`)];
 }
 

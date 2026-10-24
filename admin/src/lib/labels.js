@@ -43,7 +43,7 @@ export const ACTION_TH = {
   admin_close_assignment: 'ปิดกะแทน (ลืมเช็คเอาต์)', create_checkpoint: 'สร้างจุดตรวจ', set_checkpoint_active: 'เปิด/ปิดจุดตรวจ',
   save_property: 'บันทึกโครงการ', set_property_active: 'เปิด/ปิดโครงการ', set_shift_mode: 'เปลี่ยนรูปแบบกะของโครงการ',
   dispatch: 'สั่งส่งคนไปโครงการ', send_broadcast: 'ส่งประกาศกลุ่ม',
-  review_gps_suspicion: 'ตรวจพิกัดน่าสงสัย',
+  review_gps_suspicion: 'ตรวจพิกัดน่าสงสัย', kick_user: 'ดีดออกจากระบบ', ban_user: 'แบนผู้ใช้', unban_user: 'ปลดแบนผู้ใช้',
   incident_open: 'เปิดเรื่องแจ้งเหตุใหม่', incident_ack: 'รับเรื่องแจ้งเหตุ', incident_closed: 'ปิดเรื่องแจ้งเหตุ',
 }
 
