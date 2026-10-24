@@ -105,14 +105,14 @@ h1 { font-size: 26px; line-height: 1.25; font-weight: 700; margin: 14px 0 2px; l
 /* ── ฟอร์ม ── */
 .field { margin-bottom: 16px; }
 .field label { display: block; font-size: 13.5px; font-weight: 500; color: var(--ink-2); margin-bottom: 6px; }
-.field input, select, textarea.input {
+.field input, select, textarea.input, input.input {
   width: 100%; padding: 11px 14px; min-height: 46px;
   border: 1px solid var(--line); border-radius: var(--r-sm);
   font-family: var(--font); font-size: 16px; color: var(--ink);
   background-color: var(--surface);
   transition: border-color .15s, box-shadow .15s;
 }
-.field input:focus, select:focus, textarea.input:focus { outline: none; border-color: var(--ink); box-shadow: 0 0 0 3px rgba(26, 29, 33, .08); }
+.field input:focus, select:focus, textarea.input:focus, input.input:focus { outline: none; border-color: var(--ink); box-shadow: 0 0 0 3px rgba(26, 29, 33, .08); }
 .field input:disabled, select:disabled { background-color: var(--sunk); color: var(--ink-2); }
 select {
   appearance: none; -webkit-appearance: none; padding-right: 38px;

@@ -100,7 +100,7 @@ export default function Scan() {
           <div className="spacer" />
           <div className="card">
             <div className="k">กรอกรหัสจุดตรวจเอง (กรณีสแกนไม่ได้)</div>
-            <input value={manual} onChange={(e) => setManual(e.target.value)} placeholder="เช่น CP1A2B3C4D5E6F"
+            <input className="input" inputMode="text" autoCapitalize="characters" value={manual} onChange={(e) => setManual(e.target.value)} placeholder="เช่น CP1A2B3C4D5E6F"
               style={{ marginTop: 8, textTransform: 'uppercase' }} />
             <button className="btn ghost" style={{ marginTop: 10 }} disabled={!manual.trim()}
               onClick={() => submit(manual.trim().toUpperCase())}>ยืนยันรหัส</button>
