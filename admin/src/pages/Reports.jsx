@@ -2,7 +2,7 @@
 // แบบฟอร์ม: หัว "โครงการ …" · วันที่ · ชื่อ-สกุล · เวลาเข้างาน · เวลาออกงาน · สาย(นาที) · OT(นาที) · สรุปท้ายตาราง
 // ข้อมูลมาจาก RPC report_attendance (สิทธิ์ตัดสินที่ฐานข้อมูล: หัวหน้ากะ/สายตรวจเห็นเฉพาะโครงการที่ผูกไว้)
 import { useEffect, useMemo, useState } from 'react'
-import { list, rpc, errTh } from '../lib/api'
+import { list, rpc, errTh, listCached } from '../lib/api'
 import { seeMoney } from '../lib/perm'
 
 const bkkDate = (d = new Date()) => new Date(d.getTime() + 7 * 3600 * 1000).toISOString().slice(0, 10)
@@ -64,8 +64,8 @@ export default function Reports() {
   const [msg, setMsg] = useState(null)
 
   useEffect(() => {
-    list('properties?select=id,name,is_test&is_active=is.true&order=name').then(setProps).catch(() => {})
-    list('users?select=id,full_name,employee_code,role&order=full_name').then(setPeople).catch(() => {})
+    listCached('properties?select=id,name,is_test&is_active=is.true&order=name').then(setProps).catch(() => {})
+    listCached('users?select=id,full_name,employee_code,role&order=full_name').then(setPeople).catch(() => {})
   }, [])
 
   async function search(e) {

@@ -104,7 +104,7 @@ export default function ShiftCalendar({ wide = false }) {
           {new Date(`${day}T00:00:00+07:00`).toLocaleDateString('th-TH', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Asia/Bangkok' })}
           {rows && <span> · {list.length ? `${list.length} กะ` : 'ไม่มีกะ'}</span>}
         </p>
-        {rows === null && <p className="muted">กำลังโหลด…</p>}
+        {rows === null && <span className="sk" style={{ height: 220, borderRadius: 12, margin: '8px 0' }} />}
         {list.map((r) => (
           <div key={r.assignment_id} className={`cal-item ${r.status}`}>
             <div className="t">{fmtTime(r.starts_at)}<small>{fmtTime(r.ends_at)}</small></div>

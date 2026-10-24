@@ -6,6 +6,8 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { getUser, rpc, errTh } from '../lib/api'
 import Brand from '../components/Brand.jsx'
+import Avatar from '../components/Avatar.jsx'
+import { SkCards } from '../components/Skeleton.jsx'
 
 export const MAP_ROLES = ['owner', 'admin', 'zone_manager', 'trainer']
 const ROLE_TH = { guard: 'รปภ.', shift_leader: 'หัวหน้ากะ', zone_manager: 'ผู้จัดการโซน', supervisor: 'สายตรวจ', assistant_supervisor: 'ผู้ช่วยสายตรวจ', trainer: 'ครูฝึก', spare: 'ตัวสแปร์', admin: 'แอดมิน', owner: 'เจ้าของ' }
@@ -102,6 +104,7 @@ function MapView() {
       {err && <div className="notice err">{err}</div>}
       {sites?.length === 0 && !err && <p className="muted">ยังไม่มีโครงการที่คุณดูแล</p>}
 
+      {sites === null && <SkCards n={4} h={56} />}
       <div className="fmp-list">
         {ordered.map((s) => (
           <div key={s.property_id} id={`fmp-${s.property_id}`} className={`card fmp-site ${tone(s)} ${open === s.property_id ? 'open' : ''}`}>
@@ -115,6 +118,7 @@ function MapView() {
               <div className="fmp-people">
                 {s.people.length === 0 ? <p className="muted">ยังไม่มีใครเช็กอิน</p> : s.people.map((p) => (
                   <div key={p.user_id} className="fmp-person">
+                    <Avatar src={p.photo} name={p.name} size={34} />
                     <span><b>{p.name}</b><small>{ROLE_TH[p.role] || 'พนักงาน'} · {KIND_TH[p.kind] || 'อื่นๆ'} · ตั้งแต่ {hm(p.since)}</small></span>
                     {p.phone && <a className="fmp-call" href={`tel:${p.phone}`} aria-label={`โทรหา ${p.name}`}>โทร</a>}
                   </div>

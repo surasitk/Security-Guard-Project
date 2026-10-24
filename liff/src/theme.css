@@ -286,3 +286,12 @@ textarea.input { min-height: 88px; margin-bottom: 12px; resize: vertical; line-h
 .fmp-deny { text-align: center; padding: 28px 20px; margin-top: 12px; }
 .fmp-deny .fmp-lock { width: 52px; height: 52px; border-radius: 50%; background: var(--sunk); color: var(--ink-2); display: grid; place-items: center; margin: 0 auto 12px; }
 .fmp-deny .v { font-size: 18px; font-weight: 600; margin-bottom: 6px; }
+
+/* ── รูปโปรไฟล์วงกลมเล็ก ── */
+.av { display: inline-grid; place-items: center; flex: none; border-radius: 50%; object-fit: cover; background: var(--sunk); color: var(--ink-2); font-weight: 600; vertical-align: middle; }
+
+/* ── Skeleton loading ── */
+.sk { display: block; border-radius: 6px; background: linear-gradient(90deg, #e6e8e5 0%, #f3f4f2 40%, #e6e8e5 80%); background-size: 300% 100%; animation: sk-shine 1.3s ease-in-out infinite; }
+.sk-card::before { display: none; }
+@keyframes sk-shine { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
+@media (prefers-reduced-motion: reduce) { .sk { animation: none; } }

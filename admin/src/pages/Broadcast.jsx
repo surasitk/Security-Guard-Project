@@ -2,7 +2,7 @@
 // เช่น แจ้งน้ำท่วม การชุมนุม เปลี่ยนรหัสประตู
 // ผู้รับ = ผูกกับโครงการ + มีกะในโครงการช่วง 30 วันก่อน–หลัง (ต้องผูก LINE แล้ว) · RPC broadcast_recipients / send_broadcast
 import { useEffect, useMemo, useState } from 'react'
-import { list, rpc, callFn, fmtDate, fmtTime, errTh } from '../lib/api'
+import { list, rpc, callFn, fmtDate, fmtTime, errTh, listCached } from '../lib/api'
 
 const TEMPLATES = [
   { k: 'น้ำท่วม', t: 'แจ้งเตือนน้ำท่วม: บริเวณ … มีน้ำท่วมขัง ให้เดินทางเผื่อเวลา หลีกเลี่ยงเส้นทาง … และดูแลทรัพย์สินชั้นล่างของโครงการ' },
@@ -22,7 +22,7 @@ export default function Broadcast() {
 
   const loadHistory = () => list('broadcasts?select=*,users:created_by(full_name)&order=created_at.desc&limit=20').then(setHistory).catch(() => {})
   useEffect(() => {
-    list('properties?select=id,name,province,is_test&is_active=is.true&order=name').then(setProps).catch(() => {})
+    listCached('properties?select=id,name,province,is_test&is_active=is.true&order=name').then(setProps).catch(() => {})
     loadHistory()
   }, [])
 

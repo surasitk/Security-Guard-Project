@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { register, errTh } from '../lib/api'
 import Brand from '../components/Brand.jsx'
 
-const CONSENT_VERSION = import.meta.env.VITE_CONSENT_VERSION || '2026-08-01'
+const CONSENT_VERSION = import.meta.env.VITE_CONSENT_VERSION || '2026-10-24'
 
 const ERROR_TH = {
   no_matching_employee: 'ไม่พบข้อมูลพนักงานที่ตรงกัน — ตรวจรหัสพนักงานและเบอร์โทร หรือติดต่อธุรการ',
@@ -53,7 +53,8 @@ export default function Register({ onDone }) {
         <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} style={{ marginTop: 4 }} />
         <span>
           ข้าพเจ้ายินยอมให้บริษัทเก็บและใช้ข้อมูลส่วนบุคคล ได้แก่ รูปถ่ายยืนยันตัวตน
-          และพิกัดตำแหน่งขณะปฏิบัติงาน เพื่อการลงเวลาทำงานและการตรวจสอบการปฏิบัติหน้าที่
+          พิกัดตำแหน่งขณะปฏิบัติงาน ข้อมูลอุปกรณ์ที่ใช้ลงเวลา และชื่อกับรูปโปรไฟล์ LINE
+          เพื่อการลงเวลาทำงาน การยืนยันตัวตน และการตรวจสอบการปฏิบัติหน้าที่
           ตามนโยบายคุ้มครองข้อมูลส่วนบุคคล (ฉบับ {CONSENT_VERSION})
         </span>
       </label>

@@ -1,10 +1,11 @@
 // ภาพรวมวันนี้ — กะทั้งหมด / เข้าแล้ว / สาย / ยังไม่เข้า + รายการลงเวลาสด
 // ค้นหาขั้นสูง (ชื่อ · จังหวัด · โครงการ · สถานะ) ใช้กับตัวเลขสรุปและทุกตาราง · ทุกตารางกดหัวคอลัมน์เพื่อเรียง (ไทย ก–ฮ ก่อน A–Z)
 import { useEffect, useMemo, useState } from 'react'
-import { list, rpc, todayRangeBkk, fmtTime, errTh } from '../lib/api'
+import { list, rpc, todayRangeBkk, fmtTime, errTh, listCached } from '../lib/api'
 import { canEdit, seeMoney } from '../lib/perm'
 import { useSort, byName, ResultLine } from '../lib/sortTable.jsx'
 import { STATUS_TH, STATUS_TONE, KIND_TH, flagList, th } from '../lib/labels'
+import { SkPage } from '../components/Skeleton.jsx'
 const STATUS_RANK = { overdue: 0, absent: 1, scheduled: 2, checked_in: 3, checked_out: 4 }
 const t = (ts) => (ts ? new Date(ts).getTime() : null)
 
@@ -28,7 +29,7 @@ export default function Dashboard() {
           list(`attendance?select=check_in_at,check_out_at,late_minutes,early_leave_minutes,early_reason,flag_reason,in_distance_m,is_mock_flag,users(full_name,employee_code),properties!inner(id,name,province,is_test)&properties.is_test=is.false&check_in_at=gte.${start}&order=check_in_at.desc&limit=300`),
         ])
         setShifts(s); setAtt(a)
-        list('properties?select=id,name,province&is_active=is.true&is_test=is.false').then(setProps).catch(() => {})
+        listCached('properties?select=id,name,province&is_active=is.true&is_test=is.false').then(setProps).catch(() => {})
         setCoverage(await rpc('open_coverage').catch(() => []))
         const cutoff = new Date(Date.now() - 3600 * 1000).toISOString()
         setStuck(await list(`shift_assignments?select=id,starts_at,ends_at,kind,users!user_id(full_name,employee_code),properties(id,name,province)&status=eq.checked_in&ends_at=lt.${cutoff}&order=ends_at`).catch(() => []))
@@ -90,7 +91,7 @@ export default function Dashboard() {
   }), []), { key: 'in', dir: 'desc' })
 
   if (err) return <div className="notice err">โหลดข้อมูลไม่สำเร็จ — {err}</div>
-  if (!shiftsAll) return <p className="muted">กำลังโหลด…</p>
+  if (!shiftsAll) return <SkPage stats={4} rows={6} cols={4} />
 
   const total = shifts.length
   const checkedIn = shifts.filter((s) => s.status === 'checked_in').length

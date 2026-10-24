@@ -6,6 +6,7 @@ import { list, rpc, tenantId, errTh } from '../lib/api'
 import { useSort, byName, ResultLine } from '../lib/sortTable.jsx'
 import { loadThaiAddress } from '../lib/thaiAddress'
 import MapPicker from '../components/MapPicker.jsx'
+import { SkTable } from '../components/Skeleton.jsx'
 
 const EMPTY = {
   name: '', code: '', provinceId: '', districtId: '', subId: '', postcode: '',
@@ -217,7 +218,7 @@ export default function Properties() {
           <select value={f.kind} onChange={setFv('kind')}><option value="">ทั้งหมด</option><option value="real">โครงการจริง</option><option value="test">ทดสอบ</option></select>
         </div>
       </div>
-      {!rows ? <p className="muted">กำลังโหลด…</p> : rows.length === 0 ? <p className="muted">ยังไม่มีโครงการ — กด "เพิ่มโครงการ"</p> : (
+      {!rows ? <SkTable rows={8} cols={6} /> : rows.length === 0 ? <p className="muted">ยังไม่มีโครงการ — กด "เพิ่มโครงการ"</p> : (
         <>
           <ResultLine shown={sorted.length} total={rows.length} unit="โครงการ" active={fActive} onClear={() => setF(F0)} note="กดหัวคอลัมน์เพื่อเรียง" />
           {sorted.length === 0 ? <p className="muted">ไม่พบโครงการตามตัวกรอง</p> : (

@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react'
 import { rpc, fmtDate, fmtTime, errTh } from '../lib/api'
 import { INCIDENT_TH, INCIDENT_TONE, th } from '../lib/labels'
+import { SkPage } from '../components/Skeleton.jsx'
 
 const bkkDate = (d = new Date()) => new Date(d.getTime() + 7 * 3600 * 1000).toISOString().slice(0, 10)
 const daysAgo = (n) => bkkDate(new Date(Date.now() - n * 86400000))
@@ -34,7 +35,7 @@ export default function ClientDashboard() {
     return () => { live = false }
   }, [f.property, f.from, f.to])
 
-  if (projects === null) return <p className="muted">กำลังโหลด…</p>
+  if (projects === null) return <SkPage stats={4} rows={5} cols={4} />
   if (!projects.length) return <div className="notice">ยังไม่มีโครงการที่ผูกกับบัญชีนี้ — ติดต่อบริษัท รปภ. ของคุณ</div>
 
   const s = data?.shifts
@@ -64,7 +65,7 @@ export default function ClientDashboard() {
       </div>
 
       {err && <div className="notice err">{err}</div>}
-      {!data && !err && <p className="muted">กำลังโหลด…</p>}
+      {!data && !err && <SkPage stats={4} rows={5} cols={4} />}
 
       {data && (
         <>

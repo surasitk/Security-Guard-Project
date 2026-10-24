@@ -360,3 +360,17 @@ td.row-act .badge.solid { background: var(--ink); color: #fff; border-color: var
 @media (max-width: 880px) { .side .brand-logo { padding: 0 10px; } .side .brand-logo img { width: 168px; } }
 /* แท็บเล็ต: แผนที่กำลังพลสูงขึ้นในแนวตั้ง */
 @media (min-width: 700px) and (max-width: 1000px) { .fm-map { height: 52vh; } }
+
+/* ── รูปโปรไฟล์วงกลมเล็ก ── */
+.av { display: inline-grid; place-items: center; flex: none; border-radius: 50%; object-fit: cover; background: var(--sunk); color: var(--ink-2); font-weight: 600; vertical-align: middle; }
+td.av-cell { width: 44px; padding-right: 0 !important; }
+
+/* ── Skeleton loading ── */
+.sk { display: block; border-radius: 6px; background: linear-gradient(90deg, #eceeeb 0%, #f6f7f5 40%, #eceeeb 80%); background-size: 300% 100%; animation: sk-shine 1.3s ease-in-out infinite; }
+.sk-circle { width: 28px; height: 28px; border-radius: 50%; }
+.sk-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 14px 16px; margin-bottom: 10px; }
+.sk-table td, .sk-table th { padding-top: 14px !important; padding-bottom: 14px !important; }
+@keyframes sk-shine { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
+@media (prefers-reduced-motion: reduce) { .sk { animation: none; } }
+/* โครงหน้าตอนเชื่อมต่อ (ก่อนรู้ว่าเป็นใคร) */
+.shell-sk .side .sk { background: #2a2f35; animation: none; }

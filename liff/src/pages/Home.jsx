@@ -10,6 +10,7 @@ import {
 } from '../lib/api'
 import ShiftCalendar from '../components/ShiftCalendar.jsx'
 import Brand from '../components/Brand.jsx'
+import { SkCards } from '../components/Skeleton.jsx'
 
 const ERROR_TH = {
   not_your_assignment: 'กะนี้ไม่ใช่ของคุณ',
@@ -195,7 +196,7 @@ export default function Home() {
 
       <input ref={fileRef} type="file" accept="image/*" capture="user" hidden onChange={onSelfie} />
 
-      {shifts === null && <p className="muted">กำลังโหลด…</p>}
+      {shifts === null && <SkCards n={2} />}
 
       {current && (
         <div className="card duty on">

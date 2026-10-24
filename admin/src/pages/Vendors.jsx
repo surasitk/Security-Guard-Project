@@ -1,6 +1,7 @@
 // Vendors — จัดการบริษัท รปภ. ที่ใช้ระบบ (เฉพาะเจ้าของแพลตฟอร์ม) · สร้าง + แก้ไข inline + เปิด/ปิด
 import { useEffect, useState } from 'react'
 import { rpc, fmtDate, errTh } from '../lib/api'
+import { SkTable } from '../components/Skeleton.jsx'
 
 export default function Vendors() {
   const [rows, setRows] = useState(null)
@@ -60,7 +61,7 @@ export default function Vendors() {
       {msg && <div className={`notice ${msg.t === 'err' ? 'err' : ''}`}>{msg.m}</div>}
 
       <div className="section-h"><h2>Tenant ทั้งหมด {rows ? `(${rows.length})` : ''}</h2></div>
-      {!rows ? <p className="muted">กำลังโหลด…</p> : (
+      {!rows ? <SkTable rows={3} cols={8} /> : (
         <table className="grid">
           <thead><tr><th>บริษัท</th><th>รหัส</th><th>แพ็คเกจ</th><th>สถานะ</th><th>โครงการ</th><th>พนักงาน</th><th>ผูก LINE</th><th>สร้างเมื่อ</th><th></th></tr></thead>
           <tbody>

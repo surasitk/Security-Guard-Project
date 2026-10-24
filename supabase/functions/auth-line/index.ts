@@ -80,7 +80,7 @@ function publicUser(u: Record<string, unknown>) {
     full_name: u.full_name,
     role: u.role,
     employee_code: u.employee_code,
-    photo_url: u.photo_url,
+    photo_url: u.line_picture_url ?? u.photo_url,
   };
 }
 
@@ -131,6 +131,9 @@ Deno.serve(async (req) => {
         .update({
           line_user_id: lineUserId,
           photo_url: candidate.photo_url ?? profile.picture ?? null,
+          line_display_name: profile.name ?? null,
+          line_picture_url: profile.picture ?? null,
+          line_profile_at: new Date().toISOString(),
           consent_version,
           consented_at: new Date().toISOString(),
         })
@@ -159,6 +162,15 @@ Deno.serve(async (req) => {
     if (!user) return json({ ok: false, error: "not_registered" }, 404);
     // ถูกปิดใช้งาน → แจ้งชัดเจน (ไม่ให้ไปหน้าลงทะเบียนใหม่)
     if (!user.is_active) return json({ ok: false, error: "account_disabled" }, 403);
+
+    // ชื่อ/รูป LINE ล่าสุด (คนเปลี่ยนรูป LINE ลิงก์เดิมจะใช้ไม่ได้) — เขียนเฉพาะเมื่อเปลี่ยน (นานๆ ครั้ง)
+    if ((profile.picture ?? null) !== (user.line_picture_url ?? null) || (profile.name ?? null) !== (user.line_display_name ?? null)) {
+      await admin.from("users").update({
+        line_display_name: profile.name ?? null,
+        line_picture_url: profile.picture ?? null,
+        line_profile_at: new Date().toISOString(),
+      }).eq("id", user.id);
+    }
 
     const { data: pa } = await admin
       .from("platform_admins").select("user_id").eq("user_id", user.id).maybeSingle();

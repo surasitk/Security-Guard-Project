@@ -6,6 +6,7 @@ import Scan from './pages/Scan.jsx'
 import Incident from './pages/Incident.jsx'
 const ForceMap = lazy(() => import('./pages/ForceMap.jsx'))   // โหลดแผนที่เฉพาะคนที่เปิดเมนูนี้
 import Brand from './components/Brand.jsx'
+import { SkPage } from './components/Skeleton.jsx'
 
 // อ่านหน้าเป้าหมายจาก ?page= (rich menu ยิงคนละลิงก์)
 function targetPage() {
@@ -33,15 +34,7 @@ export default function App() {
     })()
   }, [])
 
-  if (state === 'loading') {
-    return (
-      <div className="page center">
-        <div className="spacer" />
-        <Brand />
-        <p className="muted">กำลังเชื่อมต่อ…</p>
-      </div>
-    )
-  }
+  if (state === 'loading') return <SkPage cards={readParams().get('page') === 'map' ? 4 : 2} map={readParams().get('page') === 'map'} />
   if (state === 'error') {
     return (
       <div className="page">
@@ -54,6 +47,6 @@ export default function App() {
 
   if (page === 'scan') return <Scan />
   if (page === 'incident') return <Incident />
-  if (page === 'map') return <Suspense fallback={<div className="page center"><div className="spacer" /><Brand /><p className="muted">กำลังโหลดแผนที่…</p></div>}><ForceMap /></Suspense>
+  if (page === 'map') return <Suspense fallback={<SkPage cards={4} map />}><ForceMap /></Suspense>
   return <Home />
 }

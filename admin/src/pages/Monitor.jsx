@@ -1,9 +1,11 @@
 // Monitoring — log เหตุการณ์ทั้งหมด (เข้า/ออกงาน + พิกัด + รูป + ธงผิดปกติ + การแก้ไขระบบ)
 // filter จังหวัด/โครงการแบบ multi-select · Sprint 2 จะเพิ่ม patrol scans + incidents เข้า log เดียวกัน
 import { useEffect, useMemo, useState } from 'react'
-import { list, signedUrl, fmtTime, fmtDate, errTh } from '../lib/api'
+import { list, signedUrl, fmtTime, fmtDate, errTh, listCached } from '../lib/api'
 import FilterChips from '../components/FilterChips.jsx'
+import Avatar from '../components/Avatar.jsx'
 import { ACTION_TH, ROLE_TH, GPS_STATUS_TH, GPS_STATUS_TONE, flagList, th } from '../lib/labels'
+import { SkTable } from '../components/Skeleton.jsx'
 
 const DAYS_BACK = 7
 
@@ -23,8 +25,8 @@ export default function Monitor() {
         const since = new Date(Date.now() - DAYS_BACK * 24 * 3600 * 1000).toISOString()
         const [logs, us, ps] = await Promise.all([
           list(`v_attendance_log?check_in_at=gte.${since}&order=check_in_at.desc&limit=200`),
-          list('users?select=id,full_name,employee_code'),
-          list('properties?select=id,name,province,is_test'),
+          listCached('users?select=id,full_name,employee_code,line_picture_url,photo_url,line_display_name'),
+          listCached('properties?select=id,name,province,is_test'),
         ])
         const testIds = new Set(ps.filter((p) => p.is_test).map((p) => p.id))
         setRows(logs.filter((l) => !testIds.has(l.property_id)))   // ไม่นับโครงการทดสอบ
@@ -73,7 +75,7 @@ export default function Monitor() {
   }
 
   if (err) return <div className="notice err">โหลดข้อมูลไม่สำเร็จ — {err}</div>
-  if (!rows) return <p className="muted">กำลังโหลด…</p>
+  if (!rows) return <SkTable rows={10} cols={8} avatarCol={2} />
 
   return (
     <div>
@@ -85,12 +87,13 @@ export default function Monitor() {
       <div className="section-h"><h2>เหตุการณ์ {DAYS_BACK} วันล่าสุด ({filtered.length})</h2></div>
       {filtered.length === 0 ? <p className="muted">ไม่มีเหตุการณ์ตามเงื่อนไขที่เลือก</p> : (
         <table className="grid">
-          <thead><tr><th>เวลา</th><th>เหตุการณ์</th><th>พนักงาน</th><th>โครงการ</th><th>พิกัด</th><th>รูป</th><th>หมายเหตุ</th></tr></thead>
+          <thead><tr><th>เวลา</th><th>เหตุการณ์</th><th aria-label="รูป"></th><th>พนักงาน</th><th>โครงการ</th><th>พิกัด</th><th>รูป</th><th>หมายเหตุ</th></tr></thead>
           <tbody>
             {filtered.map((e, i) => (
               <tr key={i}>
                 <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(e.at)} {fmtTime(e.at)}</td>
                 <td><span className={`badge ${e.type === 'in' ? 'solid' : ''}`}>{e.type === 'in' ? 'เข้างาน' : 'ออกงาน'}</span></td>
+                <td className="av-cell"><Avatar src={e.user?.line_picture_url || e.user?.photo_url} name={e.user?.full_name} title={e.user?.line_display_name ? `LINE: ${e.user.line_display_name}` : undefined} /></td>
                 <td>{e.user?.full_name || '—'}</td>
                 <td>{e.prop?.name || '—'}{e.prop?.province ? ` · ${e.prop.province}` : ''}</td>
                 <td>

@@ -6,6 +6,7 @@ import { list, insert, update, rpc, tenantId, fmtTime, fmtDate, getUser, errTh }
 import { canEdit, seeMoney } from '../lib/perm'
 import { buildTemplateFile, readWorkbook, toPayload, TPL_COLS, ASG_COLS } from '../lib/shiftImport'
 import { STATUS_TH as STATUS_ALL, th } from '../lib/labels'
+import { SkTable } from '../components/Skeleton.jsx'
 
 const DOW = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส']
 const ROLE_TH = { guard: 'รปภ.', shift_leader: 'หัวหน้ากะ', spare: 'ตัวสแปร์', trainer: 'ครูฝึก', supervisor: 'สายตรวจ', assistant_supervisor: 'ผู้ช่วยสายตรวจ' }
@@ -342,7 +343,7 @@ function UpcomingTab({ upcoming, guards, reload, setMsg }) {
     setBusy(false); setSwapTo(''); setSel(new Set()); reload()
   }
 
-  if (!upcoming) return <p className="muted">กำลังโหลด…</p>
+  if (!upcoming) return <SkTable rows={8} cols={6} />
   const active = Object.values(f).some(Boolean)
   return (
     <div>

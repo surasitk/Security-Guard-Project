@@ -1,10 +1,11 @@
 // รายงานพิกัดน่าสงสัย (สงสัยใช้ Fake GPS) — ระบบไม่บล็อก แต่รวบรวมให้เจ้าหน้าที่ตรวจและตัดสินเอง
 // ข้อมูล: gps_suspicions (ระบบติดธงตอนเข้า/ออกงาน + รอบตรวจทุกชั่วโมง) · ผลตรวจ: RPC review_gps_suspicion
 import { useEffect, useMemo, useState } from 'react'
-import { list, rpc, signedUrl, fmtTime, fmtDate, errTh } from '../lib/api'
+import { list, rpc, signedUrl, fmtTime, fmtDate, errTh, listCached } from '../lib/api'
 import { canEdit } from '../lib/perm'
 import { useSort, byName, ResultLine } from '../lib/sortTable.jsx'
 import { GPS_STATUS_TH, GPS_STATUS_TONE, th } from '../lib/labels'
+import { SkTable } from '../components/Skeleton.jsx'
 
 const bkkDate = (d = new Date()) => new Date(d.getTime() + 7 * 3600 * 1000).toISOString().slice(0, 10)
 const daysAgo = (n) => bkkDate(new Date(Date.now() - n * 86400000))
@@ -21,7 +22,7 @@ export default function GpsReport() {
   const [note, setNote] = useState({})          // id → ข้อความหมายเหตุที่กำลังพิมพ์
   const edit = canEdit()
 
-  useEffect(() => { list('properties?select=id,name&is_active=is.true&order=name').then(setProps).catch(() => {}) }, [])
+  useEffect(() => { listCached('properties?select=id,name&is_active=is.true&order=name').then(setProps).catch(() => {}) }, [])
 
   async function load() {
     setMsg(null); setRows(null)
@@ -163,7 +164,7 @@ export default function GpsReport() {
 
       <div className="section-h"><h2>รายการ</h2></div>
       <ResultLine shown={shown.length} total={rows?.length ?? 0} unit="รายการ" active={!!active} onClear={() => setF({ ...F0, from: f.from, to: f.to })} note="กดหัวคอลัมน์เพื่อเรียง" />
-      {rows === null ? <p className="muted">กำลังโหลด…</p> : sorted.length === 0 ? <p className="muted">ไม่พบรายการน่าสงสัยในช่วงนี้</p> : (
+      {rows === null ? <SkTable rows={5} cols={5} /> : sorted.length === 0 ? <p className="muted">ไม่พบรายการน่าสงสัยในช่วงนี้</p> : (
         <div className="table-wrap">
           <table className="grid dense">
             <thead><tr>{sth('at', 'เวลา')}{sth('who', 'พนักงาน / โครงการ')}{sth('score', 'คะแนน')}<th>เหตุผลที่สงสัย</th>{sth('status', edit ? 'สถานะ / ผลการตรวจ' : 'สถานะ')}</tr></thead>

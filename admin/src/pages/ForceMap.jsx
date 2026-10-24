@@ -6,9 +6,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { list, rpc, callFn, signedUrl, fmtTime, fmtDate, errTh } from '../lib/api'
+import { list, rpc, callFn, signedUrl, fmtTime, fmtDate, errTh, listCached } from '../lib/api'
 import { canEdit } from '../lib/perm'
+import Avatar from '../components/Avatar.jsx'
 import { ROLE_TH, KIND_TH, INCIDENT_TH, INCIDENT_TONE, th } from '../lib/labels'
+import { SkCards } from '../components/Skeleton.jsx'
 
 const km = (m) => (m == null ? '—' : m < 1000 ? `${Math.round(m)} ม.` : `${(m / 1000).toFixed(m < 10000 ? 1 : 0)} กม.`)
 const tone = (s) => (s.missing > 0 || s.open_sos > 0 ? 'alert' : s.on_duty > 0 ? 'duty' : 'idle')
@@ -29,7 +31,7 @@ export default function ForceMap() {
   const layerRef = useRef(null)
   const fitted = useRef('')
 
-  useEffect(() => { list('properties?select=id,name&is_active=is.true&order=name').then(setAllProps).catch(() => {}) }, [])
+  useEffect(() => { listCached('properties?select=id,name&is_active=is.true&order=name').then(setAllProps).catch(() => {}) }, [])
 
   async function load() {
     try {
@@ -174,7 +176,7 @@ export default function ForceMap() {
           {!site ? (
             <>
               <div className="section-h" style={{ marginTop: 0 }}><h2>ไซต์ทั้งหมด · {sites?.length ?? '…'}</h2></div>
-              {sites === null && <p className="muted">กำลังโหลด…</p>}
+              {sites === null && <SkCards n={4} h={58} />}
               {sites?.length === 0 && <p className="muted">ไม่มีโครงการที่คุณดูแล</p>}
               <div className="fm-sites">
                 {ordered.map((s) => (
@@ -198,7 +200,8 @@ export default function ForceMap() {
                 {site.people.length === 0 && <p className="muted">ยังไม่มีใครเช็กอิน</p>}
                 {site.people.map((p) => (
                   <div key={p.user_id} className="fm-person">
-                    <span><b>{p.name}</b><small>{th(ROLE_TH, p.role)} · {th(KIND_TH, p.kind)}</small></span>
+                    <Avatar src={p.photo} name={p.name} size={32} />
+                    <span style={{ flex: 1 }}><b>{p.name}</b><small>{th(ROLE_TH, p.role)} · {th(KIND_TH, p.kind)}</small></span>
                     <span className="muted">ตั้งแต่ {fmtTime(p.since)}</span>
                   </div>
                 ))}
@@ -207,7 +210,7 @@ export default function ForceMap() {
               <div className="fm-block">
                 <div className="fm-h">{canEdit() ? 'ส่งคนไปแทน (ว่าง · ใกล้ที่สุดก่อน)' : 'คนที่ว่าง · ใกล้ที่สุดก่อน'}</div>
                 {canEdit() && <input className="fm-note" value={note} onChange={(e) => setNote(e.target.value)} maxLength={200} placeholder="หมายเหตุถึงคนที่ส่งไป (ไม่บังคับ) เช่น ไปแทนจุดประตู 2" />}
-                {cands === null && <p className="muted">กำลังหา…</p>}
+                {cands === null && <SkCards n={2} h={46} />}
                 {cands?.length === 0 && <p className="muted">ไม่มีคนว่างที่ผูกกับโครงการนี้ — เพิ่มโครงการให้ตัวสแปร์ในหน้า "ผู้ใช้และสิทธิ์"</p>}
                 {cands?.map((c, idx) => (
                   <div key={c.user_id} className="fm-person">

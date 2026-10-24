@@ -13,6 +13,7 @@ import Broadcast from './pages/Broadcast.jsx'
 import ClientDashboard from './pages/ClientDashboard.jsx'
 import GpsReport from './pages/GpsReport.jsx'
 import { rpc } from './lib/api'
+import { SkLine, SkPage } from './components/Skeleton.jsx'
 import logoWhite from './assets/horguard-white.png'
 import logoNavy from './assets/horguard-navy.png'
 
@@ -78,7 +79,7 @@ export default function App() {
     })()
   }, [])
 
-  if (state === 'loading') return <Center msg="กำลังเชื่อมต่อ…" />
+  if (state === 'loading') return <ShellSkeleton />
   if (state === 'unregistered') return <Center msg="บัญชี LINE นี้ยังไม่ได้ลงทะเบียนในระบบ — ให้ผู้ดูแลเพิ่มคุณเป็นพนักงานก่อน แล้วลงทะเบียนผ่านแอปใน LINE" />
   if (state === 'disabled') return <Center msg="บัญชีนี้ถูกปิดใช้งานแล้ว และออกจากระบบทุกอุปกรณ์ — ติดต่อแอดมินของบริษัทหากต้องการใช้งานอีกครั้ง" />
   if (state === 'forbidden') return <Center msg="บัญชีของคุณไม่มีสิทธิ์เข้า Horguard Force (สำหรับเจ้าของ แอดมิน ผู้จัดการโซน หัวหน้ากะ และลูกค้า) — ใช้งานผ่านเมนูใน LINE ได้ตามปกติ" />
@@ -151,6 +152,23 @@ export default function App() {
           {switching ? <p className="muted">กำลังสลับ Tenant…</p> : <Active key={`${tab}-${ctx}`} isPlatform={isPlatform} vendors={vendors} />}
         </div>
       </main>
+    </div>
+  )
+}
+
+// โครงหน้าระหว่างเชื่อมต่อ LINE (ยังไม่รู้สิทธิ์ → แสดงเมนูเป็นแถบเทา)
+function ShellSkeleton() {
+  return (
+    <div className="shell shell-sk" role="status" aria-label="กำลังเชื่อมต่อ">
+      <header className="topbar"><span className="burger" /><img src={logoWhite} alt="Horguard" /></header>
+      <aside className="side">
+        <div className="brand-logo"><img src={logoWhite} alt="Horguard" /><span>Horguard Force</span></div>
+        <div className="nav">{Array.from({ length: 8 }, (_, i) => <SkLine key={i} w={`${55 + ((i * 17) % 35)}%`} h={14} style={{ margin: '13px 12px' }} />)}</div>
+      </aside>
+      <main className="main"><div className="main-inner">
+        <div className="page-head"><div><SkLine w={220} h={28} /><SkLine w={340} h={12} style={{ marginTop: 10 }} /></div></div>
+        <SkPage stats={4} rows={6} cols={4} />
+      </div></main>
     </div>
   )
 }

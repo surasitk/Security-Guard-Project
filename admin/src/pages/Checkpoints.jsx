@@ -5,6 +5,7 @@ import QRCode from 'qrcode'
 import { list, rpc, fmtDate, errTh } from '../lib/api'
 import { canEdit, seeMoney } from '../lib/perm'
 import { useSort, byName, ResultLine } from '../lib/sortTable.jsx'
+import { SkTable } from '../components/Skeleton.jsx'
 
 const LIFF_ID = import.meta.env.VITE_PATROL_LIFF_ID || '2010926067-2cuN81fZ'
 const esc = (x) => String(x ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]))
@@ -165,7 +166,7 @@ export default function Checkpoints() {
         </div>
       </div>
 
-      {!rows ? <p className="muted">กำลังโหลด…</p> : rows.length === 0 ? (
+      {!rows ? <SkTable rows={8} cols={5} /> : rows.length === 0 ? (
         <p className="muted">ยังไม่มีจุดตรวจ — กด "+ เพิ่มจุดตรวจ"</p>
       ) : (
         <>

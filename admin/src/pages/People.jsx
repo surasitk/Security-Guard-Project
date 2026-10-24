@@ -4,6 +4,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { list, rpc, tenantId, getUser, errTh } from '../lib/api'
 import { useSort, byName, ResultLine } from '../lib/sortTable.jsx'
+import Avatar from '../components/Avatar.jsx'
+import { SkTable } from '../components/Skeleton.jsx'
 
 const ROLES = [
   ['guard', 'รปภ.', 'เข้า-ออกงานตามกะ และเข้างานฉุกเฉินได้ในโครงการที่มีชื่อ (ไม่เกิน 5 โครงการ) · ไม่เข้าหลังบ้าน'],
@@ -264,14 +266,14 @@ export default function People({ isPlatform = false, vendors = [] }) {
           <select value={f.dayoff} onChange={setFv('dayoff')}><option value="">ทั้งหมด</option>{DAYS.map((d, i) => <option key={i} value={i}>{d}</option>)}</select>
         </div>
       </div>
-      {!rows ? <p className="muted">กำลังโหลด…</p> : (
+      {!rows ? <SkTable rows={8} cols={8} avatarCol={1} /> : (
         <>
           <ResultLine shown={sorted.length} total={rows.length} unit="คน" active={fActive} onClear={() => setF(F0)} note="กดหัวคอลัมน์เพื่อเรียง" />
           {sorted.length === 0 ? <p className="muted">ไม่พบผู้ใช้ตามตัวกรอง</p> : (
             <div className="table-wrap">
               <table className="grid dense">
                 <thead><tr>
-                  {th('code', 'รหัส')}{th('name', 'ชื่อ')}{th('role', 'บทบาท')}{th('prop', 'โครงการ')}{th('dayoff', 'วันหยุด')}{th('phone', 'เบอร์')}{th('line', 'LINE')}<th></th>
+                  {th('code', 'รหัส')}<th aria-label="รูป LINE"></th>{th('name', 'ชื่อ')}{th('role', 'บทบาท')}{th('prop', 'โครงการ')}{th('dayoff', 'วันหยุด')}{th('phone', 'เบอร์')}{th('line', 'LINE')}<th></th>
                 </tr></thead>
                 <tbody>
                   {sorted.map((u) => {
@@ -280,6 +282,7 @@ export default function People({ isPlatform = false, vendors = [] }) {
                     return (
                       <tr key={u.id}>
                         <td>{u.employee_code}</td>
+                        <td className="av-cell"><Avatar src={u.line_picture_url || u.photo_url} name={u.full_name} title={u.line_display_name ? `LINE: ${u.line_display_name}` : (u.line_user_id ? 'ผูก LINE แล้ว' : 'ยังไม่ผูก LINE')} /></td>
                         <td>{u.full_name}</td>
                         <td>
                           {roleLabel(u.role)}

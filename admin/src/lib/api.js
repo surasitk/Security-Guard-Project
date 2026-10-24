@@ -17,7 +17,7 @@ function store(k, v) { try { v ? localStorage.setItem(k, v) : localStorage.remov
 function recall(k) { try { return localStorage.getItem(k) || '' } catch { return '' } }
 export function getVendor() { return currentVendor }
 /** Super Admin สลับ Tenant → ขอ token ใหม่ของ Tenant นั้น (สิทธิ์เจ้าของ) */
-export async function switchVendor(id) { store(ACT_KEY, id); return initAuth() }
+export async function switchVendor(id) { store(ACT_KEY, id); clearCache(); return initAuth() }
 
 export function getUser() { return currentUser }
 export function tenantId() {
@@ -92,7 +92,7 @@ async function authed(path, options = {}, retried = false) {
 
 /** ผู้ใช้ถูกปิดใช้งาน → ทิ้ง token แล้วโหลดหน้าใหม่ (จะเจอหน้าจอ "บัญชีถูกปิดใช้งาน") */
 function kickOut() {
-  accessToken = ''; currentUser = null
+  accessToken = ''; currentUser = null; clearCache()
   window.location.reload()
   return new Promise(() => {})
 }
@@ -103,7 +103,30 @@ export async function list(pathWithQuery) {
   return res.json()
 }
 
+// ── แคชข้อมูลอ้างอิง (รายชื่อโครงการ/พนักงานสำหรับช่องเลือก) ─────────────────
+// เปิดหน้าแล้วได้ทันทีจากที่จำไว้ (sessionStorage ของแท็บนี้) แล้วโหลดใหม่เบื้องหลังเก็บไว้ใช้ครั้งถัดไป
+// ไม่ใช้กับข้อมูลสด (ใครอยู่เวร แผนที่ SOS เวลาเข้า-ออก) · แก้ข้อมูลใดๆ = ล้างแคชทั้งหมด · แยกตาม Tenant
+const CACHE_TTL = 10 * 60 * 1000
+const CACHE_PREFIX = 'hgc:'
+const cacheKey = (path) => { try { return `${CACHE_PREFIX}${tenantId()}:${path}` } catch { return null } }
+export function clearCache() {
+  try { Object.keys(sessionStorage).filter((k) => k.startsWith(CACHE_PREFIX)).forEach((k) => sessionStorage.removeItem(k)) } catch { /* ignore */ }
+}
+export async function listCached(pathWithQuery) {
+  const k = cacheKey(pathWithQuery)
+  const fresh = list(pathWithQuery).then((d) => {
+    try { if (k) sessionStorage.setItem(k, JSON.stringify({ t: Date.now(), d })) } catch { /* เต็ม/ปิดไว้ — ข้าม */ }
+    return d
+  })
+  try {
+    const c = k && JSON.parse(sessionStorage.getItem(k) || 'null')
+    if (c && Date.now() - c.t < CACHE_TTL) { fresh.catch(() => {}); return c.d }
+  } catch { /* ignore */ }
+  return fresh
+}
+
 export async function insert(table, row) {
+  clearCache()
   const res = await authed(`/rest/v1/${table}`, {
     method: 'POST',
     headers: { Prefer: 'return=representation' },
@@ -115,6 +138,7 @@ export async function insert(table, row) {
 }
 
 export async function update(table, filter, patch) {
+  clearCache()
   const res = await authed(`/rest/v1/${table}?${filter}`, {
     method: 'PATCH',
     body: JSON.stringify(patch),
@@ -122,7 +146,9 @@ export async function update(table, filter, patch) {
   if (!res.ok) { const b = await res.json().catch(() => null); throw new Error(errTh(b?.message || `failed_${res.status}`)) }
 }
 
+const WRITE_RPC = /^(save_|set_|create_|update_|import_|generate_|admin_close|dispatch_person|send_broadcast|review_)/
 export async function rpc(fn, args = {}) {
+  if (WRITE_RPC.test(fn)) clearCache()
   const res = await authed(`/rest/v1/rpc/${fn}`, { method: 'POST', body: JSON.stringify(args) })
   const body = await res.json().catch(() => null)
   if (!res.ok) throw new Error(errTh(body?.message || `failed_${res.status}`))
