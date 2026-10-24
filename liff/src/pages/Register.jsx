@@ -42,7 +42,7 @@ export default function Register({ onDone }) {
 
       <div className="field">
         <label>รหัสพนักงาน</label>
-        <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="เช่น SG-0042" />
+        <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="เช่น SN-042" />
       </div>
       <div className="field">
         <label>เบอร์โทรที่แจ้งไว้กับบริษัท</label>
