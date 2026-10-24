@@ -3,7 +3,7 @@
 /* ── โครง: แถบเมนูซ้าย + พื้นที่งาน ── */
 .shell { display: grid; grid-template-columns: 236px minmax(0, 1fr); min-height: 100vh; }
 .side {
-  position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column;
+  position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #3a4047 transparent;
   background: var(--ink); color: #c9ced3; padding: 22px 14px 16px;
 }
 .side .brand { color: #fff; font-size: 16px; padding: 0 10px; }
@@ -412,3 +412,93 @@ table.grid tr.sos-open td:first-child { box-shadow: inset 4px 0 0 var(--alert); 
 .sos-timeline li { display: flex; gap: 10px; padding: 9px 0; border-bottom: 1px dashed var(--line); font-size: 14px; }
 .sos-timeline li:last-child { border-bottom: 0; }
 .sos-ev-note { background: var(--sunk); border-radius: 8px; padding: 6px 10px; margin: 4px 0; white-space: pre-line; }
+
+/* ── แพ็กเกจและราคา (migration 35) ── */
+.notice.warn { background: var(--warn-bg); color: #7a4f12; }
+.alert-txt { color: var(--alert); font-weight: 600; }
+.sub-h { font-size: 15.5px; font-weight: 600; margin: 18px 0 10px; }
+.sub-h .muted { font-weight: 400; font-size: 13px; }
+.pkg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 14px; }
+.pkg-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.pkg-card.hi { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
+.pkg-card.off { opacity: .6; }
+.pkg-top { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+.pkg-name { font-size: 19px; font-weight: 700; display: flex; align-items: center; flex-wrap: wrap; row-gap: 4px; }
+.pkg-price b { font-size: 26px; letter-spacing: -0.02em; }
+.pkg-price span { color: var(--mute); font-size: 13.5px; margin-left: 6px; }
+.pkg-meta { font-size: 13.5px; color: var(--ink-2); }
+.pkg-limits { margin: 0; border-top: 1px solid var(--line); padding-top: 8px; }
+.pkg-limits > div, .pp-card dl > div { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; font-size: 13.5px; border-bottom: 1px dashed var(--line); }
+.pkg-limits > div:last-child, .pp-card dl > div:last-child { border-bottom: 0; }
+.pkg-limits dt, .pp-card dt { color: var(--ink-2); }
+.pkg-limits dd, .pp-card dd { margin: 0; font-weight: 600; text-align: right; }
+.pkg-foot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: auto; padding-top: 6px; }
+.pkg-foot .grow { flex: 1; }
+.drawer.wide { width: min(760px, 100%); }
+.pe-sec { border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); padding: 14px 18px 18px; margin: 0 0 14px; min-width: 0; }
+.pe-sec legend { font-weight: 600; font-size: 14.5px; padding: 0 6px; }
+.lim-list { display: grid; gap: 0; }
+.lim-row { display: flex; justify-content: space-between; align-items: center; gap: 14px; padding: 9px 0; border-bottom: 1px dashed var(--line); flex-wrap: wrap; }
+.lim-row:last-child { border-bottom: 0; }
+.lim-row > div:first-child { min-width: 0; flex: 1 1 200px; font-size: 14px; }
+.lim-row .muted { font-size: 12.5px; }
+.lim-in { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.lim-in input[type=number] { width: 96px; padding: 7px 10px; border: 1px solid var(--line); border-radius: var(--r-sm); font: inherit; }
+.lim-in select { padding: 7px 10px; border: 1px solid var(--line); border-radius: var(--r-sm); font: inherit; font-size: 13.5px; max-width: 100%; background: var(--surface); }
+.chk { display: inline-flex; align-items: center; gap: 7px; font-size: 14px; cursor: pointer; white-space: nowrap; }
+.chk input { width: 17px; height: 17px; accent-color: var(--ink); }
+.chk-row { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 12px; }
+.modal-foot .btn + .btn, .actions .btn + .btn { margin-top: 0; }
+.tp-cols { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 22px; }
+.tp-usage { background: var(--paper); border-radius: var(--r-lg); padding: 14px 16px; }
+@media (max-width: 760px) { .tp-cols { grid-template-columns: 1fr; } }
+.ub { display: grid; gap: 12px; }
+.ub-top { display: flex; justify-content: space-between; gap: 10px; font-size: 13.5px; margin-bottom: 5px; }
+.ub-top small { color: var(--mute); }
+.ub-top b { white-space: nowrap; }
+.ub-bar { height: 8px; border-radius: 99px; background: var(--sunk); overflow: hidden; }
+.ub-bar i { display: block; height: 100%; background: var(--ink); border-radius: 99px; }
+.ub-bar i.inf { background: repeating-linear-gradient(90deg, var(--duty-bg) 0 8px, #d3e8dd 8px 16px); }
+.ub-row.near .ub-bar i { background: var(--warn); }
+.ub-row.full .ub-bar i { background: var(--alert); }
+.ub-row.full .ub-top b { color: var(--alert); }
+.ub-info { display: flex; gap: 8px 18px; flex-wrap: wrap; font-size: 13.5px; color: var(--ink-2); padding-top: 8px; border-top: 1px solid var(--line); }
+.myplan-hero { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; padding: 18px 22px; margin-bottom: 16px; }
+.mp-name { font-size: 24px; font-weight: 700; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 2px 0 4px; }
+.notice.upsell { background: var(--duty-bg); color: #164c34; }
+.cell-in { padding: 7px 9px; border: 1px solid var(--line); border-radius: var(--r-sm); font: inherit; font-size: 14px; width: 100%; min-width: 120px; background: var(--surface); }
+.cell-in.num { width: 96px; min-width: 80px; margin-top: 4px; }
+.cell-in.sm { min-width: 70px; width: 80px; }
+/* ตัวอย่างหน้าราคา (ใกล้เคียงหน้าเว็บ) */
+.pp { background: #002B58; color: #fff; border-radius: 18px; padding: 24px; }
+.pp-head h3 { font-size: 22px; margin: 0 0 4px; }
+.pp-head p { color: #c3d0e0; margin: 0 0 12px; font-size: 14px; }
+.pp-toggle { display: inline-flex; background: rgba(255,255,255,.1); border-radius: 99px; padding: 3px; margin-bottom: 16px; flex-wrap: wrap; }
+.pp-toggle button { border: 0; background: none; color: #c3d0e0; font: 500 13.5px var(--font); padding: 7px 14px; border-radius: 99px; cursor: pointer; }
+.pp-toggle button.on { background: #fff; color: #002B58; }
+.pp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+.pp-card { background: #fff; color: var(--ink); border-radius: 14px; padding: 18px; position: relative; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.pp-card.hi { box-shadow: 0 0 0 3px #F5A524; }
+.pp-badge { position: absolute; top: -10px; right: 14px; background: #F5A524; color: #1a1200; font-size: 12px; font-weight: 700; padding: 2px 10px; border-radius: 99px; }
+.pp-name { font-weight: 700; font-size: 18px; }
+.pp-tag { color: var(--mute); font-size: 13px; }
+.pp-price b { font-size: 26px; }
+.pp-price span { color: var(--mute); margin-left: 4px; font-size: 13px; }
+.pp-sub { font-size: 13px; color: var(--ink-2); }
+.pp-card ul { margin: 6px 0; padding-left: 18px; font-size: 13.5px; display: grid; gap: 3px; }
+.pp-card details { font-size: 13px; }
+.pp-card summary { cursor: pointer; color: var(--ink-2); }
+.pp-card dl { margin: 6px 0 0; }
+.pp-cta { margin-top: auto; text-align: center; background: #002B58; color: #fff; border-radius: 99px; padding: 9px; font-weight: 600; font-size: 14px; }
+.pp-card.hi .pp-cta { background: #F5A524; color: #1a1200; }
+.pp-setup { font-size: 12px; color: var(--mute); text-align: center; }
+.pp-notes { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 16px; font-size: 13px; color: #c3d0e0; }
+.pp-notes p { flex-basis: 100%; margin: 4px 0 0; }
+.pp-addons { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 12px; font-size: 13px; color: #e6edf5; }
+.lim-in select { width: auto; min-height: 38px; }
+.lim-in .muted { min-width: 34px; font-size: 13px; }
+.lim-in input[type=number] { min-height: 38px; }
+.addon-lim { display: flex; flex-direction: column; gap: 4px; min-width: 170px; }
+.addon-lim .cell-in.num { margin-top: 0; }
+table.grid td select.cell-in { width: 100%; min-height: 36px; }
+a.btn, a.btn:hover { text-decoration: none; }

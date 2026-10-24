@@ -3,6 +3,8 @@ import liff from '@line/liff'
 import { errTh } from './errors'
 export { errTh }
 // เน็ตหลุด/ต่อไม่ได้ → ข้อความไทย (แทน 'Failed to fetch')
+// plan_limit:<key> จาก trigger ฐานข้อมูล → แนบเพดาน (details) ไปให้ errTh แปลเป็น "โครงการครบ 5 แห่งแล้ว"
+const pgMsg = (b) => (typeof b?.message === 'string' && b.message.startsWith('plan_limit:') ? `${b.message}|${b.details ?? ''}` : b?.message)
 const safeFetch = (u, o) => fetch(u, o).catch((e) => { throw new Error(errTh(e)) })
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
@@ -111,7 +113,7 @@ function kickOut(kicked = false) {
 
 export async function list(pathWithQuery) {
   const res = await authed(`/rest/v1/${pathWithQuery}`)
-  if (!res.ok) { const b = await res.json().catch(() => null); throw new Error(errTh(b?.message || b?.code || `failed_${res.status}`)) }
+  if (!res.ok) { const b = await res.json().catch(() => null); throw new Error(errTh(pgMsg(b) || b?.code || `failed_${res.status}`)) }
   return res.json()
 }
 
@@ -145,7 +147,7 @@ export async function insert(table, row) {
     body: JSON.stringify(row),
   })
   const body = await res.json().catch(() => null)
-  if (!res.ok) throw new Error(errTh(body?.message || `failed_${res.status}`))
+  if (!res.ok) throw new Error(errTh(pgMsg(body) || `failed_${res.status}`))
   return body
 }
 
@@ -155,7 +157,7 @@ export async function update(table, filter, patch) {
     method: 'PATCH',
     body: JSON.stringify(patch),
   })
-  if (!res.ok) { const b = await res.json().catch(() => null); throw new Error(errTh(b?.message || `failed_${res.status}`)) }
+  if (!res.ok) { const b = await res.json().catch(() => null); throw new Error(errTh(pgMsg(b) || `failed_${res.status}`)) }
 }
 
 const WRITE_RPC = /^(save_|set_|create_|update_|import_|generate_|admin_close|dispatch_person|send_broadcast|review_)/
@@ -163,7 +165,7 @@ export async function rpc(fn, args = {}) {
   if (WRITE_RPC.test(fn)) clearCache()
   const res = await authed(`/rest/v1/rpc/${fn}`, { method: 'POST', body: JSON.stringify(args) })
   const body = await res.json().catch(() => null)
-  if (!res.ok) throw new Error(errTh(body?.message || `failed_${res.status}`))
+  if (!res.ok) throw new Error(errTh(pgMsg(body) || `failed_${res.status}`))
   return body
 }
 

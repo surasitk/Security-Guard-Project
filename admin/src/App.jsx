@@ -13,6 +13,8 @@ import Broadcast from './pages/Broadcast.jsx'
 import ClientDashboard from './pages/ClientDashboard.jsx'
 import GpsReport from './pages/GpsReport.jsx'
 import Incidents from './pages/Incidents.jsx'
+import Packages from './pages/Packages.jsx'
+import MyPlan from './pages/MyPlan.jsx'
 import { rpc } from './lib/api'
 import { SkLine, SkPage } from './components/Skeleton.jsx'
 import logoWhite from './assets/horguard-white.png'
@@ -32,6 +34,8 @@ const I = {
   chart: <><path d="M4 20V4M4 20h16" /><path d="M8 16v-4M12 16V8M16 16v-6" /></>,
   siren: <><path d="M6 18v-6a6 6 0 0 1 12 0v6" /><path d="M4 18h16v3H4zM12 3V1.5M4.2 6.2 3 5M19.8 6.2 21 5" /></>,
   pin: <><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z" /><path d="M12 7.5v3.5M12 13.6v.01" /></>,
+  tag: <><path d="M3 12V4h8l10 10-8 8z" /><circle cx="7.5" cy="8.5" r="1.5" /></>,
+  box: <><path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z" /><path d="M3 7.5 12 12l9-4.5M12 12v9" /></>,
   report: <><path d="M7 3h7l5 5v13H7z" /><path d="M14 3v5h5M10 13h6M10 17h6M10 9h2" /></>,
 }
 const Icon = ({ k }) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{I[k]}</svg>
@@ -50,8 +54,10 @@ const BASE_TABS = [
   { group: 'รายงาน', key: 'reports', label: 'รายงาน', icon: 'report', desc: 'รายงานเวลาเข้า-ออกงาน สาย และ OT ตามโครงการ ช่วงวันที่ และรายชื่อ — Export เป็น Excel', el: Reports },
   { group: 'รายงาน', key: 'gpsreport', label: 'พิกัดน่าสงสัย', icon: 'pin', desc: 'การเข้า-ออกงานที่ระบบสงสัยว่าใช้พิกัดปลอม (Fake GPS) พร้อมเหตุผล รูป และพิกัด — ตรวจแล้วบันทึกผล ปกติ / ยืนยันผิดปกติ · Export Excel', el: GpsReport, noLeader: true },
   { group: 'รายงาน', key: 'client', label: 'แดชบอร์ดลูกค้า', icon: 'chart', desc: 'SLA การเข้ากะ ความครอบคลุมการตรวจตรา เหตุที่แจ้ง และ heat map จุดตรวจ รายโครงการ', el: ClientDashboard },
+  { group: 'บัญชีบริษัท', key: 'myplan', label: 'แพ็กเกจของฉัน', icon: 'box', desc: 'แพ็กเกจปัจจุบัน การใช้งานเทียบเพดาน และประมาณการค่าบริการเดือนนี้', el: MyPlan, ownerOnly: true },
 ]
 const VENDOR_TAB = { group: 'ผู้ดูแลระบบ', key: 'vendors', label: 'Tenant ในระบบ', icon: 'org', desc: 'Tenant = บริษัท รปภ. ที่ใช้ Horguard (เฉพาะ Super Admin)', el: Vendors }
+const PACKAGES_TAB = { group: 'ผู้ดูแลระบบ', key: 'packages', label: 'แพ็กเกจและราคา', icon: 'tag', desc: 'ราคา เพดาน และข้อความหน้าเว็บของแต่ละแพ็กเกจ · กำหนดแพ็กเกจให้ Tenant (เฉพาะ Super Admin)', el: Packages }
 const ROLE_TH = { owner: 'เจ้าของ', admin: 'แอดมิน', zone_manager: 'ผู้จัดการโซน', supervisor: 'สายตรวจ', shift_leader: 'หัวหน้ากะ', client: 'ลูกค้า' }
 // ผู้จัดการโซน: ดูได้อย่างเดียว เฉพาะเมนูเหล่านี้ (ไม่เห็นค่าแรง/เงิน)
 const ZONE_TABS = ['dashboard', 'forcemap', 'sos', 'shifts', 'checkpoints', 'reports', 'gpsreport']
@@ -105,10 +111,11 @@ export default function App() {
   const user = getUser()
   const role = user.effective_role || user.role
   // ลูกค้าเห็นเฉพาะแดชบอร์ดลูกค้า (เมนูอื่นค่อยเปิดภายหลัง)
-  const staffTabs = BASE_TABS.filter((t) => !(t.noLeader && role === 'shift_leader'))
+  const staffTabs = BASE_TABS.filter((t) => !(t.noLeader && role === 'shift_leader')
+    && !(t.ownerOnly && !isPlatform && !['owner', 'admin'].includes(role)))
   const TABS = role === 'client' ? BASE_TABS.filter((t) => t.key === 'client')
     : role === 'zone_manager' ? BASE_TABS.filter((t) => ZONE_TABS.includes(t.key))
-    : isPlatform ? [...staffTabs, VENDOR_TAB] : staffTabs
+    : isPlatform ? [...staffTabs, VENDOR_TAB, PACKAGES_TAB] : staffTabs
   const Active = (TABS.find((t) => t.key === tab) || TABS[0]).el
 
   const current = TABS.find((t) => t.key === tab) || TABS[0]

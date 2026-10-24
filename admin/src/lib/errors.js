@@ -36,6 +36,9 @@ export const ERROR_TH = {
   consent_required: 'กรุณากดยอมรับเงื่อนไขการใช้ข้อมูลก่อน',
   notice_outdated: 'ประกาศความเป็นส่วนตัวมีฉบับใหม่ — อ่านและกดรับทราบอีกครั้ง',
   unknown_purpose: 'ไม่พบหัวข้อความยินยอมนี้',
+  invalid_plan_id: 'รหัสแพ็กเกจใช้ได้เฉพาะ a–z 0–9 - _ (2–30 ตัว)',
+  name_required: 'กรุณากรอกชื่อ',
+  invalid_input: 'ข้อมูลไม่ถูกต้อง — ตรวจสอบอีกครั้ง',
   user_no_line: 'พนักงานคนนี้ยังไม่ได้ผูก LINE จึงส่งข้อความไม่ได้',
 
   // ── เข้า-ออกงาน ──
@@ -138,10 +141,29 @@ const PATTERNS = [
 const hasThai = (s) => /[฀-๿]/.test(s)
 
 /** แปลงข้อผิดพลาดใดๆ เป็นข้อความภาษาไทยที่อ่านเข้าใจ */
+// เกินเพดานแพ็กเกจ (migration 35): 'plan_limit:<key>|<เพดาน>'
+const PLAN_LIMIT_TH = {
+  max_properties: (n) => `โครงการครบ ${n} แห่งแล้ว`,
+  max_checkpoints_per_property: (n) => `จุดตรวจในโครงการนี้ครบ ${n} จุดแล้ว`,
+  max_staff_accounts: (n) => `บัญชีแอดมิน + ผู้จัดการโซนครบ ${n} บัญชีแล้ว`,
+  max_client_accounts: (n) => `บัญชีลูกค้าครบ ${n} บัญชีแล้ว`,
+  max_field_users: (n) => `ผู้ใช้หน้างาน (รปภ. หัวหน้ากะ สแปร์ สายตรวจ) ครบ ${n} คนแล้ว`,
+  broadcasts_per_month: (n) => `ประกาศกลุ่มเดือนนี้ครบ ${n} ครั้งแล้ว`,
+}
+export function planLimitTh(s) {
+  const m = String(s || '').match(/plan_limit:([a-z_]+)(?:\|(\d+(?:\.\d+)?)?)?/)
+  if (!m) return null
+  const n = m[2] ? Number(m[2]) : null
+  const what = PLAN_LIMIT_TH[m[1]] && n != null ? PLAN_LIMIT_TH[m[1]](n) : 'ถึงเพดานการใช้งานของแพ็กเกจแล้ว'
+  return `เกินแพ็กเกจ: ${what} — อัปเกรดแพ็กเกจหรือซื้อเพิ่มได้ ติดต่อ Horguard ทาง LINE`
+}
+
 export function errTh(e, fallback = 'ทำรายการไม่สำเร็จ — ลองใหม่อีกครั้ง') {
   if (e == null || e === '') return fallback
   const raw = typeof e === 'string' ? e : (e.message || e.error || e.code || String(e))
   const s = String(raw).trim()
+  const pl = planLimitTh(s)
+  if (pl) return pl
   if (ERROR_TH[s]) return ERROR_TH[s]
   if (/statement timeout|canceling statement/i.test(s)) return 'ข้อมูลมากเกินไป ใช้เวลานานเกินกำหนด — ลดช่วงวันที่แล้วลองใหม่'
   // รหัสอยู่ในข้อความ เช่น 'project_limit_exceeded' จาก raise exception หรือ 'rpc_check_in_failed_401'

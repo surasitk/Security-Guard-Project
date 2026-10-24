@@ -15,6 +15,7 @@ const outLabel = (r) => {
   const plus = bkkDate(new Date(r.check_out_at)) !== r.work_date ? ' (+1)' : ''
   return fmtT(r.check_out_at) + plus
 }
+const lookbackMonths = (min) => { const a = new Date(`${min}T00:00:00+07:00`), b = new Date(`${bkkDate()}T00:00:00+07:00`); return Math.round((b - a) / (30.44 * 86400000)) }
 const money = (n) => Number(n || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const KIND = { adhoc: 'เช็คอินโครงการ', emergency: 'ฉุกเฉิน', open: 'ตามช่วงกะ' }
 
@@ -62,14 +63,17 @@ export default function Reports() {
   const [rows, setRows] = useState(null)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState(null)
+  const [minDate, setMinDate] = useState(null)   // ดูย้อนหลังได้ตามแพ็กเกจ (null = ไม่จำกัด)
 
   useEffect(() => {
+    rpc('report_min_date').then((d) => setMinDate(d || null)).catch(() => {})
     listCached('properties?select=id,name,is_test&is_active=is.true&order=name').then(setProps).catch(() => {})
     listCached('users?select=id,full_name,employee_code,role&order=full_name').then(setPeople).catch(() => {})
   }, [])
 
   async function search(e) {
     e?.preventDefault(); setMsg(null)
+    if (minDate && f.from < minDate) { setMsg({ t: 'err', m: `แพ็กเกจของคุณดูรายงานย้อนหลังได้ตั้งแต่ ${fmtD(minDate)} — อัปเกรดแพ็กเกจเพื่อดูย้อนหลังได้นานขึ้น` }); return }
     if (f.to < f.from) { setMsg({ t: 'err', m: 'วันที่สิ้นสุดต้องไม่ก่อนวันที่เริ่ม' }); return }
     const days = (Date.parse(f.to) - Date.parse(f.from)) / 86400000
     if (days > 92) { setMsg({ t: 'err', m: 'เลือกช่วงได้ไม่เกิน 93 วันต่อครั้ง' }); return }
@@ -184,10 +188,10 @@ export default function Reports() {
             </select>
           </div>
           <div className="field"><label>ตั้งแต่วันที่</label>
-            <input type="date" value={f.from} onChange={(e) => setF({ ...f, from: e.target.value })} required />
+            <input type="date" value={f.from} min={minDate || undefined} onChange={(e) => setF({ ...f, from: e.target.value })} required />
           </div>
           <div className="field"><label>ถึงวันที่</label>
-            <input type="date" value={f.to} onChange={(e) => setF({ ...f, to: e.target.value })} required />
+            <input type="date" value={f.to} min={minDate || undefined} onChange={(e) => setF({ ...f, to: e.target.value })} required />
           </div>
           <div className="field"><label>รายชื่อ</label>
             <select value={f.user} onChange={(e) => setF({ ...f, user: e.target.value })}>
@@ -200,7 +204,7 @@ export default function Reports() {
             <button className="btn inline ghost" type="button" onClick={exportXlsx} disabled={busy || !rows || !rows.length}>Export Excel</button>
           </div>
         </div>
-        <p className="hint">สูงสุด 93 วันต่อครั้ง · OT = เวลาออกงานที่เกินเวลาจบกะ · กะที่ผ่านไปแล้วแต่ไม่มีการเข้างานนับเป็นขาดงาน{M ? ' · จำนวนเงิน = ค่าแรง/วันที่ตั้งไว้ในหน้าพนักงาน × กะที่เข้างาน' : ''}</p>
+        <p className="hint">{minDate ? `แพ็กเกจของคุณดูย้อนหลังได้ถึง ${fmtD(minDate)} (${lookbackMonths(minDate)} เดือน) · ` : ''}สูงสุด 93 วันต่อครั้ง · OT = เวลาออกงานที่เกินเวลาจบกะ · กะที่ผ่านไปแล้วแต่ไม่มีการเข้างานนับเป็นขาดงาน{M ? ' · จำนวนเงิน = ค่าแรง/วันที่ตั้งไว้ในหน้าพนักงาน × กะที่เข้างาน' : ''}</p>
       </form>
 
       {msg && <div className={`notice ${msg.t === 'err' ? 'err' : ''}`}>{msg.m}</div>}

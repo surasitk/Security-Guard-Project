@@ -5,21 +5,29 @@ import { SkTable } from '../components/Skeleton.jsx'
 
 export default function Vendors() {
   const [rows, setRows] = useState(null)
-  const BLANK = { name_th: '', name_en: '', plan: 'basic', owner_name: '', owner_phone: '' }
+  const BLANK = { name_th: '', name_en: '', owner_name: '', owner_phone: '' }
   const [form, setForm] = useState(BLANK)
   const [msg, setMsg] = useState(null)
   const [busy, setBusy] = useState(false)
   const [edit, setEdit] = useState(null) // { id, name, plan, is_active }
   const [saving, setSaving] = useState(false)
 
-  const load = () => rpc('list_vendors').then(setRows).catch((e) => setMsg({ t: 'err', m: errTh(e) }))
+  const [plans, setPlans] = useState({})   // tenant_id → ชื่อแพ็กเกจ/สถานะ (จาก tenant_plans — migration 35)
+  const load = () => {
+    rpc('list_vendors').then(setRows).catch((e) => setMsg({ t: 'err', m: errTh(e) }))
+    rpc('admin_list_plans').then((o) => {
+      if (!o?.ok) return
+      const name = Object.fromEntries((o.plans || []).map((p) => [p.id, p.name]))
+      setPlans(Object.fromEntries((o.tenants || []).map((t) => [t.tenant_id, { name: name[t.plan_id] || t.plan_id, status: t.status, hi: t.plan_id === 'enterprise' }])))
+    }).catch(() => {})
+  }
   useEffect(() => { load() }, [])
 
   async function submit(e) {
     e.preventDefault(); setMsg(null); setBusy(true)
     try {
       const out = await rpc('create_vendor', {
-        p_name_th: form.name_th.trim(), p_name_en: form.name_en.trim(), p_plan: form.plan,
+        p_name_th: form.name_th.trim(), p_name_en: form.name_en.trim(), p_plan: '',
         p_owner_name: form.owner_name.trim(), p_owner_phone: form.owner_phone.trim(),
       })
       if (out.ok) {
@@ -33,7 +41,7 @@ export default function Vendors() {
   async function saveEdit() {
     setSaving(true); setMsg(null)
     try {
-      const o = await rpc('update_vendor', { p_tenant_id: edit.id, p_name: edit.name.trim(), p_name_en: edit.name_en.trim(), p_plan: edit.plan, p_is_active: edit.is_active })
+      const o = await rpc('update_vendor', { p_tenant_id: edit.id, p_name: edit.name.trim(), p_name_en: edit.name_en.trim(), p_plan: '', p_is_active: edit.is_active })
       if (!o.ok) throw new Error(errTh(o.error))
       setMsg({ t: 'ok', m: 'บันทึกแล้ว' }); setEdit(null); load()
     } catch (e) { setMsg({ t: 'err', m: errTh(e) }) } finally { setSaving(false) }
@@ -48,15 +56,12 @@ export default function Vendors() {
         <div className="form-grid">
           <div className="field"><label>ชื่อ Tenant ภาษาไทย *</label><input value={form.name_th} onChange={set('name_th')} placeholder="บริษัท … จำกัด" required /></div>
           <div className="field"><label>ชื่อ Tenant ภาษาอังกฤษ *</label><input value={form.name_en} onChange={set('name_en')} placeholder="… Security Co., Ltd." pattern="[^A-Za-z]*[A-Za-z].*" title="ต้องมีตัวอักษร A–Z" required /></div>
-          <div className="field"><label>แพ็คเกจ</label>
-            <select value={form.plan} onChange={set('plan')}><option value="basic">Basic</option><option value="pro">Pro</option></select>
-          </div>
           <div className="field"><label>ชื่อ-สกุล Owner *</label><input value={form.owner_name} onChange={set('owner_name')} required /></div>
           <div className="field"><label>รหัสพนักงาน Owner</label><input value="สร้างอัตโนมัติ (…-000)" disabled /></div>
           <div className="field"><label>เบอร์โทร Owner *</label><input value={form.owner_phone} onChange={set('owner_phone')} inputMode="tel" required /></div>
           <button className="btn inline" type="submit" disabled={busy}>{busy ? 'กำลังสร้าง…' : 'สร้าง Tenant'}</button>
         </div>
-        <p className="muted" style={{ marginTop: 10 }}>ตัวอักษรนำหน้ารหัสพนักงาน = ตัวแรกของชื่อภาษาอังกฤษ + สุ่มอีก 1 ตัว (ไม่ซ้ำ Tenant อื่น) · Owner ได้รหัส …-000 เสมอ ผู้ใช้ที่ Tenant สร้างต่อจะได้ -001, -002 … อัตโนมัติ · owner ลงทะเบียน LINE ด้วยรหัส + เบอร์ แล้วเข้าเว็บนี้ได้ — เห็นเฉพาะข้อมูลบริษัทตัวเอง · เบอร์โทรต้องไม่ซ้ำกับผู้ใช้ที่ยังใช้งานอยู่</p>
+        <p className="muted" style={{ marginTop: 10 }}>Tenant ใหม่ได้ทดลองใช้แพ็กเกจ Business 30 วันอัตโนมัติ — เปลี่ยนแพ็กเกจได้ที่เมนู "แพ็กเกจและราคา" · ตัวอักษรนำหน้ารหัสพนักงาน = ตัวแรกของชื่อภาษาอังกฤษ + สุ่มอีก 1 ตัว (ไม่ซ้ำ Tenant อื่น) · Owner ได้รหัส …-000 เสมอ ผู้ใช้ที่ Tenant สร้างต่อจะได้ -001, -002 … อัตโนมัติ · owner ลงทะเบียน LINE ด้วยรหัส + เบอร์ แล้วเข้าเว็บนี้ได้ — เห็นเฉพาะข้อมูลบริษัทตัวเอง · เบอร์โทรต้องไม่ซ้ำกับผู้ใช้ที่ยังใช้งานอยู่</p>
       </form>
       {msg && <div className={`notice ${msg.t === 'err' ? 'err' : ''}`}>{msg.m}</div>}
 
@@ -73,11 +78,7 @@ export default function Vendors() {
                     <input value={edit.name_en} onChange={(e) => setEdit({ ...edit, name_en: e.target.value })} placeholder="ชื่ออังกฤษ" style={{ padding: 8, width: 180 }} />
                   </td>
                   <td>{v.code_prefix || '—'}</td>
-                  <td>
-                    <select value={edit.plan} onChange={(e) => setEdit({ ...edit, plan: e.target.value })} style={{ padding: 8 }}>
-                      <option value="basic">basic</option><option value="pro">pro</option>
-                    </select>
-                  </td>
+                  <td><PlanBadge p={plans[v.id]} /></td>
                   <td>
                     <select value={edit.is_active ? '1' : '0'} onChange={(e) => setEdit({ ...edit, is_active: e.target.value === '1' })} style={{ padding: 8 }}>
                       <option value="1">ใช้งาน</option><option value="0">ปิด</option>
@@ -93,11 +94,11 @@ export default function Vendors() {
                 <tr key={v.id} style={{ opacity: v.is_active ? 1 : 0.5 }}>
                   <td>{v.name}{v.is_test && <span className="badge warn" style={{ marginLeft: 8 }}>ทดสอบ · เห็นเฉพาะ Super Admin</span>}{v.name_en && <div className="muted">{v.name_en}</div>}</td>
                   <td>{v.code_prefix ? <span className="badge">{v.code_prefix}</span> : '—'}</td>
-                  <td><span className={`badge ${v.plan === 'pro' ? 'solid' : ''}`}>{v.plan}</span></td>
+                  <td><PlanBadge p={plans[v.id]} /></td>
                   <td>{v.is_active ? <span className="muted">ใช้งาน</span> : <span className="badge">ปิด</span>}</td>
                   <td>{v.properties_count}</td><td>{v.users_count}</td><td>{v.line_linked_count}</td><td>{fmtDate(v.created_at)}</td>
                   <td><button className="badge" style={{ cursor: 'pointer', fontFamily: 'var(--font)', background: 'none' }}
-                    onClick={() => setEdit({ id: v.id, name: v.name, name_en: v.name_en || '', plan: v.plan, is_active: v.is_active })}>แก้ไข</button></td>
+                    onClick={() => setEdit({ id: v.id, name: v.name, name_en: v.name_en || '', is_active: v.is_active })}>แก้ไข</button></td>
                 </tr>
               ))}
             </tbody>
@@ -107,3 +108,6 @@ export default function Vendors() {
     </div>
   )
 }
+
+const PlanBadge = ({ p }) => (!p ? <span className="muted">—</span>
+  : <span className={`badge ${p.hi ? 'solid' : ''}`}>{p.name}{p.status === 'trial' ? ' · ทดลอง' : p.status === 'suspended' ? ' · ระงับ' : ''}</span>)
