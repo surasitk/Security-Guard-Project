@@ -62,45 +62,47 @@ export default function Vendors() {
 
       <div className="section-h"><h2>Tenant ทั้งหมด {rows ? `(${rows.length})` : ''}</h2></div>
       {!rows ? <SkTable rows={3} cols={8} /> : (
-        <table className="grid">
-          <thead><tr><th>บริษัท</th><th>รหัส</th><th>แพ็คเกจ</th><th>สถานะ</th><th>โครงการ</th><th>พนักงาน</th><th>ผูก LINE</th><th>สร้างเมื่อ</th><th></th></tr></thead>
-          <tbody>
-            {rows.map((v) => edit?.id === v.id ? (
-              <tr key={v.id}>
-                <td>
-                  <input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} placeholder="ชื่อไทย" style={{ padding: 8, width: 180, display: 'block', marginBottom: 4 }} />
-                  <input value={edit.name_en} onChange={(e) => setEdit({ ...edit, name_en: e.target.value })} placeholder="ชื่ออังกฤษ" style={{ padding: 8, width: 180 }} />
-                </td>
-                <td>{v.code_prefix || '—'}</td>
-                <td>
-                  <select value={edit.plan} onChange={(e) => setEdit({ ...edit, plan: e.target.value })} style={{ padding: 8 }}>
-                    <option value="basic">basic</option><option value="pro">pro</option>
-                  </select>
-                </td>
-                <td>
-                  <select value={edit.is_active ? '1' : '0'} onChange={(e) => setEdit({ ...edit, is_active: e.target.value === '1' })} style={{ padding: 8 }}>
-                    <option value="1">ใช้งาน</option><option value="0">ปิด</option>
-                  </select>
-                </td>
-                <td>{v.properties_count}</td><td>{v.users_count}</td><td>{v.line_linked_count}</td><td>{fmtDate(v.created_at)}</td>
-                <td style={{ whiteSpace: 'nowrap' }}>
-                  <button className="badge solid" style={{ cursor: 'pointer', border: 'none', fontFamily: 'var(--font)', marginRight: 6 }} onClick={saveEdit} disabled={saving}>{saving ? '…' : 'บันทึก'}</button>
-                  <button className="badge" style={{ cursor: 'pointer', fontFamily: 'var(--font)', background: 'none' }} onClick={() => setEdit(null)}>ยกเลิก</button>
-                </td>
-              </tr>
-            ) : (
-              <tr key={v.id} style={{ opacity: v.is_active ? 1 : 0.5 }}>
-                <td>{v.name}{v.is_test && <span className="badge warn" style={{ marginLeft: 8 }}>ทดสอบ · เห็นเฉพาะ Super Admin</span>}{v.name_en && <div className="muted">{v.name_en}</div>}</td>
-                <td>{v.code_prefix ? <span className="badge">{v.code_prefix}</span> : '—'}</td>
-                <td><span className={`badge ${v.plan === 'pro' ? 'solid' : ''}`}>{v.plan}</span></td>
-                <td>{v.is_active ? <span className="muted">ใช้งาน</span> : <span className="badge">ปิด</span>}</td>
-                <td>{v.properties_count}</td><td>{v.users_count}</td><td>{v.line_linked_count}</td><td>{fmtDate(v.created_at)}</td>
-                <td><button className="badge" style={{ cursor: 'pointer', fontFamily: 'var(--font)', background: 'none' }}
-                  onClick={() => setEdit({ id: v.id, name: v.name, name_en: v.name_en || '', plan: v.plan, is_active: v.is_active })}>แก้ไข</button></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="table-wrap">
+          <table className="grid">
+            <thead><tr><th>บริษัท</th><th>รหัส</th><th>แพ็คเกจ</th><th>สถานะ</th><th>โครงการ</th><th>พนักงาน</th><th>ผูก LINE</th><th>สร้างเมื่อ</th><th></th></tr></thead>
+            <tbody>
+              {rows.map((v) => edit?.id === v.id ? (
+                <tr key={v.id}>
+                  <td>
+                    <input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} placeholder="ชื่อไทย" style={{ padding: 8, width: 180, display: 'block', marginBottom: 4 }} />
+                    <input value={edit.name_en} onChange={(e) => setEdit({ ...edit, name_en: e.target.value })} placeholder="ชื่ออังกฤษ" style={{ padding: 8, width: 180 }} />
+                  </td>
+                  <td>{v.code_prefix || '—'}</td>
+                  <td>
+                    <select value={edit.plan} onChange={(e) => setEdit({ ...edit, plan: e.target.value })} style={{ padding: 8 }}>
+                      <option value="basic">basic</option><option value="pro">pro</option>
+                    </select>
+                  </td>
+                  <td>
+                    <select value={edit.is_active ? '1' : '0'} onChange={(e) => setEdit({ ...edit, is_active: e.target.value === '1' })} style={{ padding: 8 }}>
+                      <option value="1">ใช้งาน</option><option value="0">ปิด</option>
+                    </select>
+                  </td>
+                  <td>{v.properties_count}</td><td>{v.users_count}</td><td>{v.line_linked_count}</td><td>{fmtDate(v.created_at)}</td>
+                  <td style={{ whiteSpace: 'nowrap' }}>
+                    <button className="badge solid" style={{ cursor: 'pointer', border: 'none', fontFamily: 'var(--font)', marginRight: 6 }} onClick={saveEdit} disabled={saving}>{saving ? '…' : 'บันทึก'}</button>
+                    <button className="badge" style={{ cursor: 'pointer', fontFamily: 'var(--font)', background: 'none' }} onClick={() => setEdit(null)}>ยกเลิก</button>
+                  </td>
+                </tr>
+              ) : (
+                <tr key={v.id} style={{ opacity: v.is_active ? 1 : 0.5 }}>
+                  <td>{v.name}{v.is_test && <span className="badge warn" style={{ marginLeft: 8 }}>ทดสอบ · เห็นเฉพาะ Super Admin</span>}{v.name_en && <div className="muted">{v.name_en}</div>}</td>
+                  <td>{v.code_prefix ? <span className="badge">{v.code_prefix}</span> : '—'}</td>
+                  <td><span className={`badge ${v.plan === 'pro' ? 'solid' : ''}`}>{v.plan}</span></td>
+                  <td>{v.is_active ? <span className="muted">ใช้งาน</span> : <span className="badge">ปิด</span>}</td>
+                  <td>{v.properties_count}</td><td>{v.users_count}</td><td>{v.line_linked_count}</td><td>{fmtDate(v.created_at)}</td>
+                  <td><button className="badge" style={{ cursor: 'pointer', fontFamily: 'var(--font)', background: 'none' }}
+                    onClick={() => setEdit({ id: v.id, name: v.name, name_en: v.name_en || '', plan: v.plan, is_active: v.is_active })}>แก้ไข</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   )

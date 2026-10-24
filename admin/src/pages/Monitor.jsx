@@ -86,39 +86,41 @@ export default function Monitor() {
 
       <div className="section-h"><h2>เหตุการณ์ {DAYS_BACK} วันล่าสุด ({filtered.length})</h2></div>
       {filtered.length === 0 ? <p className="muted">ไม่มีเหตุการณ์ตามเงื่อนไขที่เลือก</p> : (
-        <table className="grid">
-          <thead><tr><th>เวลา</th><th>เหตุการณ์</th><th aria-label="รูป"></th><th>พนักงาน</th><th>โครงการ</th><th>พิกัด</th><th>รูป</th><th>หมายเหตุ</th></tr></thead>
-          <tbody>
-            {filtered.map((e, i) => (
-              <tr key={i}>
-                <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(e.at)} {fmtTime(e.at)}</td>
-                <td><span className={`badge ${e.type === 'in' ? 'solid' : ''}`}>{e.type === 'in' ? 'เข้างาน' : 'ออกงาน'}</span></td>
-                <td className="av-cell"><Avatar src={e.user?.line_picture_url || e.user?.photo_url} name={e.user?.full_name} title={e.user?.line_display_name ? `LINE: ${e.user.line_display_name}` : undefined} /></td>
-                <td>{e.user?.full_name || '—'}</td>
-                <td>{e.prop?.name || '—'}{e.prop?.province ? ` · ${e.prop.province}` : ''}</td>
-                <td>
-                  {e.lat != null ? (
-                    <a href={`https://maps.google.com/?q=${e.lat},${e.lng}`} target="_blank" rel="noreferrer" style={{ color: 'var(--ink)' }}>
-                      แผนที่{e.dist > 0 ? ` (${Math.round(e.dist)} ม.)` : ''}
-                    </a>
-                  ) : '—'}
-                </td>
-                <td>{e.selfie ? <button className="badge" style={{ cursor: 'pointer', fontFamily: 'var(--font)', background: 'none' }} onClick={() => openSelfie(e.selfie)}>ดูรูป</button> : '—'}</td>
-                <td>
-                  {e.type === 'in' && e.row.late_minutes > 0 && <span className="muted">สาย {e.row.late_minutes} น. </span>}
-                  {e.type === 'out' && e.row.early_leave_minutes > 0 && <span className="muted">ออกก่อน {e.row.early_leave_minutes} น. </span>}
-                  {flagList(e.row.flag_reason, e.row.is_mock_flag).filter((fl) => !fl.code.startsWith('gps_suspect')).map((fl) => <span key={fl.code} className={`badge ${fl.tone}`} style={{ marginRight: 4 }}>{fl.label}</span>)}
-                  {(() => {   // ธงพิกัดน่าสงสัย แยกตามเหตุการณ์ (เข้า/ออก) + ผลการตรวจของเจ้าหน้าที่
-                    const st = e.type === 'in' ? e.row.gps_in_status : e.row.gps_out_status
-                    if (!st) return null
-                    const why = (e.type === 'in' ? e.row.gps_in_reasons : e.row.gps_out_reasons) || []
-                    return <span className={`badge ${st === 'normal' ? '' : 'alert'}`} title={why.join('\n')} style={{ marginRight: 4 }}>⚠ สงสัยพิกัดปลอม{st !== 'pending' ? ` · ${th(GPS_STATUS_TH, st)}` : ''}</span>
-                  })()}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="table-wrap">
+          <table className="grid">
+            <thead><tr><th>เวลา</th><th>เหตุการณ์</th><th aria-label="รูป"></th><th>พนักงาน</th><th>โครงการ</th><th>พิกัด</th><th>รูป</th><th>หมายเหตุ</th></tr></thead>
+            <tbody>
+              {filtered.map((e, i) => (
+                <tr key={i}>
+                  <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(e.at)} {fmtTime(e.at)}</td>
+                  <td><span className={`badge ${e.type === 'in' ? 'solid' : ''}`}>{e.type === 'in' ? 'เข้างาน' : 'ออกงาน'}</span></td>
+                  <td className="av-cell"><Avatar src={e.user?.line_picture_url || e.user?.photo_url} name={e.user?.full_name} title={e.user?.line_display_name ? `LINE: ${e.user.line_display_name}` : undefined} /></td>
+                  <td>{e.user?.full_name || '—'}</td>
+                  <td>{e.prop?.name || '—'}{e.prop?.province ? ` · ${e.prop.province}` : ''}</td>
+                  <td>
+                    {e.lat != null ? (
+                      <a href={`https://maps.google.com/?q=${e.lat},${e.lng}`} target="_blank" rel="noreferrer" style={{ color: 'var(--ink)' }}>
+                        แผนที่{e.dist > 0 ? ` (${Math.round(e.dist)} ม.)` : ''}
+                      </a>
+                    ) : '—'}
+                  </td>
+                  <td>{e.selfie ? <button className="badge" style={{ cursor: 'pointer', fontFamily: 'var(--font)', background: 'none' }} onClick={() => openSelfie(e.selfie)}>ดูรูป</button> : '—'}</td>
+                  <td>
+                    {e.type === 'in' && e.row.late_minutes > 0 && <span className="muted">สาย {e.row.late_minutes} น. </span>}
+                    {e.type === 'out' && e.row.early_leave_minutes > 0 && <span className="muted">ออกก่อน {e.row.early_leave_minutes} น. </span>}
+                    {flagList(e.row.flag_reason, e.row.is_mock_flag).filter((fl) => !fl.code.startsWith('gps_suspect')).map((fl) => <span key={fl.code} className={`badge ${fl.tone}`} style={{ marginRight: 4 }}>{fl.label}</span>)}
+                    {(() => {   // ธงพิกัดน่าสงสัย แยกตามเหตุการณ์ (เข้า/ออก) + ผลการตรวจของเจ้าหน้าที่
+                      const st = e.type === 'in' ? e.row.gps_in_status : e.row.gps_out_status
+                      if (!st) return null
+                      const why = (e.type === 'in' ? e.row.gps_in_reasons : e.row.gps_out_reasons) || []
+                      return <span className={`badge ${st === 'normal' ? '' : 'alert'}`} title={why.join('\n')} style={{ marginRight: 4 }}>⚠ สงสัยพิกัดปลอม{st !== 'pending' ? ` · ${th(GPS_STATUS_TH, st)}` : ''}</span>
+                    })()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {audit.length > 0 && (

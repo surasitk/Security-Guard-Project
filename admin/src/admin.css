@@ -396,7 +396,8 @@ table.grid tr.sos-open td:first-child { box-shadow: inset 4px 0 0 var(--alert); 
 .drawer-h { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
 .drawer-h h2 { font-size: 21px; margin: 4px 0 6px; }
 .sos-who { display: flex; align-items: center; gap: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 12px 14px; }
-.sos-who > div { flex: 1; }
+.sos-who > div { flex: 1; min-width: 0; }
+@media (max-width: 480px) { .sos-who { flex-wrap: wrap; } .sos-who > div { flex-basis: calc(100% - 56px); } .sos-who > a.btn { flex: 1 1 100%; text-align: center; } }
 .sos-sec { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 14px 16px; margin-top: 12px; }
 .sos-photo { display: block; width: 100%; max-height: 300px; object-fit: cover; border-radius: 10px; margin-top: 8px; border: 1px solid var(--line); }
 .sos-map { height: 240px; border-radius: 10px; border: 1px solid var(--line); overflow: hidden; z-index: 0; }
